@@ -6,8 +6,8 @@ function ComplaintsPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           title="Provider complaints"
-          description="Track and resolve provider issues with complaint workflows and escalation statuses."
-          actions={[{ label: 'Review complaints' }]}
+          description="Track and resolve provider issues with complaint workflows and escalation statuses. [Planned Functionality]"
+          actions={[{ label: 'Review complaints (Coming Soon)', disabled: true }]}
         />
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
 

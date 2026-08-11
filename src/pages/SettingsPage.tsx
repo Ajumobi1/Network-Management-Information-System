@@ -6,8 +6,8 @@ function SettingsPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           title="System administration"
-          description="Configure users, roles, notifications, and audit settings for the NMIS platform."
-          actions={[{ label: 'Manage roles' }]}
+          description="Configure users, roles, notifications, and audit settings for the NMIS platform. [Planned Functionality]"
+          actions={[{ label: 'Manage roles (Coming Soon)', disabled: true }]}
         />
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
 

@@ -5,6 +5,7 @@ type PageHeaderAction = {
   to?: string;
   onClick?: () => void;
   variant?: 'primary' | 'secondary';
+  disabled?: boolean;
 };
 
 type PageHeaderProps = {
@@ -25,10 +26,10 @@ function PageHeader({ title, description, actions = [] }: PageHeaderProps) {
         <div className="flex flex-wrap gap-3">
           {actions.map(action => {
             const className = action.variant === 'secondary'
-              ? 'rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100'
-              : 'rounded-2xl bg-brand-blue px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-navy';
+              ? `rounded-2xl border border-slate-200 px-4 py-2 text-sm font-semibold transition ${action.disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'}`
+              : `rounded-2xl px-4 py-2 text-sm font-semibold text-white transition ${action.disabled ? 'bg-slate-300 cursor-not-allowed' : 'bg-brand-blue hover:bg-brand-navy'}`;
 
-            if (action.to) {
+            if (action.to && !action.disabled) {
               return (
                 <Link key={action.label} to={action.to} className={className}>
                   {action.label}
@@ -37,7 +38,7 @@ function PageHeader({ title, description, actions = [] }: PageHeaderProps) {
             }
 
             return (
-              <button key={action.label} type="button" onClick={action.onClick} className={className}>
+              <button key={action.label} type="button" onClick={action.onClick} className={className} disabled={action.disabled}>
                 {action.label}
               </button>
             );

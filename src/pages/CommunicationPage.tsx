@@ -6,8 +6,8 @@ function CommunicationPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           title="Communication hub"
-          description="Send provider messages, manage notifications, and track communication threads." 
-          actions={[{ label: 'New message' }]}
+          description="Send provider messages, manage notifications, and track communication threads. [Planned Functionality]" 
+          actions={[{ label: 'New message (Coming Soon)', disabled: true }]}
         />
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
 

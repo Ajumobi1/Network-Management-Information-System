@@ -2,6 +2,9 @@ import { fetchTable, useMockData } from '../common';
 import { getApiClient } from '../../api/client';
 import { formatSupabaseError } from '../../utils/api';
 import * as dashboardMocks from '../../mocks/dashboardMocks';
+import { providerDirectory } from '../../mocks/providersMocks';
+import { mockFinancialRecords } from '../../mocks/financialDataMocks';
+import { ProviderLifecycleStatus } from '../../constants/providerNetwork';
 import {
   AiInsight,
   ActivityItem,
@@ -22,7 +25,12 @@ import {
 
 export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
   if (useMockData) {
-    return dashboardMocks.getExecutiveSummary();
+    const summary = await dashboardMocks.getExecutiveSummary();
+    const activeCount = providerDirectory.filter(p => p.status === ProviderLifecycleStatus.Active).length;
+    return {
+      ...summary,
+      todayFocus: `${activeCount} providers are currently active in the network. ${summary.todayFocus}`,
+    };
   }
 
   const supabase = getApiClient();
@@ -37,7 +45,20 @@ export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
 
 export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
   if (useMockData) {
-    return dashboardMocks.getKpiMetrics();
+    const metrics = await dashboardMocks.getKpiMetrics();
+    const totalProviders = providerDirectory.length;
+    const activeProviders = providerDirectory.filter(p => p.status === ProviderLifecycleStatus.Active).length;
+    const totalExpenditure = mockFinancialRecords.reduce((sum, r) => sum + (r.netAmountPaid ?? r.amountPaid ?? r.amount ?? 0), 0);
+    const claimsExpenditure = mockFinancialRecords.filter(r => r.dataType === 'claims').reduce((sum, r) => sum + (r.netAmountPaid ?? r.amountPaid ?? 0), 0);
+    const capitationExpenditure = mockFinancialRecords.filter(r => r.dataType === 'capitation').reduce((sum, r) => sum + (r.netAmount ?? r.amount ?? 0), 0);
+    const ffsExpenditure = mockFinancialRecords.filter(r => r.dataType === 'ffs').reduce((sum, r) => sum + (r.amount ?? 0), 0);
+
+    return metrics.map(m => {
+      if (m.id === 'total-providers') return { ...m, value: totalProviders.toLocaleString() };
+      if (m.id === 'active-providers') return { ...m, value: activeProviders.toLocaleString() };
+      if (m.id === 'monthly-capitation') return { ...m, label: 'Total Network Expenditure', value: `₦${(totalExpenditure / 1000000000).toFixed(2)}B`, subtitle: 'Aggregated claims, capitation, and FFS' };
+      return m;
+    });
   }
 
   return fetchTable<KpiMetric>('dashboard_kpis');
@@ -45,7 +66,13 @@ export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
 
 export async function fetchProviderDistribution(): Promise<DistributionPoint[]> {
   if (useMockData) {
-    return dashboardMocks.getProviderDistribution();
+    const distribution = providerDirectory.reduce((acc, p) => {
+      const region = p.state || 'Other';
+      acc[region] = (acc[region] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return Object.entries(distribution).map(([category, value]) => ({ category, value })).sort((a, b) => b.value - a.value);
   }
 
   return fetchTable<DistributionPoint>('dashboard_provider_distribution');
@@ -53,7 +80,13 @@ export async function fetchProviderDistribution(): Promise<DistributionPoint[]> 
 
 export async function fetchProviderCategories(): Promise<DistributionPoint[]> {
   if (useMockData) {
-    return dashboardMocks.getProviderCategories();
+    const categories = providerDirectory.reduce((acc, p) => {
+      const cat = p.category || 'Other';
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return Object.entries(categories).map(([category, value]) => ({ category, value })).sort((a, b) => b.value - a.value);
   }
 
   return fetchTable<DistributionPoint>('dashboard_provider_categories');
