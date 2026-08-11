@@ -4,6 +4,7 @@ import {
   fetchImportBatches, 
   fetchImportBatchById,
   createImportBatch,
+  fetchFinancialAnalytics,
   FinancialFilters 
 } from '../../repositories/financial-data/financialDataRepository';
 
@@ -28,6 +29,14 @@ export function useImportBatch(id: string | null) {
     queryKey: ['financial-data', 'batch', id],
     queryFn: () => fetchImportBatchById(id as string),
     enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useFinancialAnalytics(filters: FinancialFilters = {}) {
+  return useQuery({
+    queryKey: ['financial-data', 'analytics', filters],
+    queryFn: () => fetchFinancialAnalytics(filters),
     staleTime: 1000 * 60 * 5,
   });
 }

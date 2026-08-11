@@ -60,6 +60,7 @@ export interface FinancialRecord {
   importBatchId: string;
   recordStatus: RecordValidationStatus;
   validationErrors?: string[];
+  fingerprint?: string; // For duplicate detection
   
   createdAt: string;
   updatedAt: string;
@@ -88,7 +89,8 @@ export interface ImportBatch {
 export interface ColumnMapping {
   excelField: string;
   nmisField: keyof FinancialRecord | 'ignored';
-  confidence: number;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  confidenceScore: number;
   isCustom?: boolean;
 }
 
