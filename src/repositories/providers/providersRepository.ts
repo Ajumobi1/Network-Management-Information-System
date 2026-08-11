@@ -73,8 +73,23 @@ export async function getProviderFacilities(providerId: string) {
   return data;
 }
 
+import { addProviderMock, updateProviderMock, setProviderStatusMock } from '../../mocks/providersMocks';
+import { ProviderDirectoryItem, ProviderLifecycleStatus } from '../../types/providers/providerTypes';
+
 export async function getProviderDirectory() {
   return providerDirectory;
+}
+
+export async function createDirectoryProvider(payload: Omit<ProviderDirectoryItem, 'id'>) {
+  return addProviderMock(payload);
+}
+
+export async function updateDirectoryProvider(id: string, payload: Partial<ProviderDirectoryItem>) {
+  return updateProviderMock(id, payload);
+}
+
+export async function setProviderLifecycleStatus(id: string, status: ProviderLifecycleStatus) {
+  return setProviderStatusMock(id, status);
 }
 
 export async function getProviderProfile(providerId: string) {

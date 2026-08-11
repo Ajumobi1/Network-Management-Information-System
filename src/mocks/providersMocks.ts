@@ -178,6 +178,57 @@ export const providerProfiles: ProviderProfile[] = providerDirectory.map((provid
   ],
 }));
 
+export async function addProviderMock(newItem: Omit<ProviderDirectoryItem, 'id'>): Promise<ProviderDirectoryItem> {
+  const id = `prov-${Date.now()}`;
+  const item: ProviderDirectoryItem = { ...newItem, id };
+  providerDirectory.unshift(item);
+
+  const profile: ProviderProfile = {
+    ...item,
+    address: '10 Network Way, Capital City',
+    services: ['General consultation', 'Diagnostics', 'Emergency'],
+    departments: ['Outpatient', 'Pharmacy', 'Laboratory'],
+    staffStrength: 30,
+    equipment: ['Basic diagnostic kit', 'Vital sign monitors'],
+    bankName: 'First National Bank',
+    accountName: item.providerName,
+    accountNumber: '0123456789',
+    documents: [],
+    timeline: [
+      { id: `${id}-time-1`, date: new Date().toISOString().split('T')[0], title: 'Provider Registered', description: 'New provider successfully added to the NMIS directory.', actor: 'System Admin' },
+    ],
+    performance: {
+      inspectionRating: 85,
+      complaintScore: 5,
+      utilization: 70,
+      claimsTrend: '+5.0%',
+      capitationTrend: 'Stable',
+      compliance: 90,
+    },
+    communicationHistory: [],
+  };
+  providerProfiles.unshift(profile);
+  return item;
+}
+
+export async function updateProviderMock(id: string, updates: Partial<ProviderDirectoryItem>): Promise<ProviderDirectoryItem> {
+  const index = providerDirectory.findIndex(p => p.id === id);
+  if (index === -1) throw new Error('Provider not found');
+  
+  providerDirectory[index] = { ...providerDirectory[index], ...updates };
+  
+  const profileIndex = providerProfiles.findIndex(p => p.id === id);
+  if (profileIndex !== -1) {
+    providerProfiles[profileIndex] = { ...providerProfiles[profileIndex], ...updates };
+  }
+  
+  return providerDirectory[index];
+}
+
+export async function setProviderStatusMock(id: string, status: ProviderLifecycleStatus): Promise<ProviderDirectoryItem> {
+  return updateProviderMock(id, { status });
+}
+
 export const providerRegistrationDraft: ProviderRegistrationDraft = {
   basicInformation: { providerName: '', providerCode: '', email: '', phone: '' },
   facilityInformation: { category: '', subcategory: '', address: '', state: '', lga: '' },

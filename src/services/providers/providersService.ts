@@ -1,6 +1,6 @@
-import * as providersRepository from '../../repositories/providers';
 import { ProvidersRow } from '../../lib/supabase/database.types';
-import { ProviderDirectoryFilters, ProviderDirectoryItem, ProviderProfile, ProviderRegistrationDraft } from '../../types/providers/providerTypes';
+import { ProviderDirectoryFilters, ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile, ProviderRegistrationDraft } from '../../types/providers/providerTypes';
+import * as providersRepository from '../../repositories/providers/providersRepository';
 
 export async function fetchProviders(): Promise<ProvidersRow[]> {
   return providersRepository.getProviders();
@@ -20,6 +20,18 @@ export async function updateProvider(id: string, payload: Partial<ProvidersRow>)
 
 export async function deleteProvider(id: string): Promise<boolean> {
   return providersRepository.deleteProvider(id);
+}
+
+export async function registerNewProvider(payload: Omit<ProviderDirectoryItem, 'id'>): Promise<ProviderDirectoryItem> {
+  return providersRepository.createDirectoryProvider(payload);
+}
+
+export async function editDirectoryProvider(id: string, payload: Partial<ProviderDirectoryItem>): Promise<ProviderDirectoryItem> {
+  return providersRepository.updateDirectoryProvider(id, payload);
+}
+
+export async function changeProviderStatus(id: string, status: ProviderLifecycleStatus): Promise<ProviderDirectoryItem> {
+  return providersRepository.setProviderLifecycleStatus(id, status);
 }
 
 export async function fetchProviderContacts(providerId: string) {
