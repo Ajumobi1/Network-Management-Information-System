@@ -18,6 +18,7 @@ import {
 } from '../../hooks/financial-data/financialDataHooks';
 import { FinancialDataType, FinancialRecord } from '../../types/financial-data';
 import type { FinancialFilters, FinancialRegisterSummary } from '../../repositories/financial-data/financialDataRepository';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Props {
   type: FinancialDataType;
@@ -174,7 +175,15 @@ function RecordRow({ record, isClaims }: { record: FinancialRecord; isClaims: bo
     <td className="px-6 py-4 text-right font-semibold text-slate-700">{formatNaira(isClaims ? (record.amountSubmitted ?? record.amountClaimed ?? 0) : (record.amountPaid ?? record.amount ?? 0))}</td>
     <td className="px-6 py-4 text-right font-black text-slate-900">{formatNaira(isClaims ? (record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? 0) : (record.netAmountPaid ?? record.amountPaid ?? record.netAmount ?? record.amount ?? 0))}</td>
     {isClaims && <td className="px-6 py-4 text-right font-semibold text-rose-600">{formatNaira(record.amountRejected ?? record.amountDisallowed ?? 0)}</td>}
-    <td className="px-6 py-4"><div className="max-w-[180px] truncate text-xs font-medium text-slate-600" title={record.sourceFile}>{record.sourceFile}</div><div className="font-mono text-[10px] text-slate-400">{record.importBatchId}</div></td>
+    <td className="px-6 py-4">
+      <div className="flex flex-col gap-1">
+        <div className="max-w-[180px] truncate text-xs font-medium text-slate-600" title={record.sourceFile}>{record.sourceFile}</div>
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] text-slate-400">{record.importBatchId}</span>
+          {record.recordStatus === 'duplicate' && <Badge variant="warning" className="text-[9px] px-1.5 py-0">Duplicate</Badge>}
+        </div>
+      </div>
+    </td>
   </tr>;
 }
 

@@ -1,8 +1,8 @@
-import { fetchTable, fetchSingle, insertRow, updateRow, deleteRow, useMockData } from '../common';
+import { fetchTable, fetchSingle, insertRow, updateRow, deleteRow, useMockData, upsertRow } from '../common';
 import { getApiClient } from '../../api/client';
 import { formatSupabaseError } from '../../utils/api';
 import { apiMocks } from '../../mocks';
-import { ProvidersRow } from '../../lib/supabase/database.types';
+import { ProvidersRow, ProviderMatchResolutionsRow } from '../../lib/supabase/database.types';
 import { 
   providerDirectory, 
   providerProfiles, 
@@ -12,6 +12,8 @@ import {
   setProviderStatusMock
 } from '../../mocks/providersMocks';
 import { ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile } from '../../types/providers/providerTypes';
+import { ProviderMatch } from '../../types/financial-data';
+import { logAction } from '../audit/auditRepository';
 
 /**
  * Basic CRUD operations for Providers
@@ -35,20 +37,39 @@ export async function createProvider(payload: Partial<ProvidersRow>) {
   if (useMockData) {
     return apiMocks.createProvider(payload);
   }
-  return insertRow<ProvidersRow>('providers', payload);
+  const created = await insertRow<ProvidersRow>('providers', payload);
+  await logAction({
+    action: 'PROVIDER_CREATED',
+    entity: 'providers',
+    entityId: created.id,
+    metadata: { providerName: created.provider_name, providerCode: created.provider_code }
+  });
+  return created;
 }
 
 export async function updateProvider(id: string, payload: Partial<ProvidersRow>) {
   if (useMockData) {
     return apiMocks.updateProvider(id, payload);
   }
-  return updateRow<ProvidersRow>('providers', id, payload);
+  const updated = await updateRow<ProvidersRow>('providers', id, payload);
+  await logAction({
+    action: 'PROVIDER_UPDATED',
+    entity: 'providers',
+    entityId: id,
+    metadata: { changes: payload }
+  });
+  return updated;
 }
 
 export async function deleteProvider(id: string) {
   if (useMockData) {
     return apiMocks.deleteProvider(id);
   }
+  await logAction({
+    action: 'PROVIDER_DELETED',
+    entity: 'providers',
+    entityId: id
+  });
   return deleteRow('providers', id);
 }
 
@@ -109,7 +130,14 @@ export async function createDirectoryProvider(payload: Omit<ProviderDirectoryIte
     capitation_status: payload.capitationStatus,
   };
   
-  return insertRow<ProvidersRow>('providers', row);
+  const created = await insertRow<ProvidersRow>('providers', row);
+  await logAction({
+    action: 'PROVIDER_REGISTERED',
+    entity: 'providers',
+    entityId: created.id,
+    metadata: { providerName: payload.providerName, providerCode: payload.providerCode }
+  });
+  return created;
 }
 
 export async function updateDirectoryProvider(id: string, payload: Partial<ProviderDirectoryItem>) {
@@ -127,14 +155,28 @@ export async function updateDirectoryProvider(id: string, payload: Partial<Provi
   if (payload.state) row.state = payload.state;
   if (payload.status) row.status = payload.status;
   
-  return updateRow<ProvidersRow>('providers', id, row);
+  const updated = await updateRow<ProvidersRow>('providers', id, row);
+  await logAction({
+    action: 'PROVIDER_DIRECTORY_UPDATED',
+    entity: 'providers',
+    entityId: id,
+    metadata: { changes: payload }
+  });
+  return updated;
 }
 
 export async function setProviderLifecycleStatus(id: string, status: ProviderLifecycleStatus) {
   if (useMockData) {
     return setProviderStatusMock(id, status);
   }
-  return updateRow<ProvidersRow>('providers', id, { status });
+  const updated = await updateRow<ProvidersRow>('providers', id, { status });
+  await logAction({
+    action: 'PROVIDER_STATUS_CHANGED',
+    entity: 'providers',
+    entityId: id,
+    metadata: { newStatus: status }
+  });
+  return updated;
 }
 
 export async function getProviderProfile(providerId: string): Promise<ProviderProfile> {
@@ -192,7 +234,6 @@ export async function getProviderRegistrationDraft() {
   if (useMockData) {
     return providerRegistrationDraft;
   }
-  // For production, this might fetch from a 'drafts' table or local storage
   return providerRegistrationDraft;
 }
 
@@ -222,4 +263,56 @@ export async function getProviderFacilities(providerId: string) {
   }
 
   return data;
+}
+
+/**
+ * Provider Match Resolution Persistence
+ */
+
+export async function saveProviderMatchResolution(match: ProviderMatch, resolvedBy?: string) {
+  if (useMockData) {
+    console.log('[Mock] Saving provider match resolution:', match);
+    return;
+  }
+
+  const row: Partial<ProviderMatchResolutionsRow> = {
+    excel_name: match.excelName,
+    matched_provider_id: match.matchedProviderId,
+    matched_provider_name: match.matchedProviderName,
+    matched_provider_code: match.matchedProviderCode,
+    match_type: match.matchType,
+    resolved_by: resolvedBy || 'system',
+  };
+
+  const saved = await upsertRow<ProviderMatchResolutionsRow>('provider_match_resolutions', row);
+  
+  await logAction({
+    action: 'PROVIDER_MATCH_RESOLVED',
+    entity: 'provider_match_resolutions',
+    entityId: saved.id,
+    metadata: { excelName: match.excelName, matchedProviderName: match.matchedProviderName }
+  });
+  
+  return saved;
+}
+
+export async function getPersistedProviderMatches(): Promise<Record<string, ProviderMatch>> {
+  if (useMockData) return {};
+
+  const resolutions = await fetchTable<ProviderMatchResolutionsRow>('provider_match_resolutions');
+  const matchMap: Record<string, ProviderMatch> = {};
+
+  resolutions.forEach(r => {
+    matchMap[r.excel_name.toLowerCase().trim()] = {
+      excelName: r.excel_name,
+      matchedProviderId: r.matched_provider_id || undefined,
+      matchedProviderName: r.matched_provider_name || undefined,
+      matchedProviderCode: r.matched_provider_code || undefined,
+      confidence: 1,
+      matchType: r.match_type as any,
+      status: 'confirmed'
+    };
+  });
+
+  return matchMap;
 }

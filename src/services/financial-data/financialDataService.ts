@@ -4,7 +4,7 @@ import {
   ColumnMapping, 
   ProviderMatch 
 } from '../../types/financial-data';
-import { getProviderDirectory } from '../../repositories/providers/providersRepository';
+import { getProviderDirectory, getPersistedProviderMatches, saveProviderMatchResolution } from '../../repositories/providers/providersRepository';
 
 const normalizeText = (value: unknown) => String(value ?? '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 const numericFields = new Set<string>([
@@ -110,7 +110,15 @@ export const financialDataService = {
    */
   async matchProvider(name: string, code?: string, lga?: string, state?: string): Promise<ProviderMatch> {
     const providers = await getProviderDirectory();
+    const persistedMatches = await getPersistedProviderMatches();
     const normalizedName = normalizeText(name);
+
+    // 0. Check persisted manual resolutions first
+    const persistedMatch = persistedMatches[name.toLowerCase().trim()];
+    if (persistedMatch) {
+      return { ...persistedMatch, status: 'confirmed', confidence: 1 };
+    }
+
     const asCandidates = (items: typeof providers) => items.map(provider => ({ id: provider.id, name: provider.providerName, code: provider.providerCode }));
     const confirmed = (provider: (typeof providers)[number], confidence: number, matchType: ProviderMatch['matchType']): ProviderMatch => ({
       excelName: name,
@@ -132,16 +140,19 @@ export const financialDataService = {
       status: 'pending',
     });
 
+    // 1. Match by Provider Code
     if (code) {
       const codeMatches = providers.filter(provider => normalizeText(provider.providerCode) === normalizeText(code));
       if (codeMatches.length === 1) return confirmed(codeMatches[0], 1, 'exact');
       if (codeMatches.length > 1) return pending(codeMatches, 0.99, 'exact');
     }
 
+    // 2. Match by Exact Provider Name
     const exactNameMatches = providers.filter(provider => normalizeText(provider.providerName) === normalizedName);
     if (exactNameMatches.length === 1) return confirmed(exactNameMatches[0], 0.98, 'exact');
     if (exactNameMatches.length > 1) return pending(exactNameMatches, 0.98, 'exact');
 
+    // 3. Match by Name + Location
     const sameLocation = (provider: (typeof providers)[number]) => {
       const sameLga = Boolean(lga) && normalizeText(provider.lga) === normalizeText(lga);
       const sameState = Boolean(state) && normalizeText(provider.state) === normalizeText(state);
@@ -155,6 +166,7 @@ export const financialDataService = {
     if (locationMatches.length === 1) return confirmed(locationMatches[0], 0.93, 'location');
     if (locationMatches.length > 1) return pending(locationMatches, 0.93, 'location');
 
+    // 4. Normalized/Fuzzy Match
     const fuzzyMatches = providers.filter(provider => {
       const providerName = normalizeText(provider.providerName);
       return providerName.includes(normalizedName) || normalizedName.includes(providerName);
@@ -163,6 +175,13 @@ export const financialDataService = {
     if (fuzzyMatches.length > 1) return pending(fuzzyMatches, 0.7, 'normalized');
 
     return { excelName: name, confidence: 0, matchType: 'none', status: 'pending' };
+  },
+
+  /**
+   * Persist a manual provider match resolution
+   */
+  async resolveMatch(match: ProviderMatch, resolvedBy?: string) {
+    return saveProviderMatchResolution(match, resolvedBy);
   },
 
   /**
@@ -247,15 +266,7 @@ export const financialDataService = {
    * Generate a fingerprint for a record to detect duplicates
    */
   generateFingerprint(record: FinancialRecord): string {
-    const components = [
-      record.providerName,
-      record.providerCode,
-      record.period,
-      record.dataType,
-      record.amountPaid ?? record.netAmountPaid ?? record.amount ?? 0,
-      record.eligibleLives ?? 0
-    ];
-    return components.map(c => normalizeText(c)).join('|');
+    return buildFingerprint(record);
   },
 
   /**
@@ -263,7 +274,7 @@ export const financialDataService = {
    */
   calculateSummary(records: FinancialRecord[]) {
     return {
-      totalAmount: records.reduce((sum, r) => sum + (r.amountPaid || r.netAmount || r.amount || 0), 0),
+      totalAmount: records.reduce((sum, r) => sum + (r.amountPaid || r.netAmountPaid || r.amount || 0), 0),
       totalClaims: records.filter(r => r.dataType === 'claims').reduce((sum, r) => sum + (r.amountPaid || 0), 0),
       totalCapitation: records.filter(r => r.dataType === 'capitation').reduce((sum, r) => sum + (r.netAmount || 0), 0),
       totalFFS: records.filter(r => r.dataType === 'ffs').reduce((sum, r) => sum + (r.amount || 0), 0),

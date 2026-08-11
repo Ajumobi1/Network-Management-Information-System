@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS financial_records (
     source_file TEXT,
     import_batch_id UUID REFERENCES import_batches(id) ON DELETE CASCADE,
     record_status TEXT NOT NULL, -- valid, warning, error, duplicate
-    fingerprint TEXT, -- for duplicate detection
+    fingerprint TEXT UNIQUE, -- for duplicate detection (HARDENED with UNIQUE)
     
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -126,7 +126,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- RLS Policies (Basic Auth required)
+-- RLS Policies (Hardened Role-Based Access)
 ALTER TABLE providers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE provider_documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE import_batches ENABLE ROW LEVEL SECURITY;
@@ -134,18 +134,41 @@ ALTER TABLE financial_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE provider_match_resolutions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
--- Allow authenticated users to read everything
-CREATE POLICY "Allow authenticated read access" ON providers FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated read access" ON provider_documents FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated read access" ON import_batches FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated read access" ON financial_records FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated read access" ON provider_match_resolutions FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Allow authenticated read access" ON audit_logs FOR SELECT TO authenticated USING (true);
+-- Helper Functions
+CREATE OR REPLACE FUNCTION public.is_admin() RETURNS boolean AS $$
+  BEGIN RETURN (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'executive'); END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Allow authenticated users to insert/update
-CREATE POLICY "Allow authenticated write access" ON providers FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow authenticated write access" ON provider_documents FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow authenticated write access" ON import_batches FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow authenticated write access" ON financial_records FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow authenticated write access" ON provider_match_resolutions FOR ALL TO authenticated USING (true);
-CREATE POLICY "Allow authenticated write access" ON audit_logs FOR ALL TO authenticated USING (true);
+CREATE OR REPLACE FUNCTION public.is_network_mgmt() RETURNS boolean AS $$
+  BEGIN RETURN (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'head-of-network', 'network-officer'); END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.is_finance() RETURNS boolean AS $$
+  BEGIN RETURN (auth.jwt() -> 'user_metadata' ->> 'role') IN ('super-admin', 'finance'); END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 1. Providers
+CREATE POLICY "Read access for all authenticated users" ON providers FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Write access for Network Management" ON providers FOR ALL TO authenticated USING (public.is_network_mgmt()) WITH CHECK (public.is_network_mgmt());
+
+-- 2. Provider Documents
+CREATE POLICY "Read access for all authenticated users" ON provider_documents FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Write access for Network Management" ON provider_documents FOR ALL TO authenticated USING (public.is_network_mgmt()) WITH CHECK (public.is_network_mgmt());
+
+-- 3. Import Batches
+CREATE POLICY "Read access for all authenticated users" ON import_batches FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Write access for Finance and Network Management" ON import_batches FOR ALL TO authenticated USING (public.is_finance() OR public.is_network_mgmt()) WITH CHECK (public.is_finance() OR public.is_network_mgmt());
+
+-- 4. Financial Records
+CREATE POLICY "Read access for all authenticated users" ON financial_records FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Write access for Finance and Network Management" ON financial_records FOR ALL TO authenticated USING (public.is_finance() OR public.is_network_mgmt()) WITH CHECK (public.is_finance() OR public.is_network_mgmt());
+
+-- 5. Match Resolutions
+CREATE POLICY "Read access for all authenticated users" ON provider_match_resolutions FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Write access for Network Management" ON provider_match_resolutions FOR ALL TO authenticated USING (public.is_network_mgmt()) WITH CHECK (public.is_network_mgmt());
+
+-- 6. Audit Logs (APPEND-ONLY)
+CREATE POLICY "Read access for all authenticated users" ON audit_logs FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Append-only for authenticated users" ON audit_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "No update for audit logs" ON audit_logs FOR UPDATE TO authenticated USING (false);
+CREATE POLICY "No delete for audit logs" ON audit_logs FOR DELETE TO authenticated USING (false);

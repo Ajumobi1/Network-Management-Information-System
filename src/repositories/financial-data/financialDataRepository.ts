@@ -268,7 +268,8 @@ export async function fetchImportBatchById(id: string): Promise<ImportBatch | nu
 
 export async function createImportBatch(
   batch: Omit<ImportBatch, 'id' | 'uploadedAt'>,
-  records?: FinancialRecord[]
+  records?: FinancialRecord[],
+  actor?: { id: string; email: string }
 ): Promise<ImportBatch> {
   if (useMockData) {
     const batchId = `batch-${Date.now()}`;
@@ -308,7 +309,7 @@ export async function createImportBatch(
     data_type: batch.dataType,
     reporting_year: batch.reportingYear,
     reporting_month: batch.reportingMonth,
-    uploaded_by: batch.uploadedBy,
+    uploaded_by: actor?.email || batch.uploadedBy,
     total_rows: batch.totalRows,
     status: batch.status,
     period_covered: batch.periodCovered,
@@ -362,6 +363,8 @@ export async function createImportBatch(
   }
 
   await logAction({
+    userId: actor?.id,
+    userEmail: actor?.email,
     action: 'IMPORT_BATCH_CREATED',
     entity: 'import_batches',
     entityId: createdBatch.id,

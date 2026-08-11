@@ -14,6 +14,7 @@ import Badge from '../../components/ui/Badge';
 import { financialDataService } from '../../services/financial-data/financialDataService';
 import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from '../../types/financial-data';
 import { useCheckDuplicateBatch, useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
+import { useAuth } from '../../contexts/AuthContext';
 
 type UploadStep = 'upload' | 'inspect' | 'map' | 'match' | 'preview' | 'commit';
 type RawRow = Record<string, unknown>;
@@ -60,6 +61,7 @@ export default function DataUploadCentrePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
+  const { session } = useAuth();
 
   const createBatch = useCreateImportBatch();
   const detectedPeriod = normalizedRecords[0]?.period || '';
@@ -191,11 +193,12 @@ export default function DataUploadCentrePage() {
           duplicateRows: duplicateRecordCount,
           unmatchedProviders: matchSummary.unmatched,
           status: 'imported',
-          uploadedBy: 'Super Admin',
+          uploadedBy: session?.user.email || 'Super Admin',
           periodCovered: detectedPeriod,
           metadata: { sourceSheet, headers, fileSize: file.size, matchedProviders: matchSummary.matched, ambiguousProviders: matchSummary.ambiguous },
         },
         records: validRecords,
+        actor: session?.user ? { id: session.user.id, email: session.user.email } : undefined,
       });
       setCommitMessage(`Import committed successfully as ${batch.id}. ${readyToImport.toLocaleString()} records are now available in the ${dataType} register.`);
       setStep('commit');
@@ -219,11 +222,20 @@ export default function DataUploadCentrePage() {
       {!isAnalyzing && step === 'upload' && <UploadPanel onFileUpload={handleFileUpload} />}
       {!isAnalyzing && step === 'inspect' && file && <InspectPanel file={file} sheetNames={sheetNames} sourceSheet={sourceSheet} headers={headers} rowCount={rawRows.length} dataType={dataType} onSheetChange={setSourceSheet} onDataTypeChange={value => setDataType(value)} onContinue={() => setStep('map')} />}
       {!isAnalyzing && step === 'map' && <MappingPanel mappings={mappings} lowConfidenceCount={lowConfidenceMappings.length} onUpdate={updateMapping} onBack={() => setStep('inspect')} onContinue={startMatching} />}
-      {!isAnalyzing && step === 'match' && <MatchingPanel matches={matches} summary={matchSummary} onResolveMatch={(index, candidateId) => setMatches(current => current.map((match, matchIndex) => {
-        if (matchIndex !== index) return match;
+      {!isAnalyzing && step === 'match' && <MatchingPanel matches={matches} summary={matchSummary} onResolveMatch={async (index, candidateId) => {
+        const match = matches[index];
         const candidate = match.candidates?.find(item => item.id === candidateId);
-        return candidate ? { ...match, matchedProviderId: candidate.id, matchedProviderName: candidate.name, matchedProviderCode: candidate.code, confidence: 1, matchType: 'manual', status: 'confirmed' } : match;
-      }))} onBack={() => setStep('map')} onContinue={generatePreview} />}
+        if (candidate) {
+          const resolvedMatch: ProviderMatch = { ...match, matchedProviderId: candidate.id, matchedProviderName: candidate.name, matchedProviderCode: candidate.code, confidence: 1, matchType: 'manual', status: 'confirmed' };
+          setMatches(current => current.map((m, i) => i === index ? resolvedMatch : m));
+          // Persist the resolution
+          try {
+            await financialDataService.resolveMatch(resolvedMatch);
+          } catch (err) {
+            console.error('Failed to persist match resolution:', err);
+          }
+        }
+      }} onBack={() => setStep('map')} onContinue={generatePreview} />}
       {!isAnalyzing && step === 'preview' && <PreviewPanel records={normalizedRecords} rawRowCount={rawRows.length} validCount={validRecords.length} invalidCount={normalizedRecords.length - validRecords.length} duplicateCount={duplicateRecordCount} matchSummary={matchSummary} readyCount={readyToImport} duplicateBatch={duplicateBatch} validationErrors={validationErrors} onBack={() => setStep('match')} onCommit={handleCommit} isCommitting={createBatch.isPending} />}
       {!isAnalyzing && step === 'commit' && <CommitPanel onReset={() => { setStep('upload'); setFile(null); setRawRows([]); setNormalizedRecords([]); setMatches([]); setCommitMessage(''); }} />}
     </div>

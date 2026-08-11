@@ -55,7 +55,7 @@ export function useFinancialRegisterSummary(filters: FinancialFilters = {}) {
 export function useCreateImportBatch() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ batch, records }: { batch: any, records: any[] }) => createImportBatch(batch, records),
+    mutationFn: ({ batch, records, actor }: { batch: any, records: any[], actor?: { id: string; email: string } }) => createImportBatch(batch, records, actor),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial-data'] });
     },
