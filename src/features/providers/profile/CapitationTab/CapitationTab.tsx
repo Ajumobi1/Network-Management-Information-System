@@ -1,6 +1,18 @@
-import ProviderStatusBadge from '../../components/ProviderStatusBadge';
+import { Link } from 'react-router-dom';
+import Badge from '../../../../components/ui/Badge';
+import { useCapitationRecords } from '../../../../hooks/capitation/capitationHooks';
+import { getCapitationSummary } from '../../../../services/capitation/capitationService';
+import { DEFAULT_CAPITATION_FILTERS, PAYMENT_STATUS_LABELS, RECONCILIATION_STATUS_LABELS } from '../../../../types/capitation';
 import { ProviderTabProps } from '../ProfileTabShell';
 
+const naira = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
+
 export default function CapitationTab({ provider }: ProviderTabProps) {
-  return <div className="rounded-3xl bg-slate-50 p-5"><p className="mb-3 text-sm text-slate-500">Capitation status</p><ProviderStatusBadge status={provider.capitationStatus} /></div>;
+  const query = useCapitationRecords({ ...DEFAULT_CAPITATION_FILTERS, search: provider.providerCode });
+  const records = query.data ?? [];
+  const summary = getCapitationSummary(records);
+  const latest = [...records].sort((a, b) => b.period.localeCompare(a.period)).slice(0, 3);
+  const eligible = provider.status === 'active' && provider.credentialStatus === 'complete';
+
+  return <div className="space-y-5"><div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-slate-900">Capitation eligibility</p><p className="mt-1 text-sm text-slate-500">Payable inclusion respects provider lifecycle and credentialing status.</p></div><Badge variant={eligible ? 'success' : 'warning'}>{eligible ? 'Eligible for payable calculations' : 'Review provider controls'}</Badge></div><div className="grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Eligible lives</p><p className="mt-2 text-xl font-semibold text-slate-900">{summary.totalBeneficiaries.toLocaleString('en-NG')}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Net payable</p><p className="mt-2 text-xl font-semibold text-slate-900">{naira.format(summary.netPayable)}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4"><p className="text-xs text-slate-500">Outstanding</p><p className="mt-2 text-xl font-semibold text-slate-900">{naira.format(summary.outstandingAmount)}</p></div></div><div className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><p className="text-sm font-semibold text-slate-900">Recent payment records</p><p className="mt-1 text-xs text-slate-500">{records.length} monthly record(s) linked to this provider.</p></div><Link to="/capitation" className="text-sm font-semibold text-brand-blue hover:text-brand-navy">Open register</Link></div>{query.isLoading ? <div className="p-5 text-sm text-slate-500">Loading capitation records…</div> : latest.length ? <div className="divide-y divide-slate-100">{latest.map(record => <div key={record.id} className="grid gap-3 px-5 py-4 sm:grid-cols-[1fr_auto_auto] sm:items-center"><div><p className="font-medium text-slate-800">{new Date(`${record.period}-01T00:00:00`).toLocaleDateString('en-NG', { month: 'long', year: 'numeric' })}</p><p className="mt-1 text-xs text-slate-500">{record.eligibleBeneficiaryCount.toLocaleString('en-NG')} eligible beneficiaries · {naira.format(record.netPayable)} net</p></div><Badge variant={record.paymentStatus === 'paid' ? 'success' : record.paymentStatus === 'failed' ? 'error' : 'warning'}>{PAYMENT_STATUS_LABELS[record.paymentStatus]}</Badge><Badge variant={record.reconciliationStatus === 'reconciled' ? 'success' : record.reconciliationStatus === 'exception' ? 'error' : 'warning'}>{RECONCILIATION_STATUS_LABELS[record.reconciliationStatus]}</Badge></div>)}</div> : <div className="p-5 text-sm text-slate-500">No capitation records are linked to this provider yet.</div>}</div></div>;
 }
