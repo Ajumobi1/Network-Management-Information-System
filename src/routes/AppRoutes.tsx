@@ -15,6 +15,10 @@ import ReportsPage from '../pages/ReportsPage';
 import CredentialingPage from '../pages/CredentialingPage';
 import CapitationPage from '../pages/CapitationPage';
 import PerformancePage from '../pages/PerformancePage';
+import FinancialDashboardPage from '../pages/financial/FinancialDashboardPage';
+import FinancialRegisterPage from '../pages/financial/FinancialRegisterPage';
+import DataUploadCentrePage from '../pages/financial/DataUploadCentrePage';
+import ImportHistoryPage from '../pages/financial/ImportHistoryPage';
 import CommunicationPage from '../pages/CommunicationPage';
 import ComplaintsPage from '../pages/ComplaintsPage';
 import SettingsPage from '../pages/SettingsPage';
@@ -42,6 +46,13 @@ export default function AppRoutes() {
         <Route path="/credentialing" element={<CredentialingPage />} />
         <Route path="/contracts" element={<ContractsPage />} />
         <Route path="/capitation" element={<CapitationPage />} />
+        <Route path="/financial/dashboard" element={<FinancialDashboardPage />} />
+        <Route path="/financial/claims" element={<FinancialRegisterPage type="claims" />} />
+        <Route path="/financial/capitation" element={<FinancialRegisterPage type="capitation" />} />
+        <Route path="/financial/ffs" element={<FinancialRegisterPage type="ffs" />} />
+        <Route path="/financial/enrolment" element={<FinancialRegisterPage type="enrolment" />} />
+        <Route path="/financial/upload" element={<DataUploadCentrePage />} />
+        <Route path="/financial/history" element={<ImportHistoryPage />} />
         <Route path="/inspections" element={<InspectionsPage />} />
         <Route path="/performance" element={<PerformancePage />} />
         <Route path="/reports" element={<ReportsPage />} />
