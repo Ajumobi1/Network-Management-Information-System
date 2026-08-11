@@ -28,12 +28,19 @@ export interface FinancialRecord {
   period: string; // YYYY-MM
   dataType: FinancialDataType;
   
-  // Claims specific
+  // Claims-specific fields supplied by processed Claims/payment workbooks
   claimsCategory?: string;
+  claimsType?: string;
   serviceType?: string;
+  claimCount?: number;
+  encounterCount?: number;
+  amountSubmitted?: number;
   amountClaimed?: number;
   amountApproved?: number;
+  amountRejected?: number;
+  amountDisallowed?: number;
   amountPaid?: number;
+  netAmountPaid?: number;
   
   // Capitation specific
   eligibleLives?: number;
@@ -58,6 +65,8 @@ export interface FinancialRecord {
   sourceSheet?: string;
   sourceRow?: number;
   importBatchId: string;
+  importDate?: string;
+  dataPeriod?: string;
   recordStatus: RecordValidationStatus;
   validationErrors?: string[];
   fingerprint?: string; // For duplicate detection
@@ -99,6 +108,7 @@ export interface ProviderMatch {
   matchedProviderId?: string;
   matchedProviderName?: string;
   matchedProviderCode?: string;
+  candidates?: Array<{ id: string; name: string; code: string }>;
   confidence: number;
   matchType: 'exact' | 'normalized' | 'alias' | 'location' | 'manual' | 'none';
   status: 'confirmed' | 'pending' | 'rejected';

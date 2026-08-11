@@ -17,6 +17,7 @@ import CapitationPage from '../pages/CapitationPage';
 import PerformancePage from '../pages/PerformancePage';
 import FinancialDashboardPage from '../pages/financial/FinancialDashboardPage';
 import FinancialRegisterPage from '../pages/financial/FinancialRegisterPage';
+import ClaimsAnalyticsPage from '../pages/financial/ClaimsAnalyticsPage';
 import DataUploadCentrePage from '../pages/financial/DataUploadCentrePage';
 import ImportHistoryPage from '../pages/financial/ImportHistoryPage';
 import CommunicationPage from '../pages/CommunicationPage';
@@ -48,6 +49,7 @@ export default function AppRoutes() {
         <Route path="/capitation" element={<CapitationPage />} />
         <Route path="/financial/dashboard" element={<FinancialDashboardPage />} />
         <Route path="/financial/claims" element={<FinancialRegisterPage type="claims" />} />
+        <Route path="/financial/claims/analytics" element={<ClaimsAnalyticsPage />} />
         <Route path="/financial/capitation" element={<FinancialRegisterPage type="capitation" />} />
         <Route path="/financial/ffs" element={<FinancialRegisterPage type="ffs" />} />
         <Route path="/financial/enrolment" element={<FinancialRegisterPage type="enrolment" />} />

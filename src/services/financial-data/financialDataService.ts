@@ -6,6 +6,30 @@ import {
 } from '../../types/financial-data';
 import { getProviderDirectory } from '../../repositories/providers/providersRepository';
 
+const normalizeText = (value: unknown) => String(value ?? '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+const numericFields = new Set<string>([
+  'reportingMonth', 'reportingYear', 'claimCount', 'encounterCount', 'eligibleLives',
+  'formalEnrollees', 'informalEnrollees', 'amount', 'amountSubmitted', 'amountClaimed',
+  'amountApproved', 'amountRejected', 'amountDisallowed', 'amountPaid', 'netAmountPaid',
+  'netAmount', 'rate', 'grossAmount', 'adjustments', 'deductions',
+]);
+const toNumber = (value: unknown) => {
+  if (typeof value === 'number') return value;
+  if (value === null || value === undefined || String(value).trim() === '') return undefined;
+  const parsed = Number(String(value).replace(/[₦,\s]/g, ''));
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+const buildFingerprint = (record: FinancialRecord) => [
+  record.providerCode || normalizeText(record.providerName),
+  record.period,
+  record.dataType,
+  record.claimsCategory || '',
+  record.claimCount ?? record.encounterCount ?? '',
+  record.amountSubmitted ?? record.amountClaimed ?? '',
+  record.amountApproved ?? '',
+  record.amountPaid ?? record.netAmountPaid ?? record.amount ?? '',
+].map(value => normalizeText(value)).join('|');
+
 /**
  * Service to handle business logic for financial data hub
  */
@@ -86,81 +110,59 @@ export const financialDataService = {
    */
   async matchProvider(name: string, code?: string, lga?: string, state?: string): Promise<ProviderMatch> {
     const providers = await getProviderDirectory();
-    const normalizedName = name.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-    
-    // 1. Priority: Exact provider code
-    if (code) {
-      const codeMatch = providers.find(p => p.providerCode.toLowerCase() === code.toLowerCase());
-      if (codeMatch) {
-        return {
-          excelName: name,
-          matchedProviderId: codeMatch.id,
-          matchedProviderName: codeMatch.providerName,
-          matchedProviderCode: codeMatch.providerCode,
-          confidence: 1.0,
-          matchType: 'exact',
-          status: 'confirmed'
-        };
-      }
-    }
-
-    // 2. Exact name match
-    const exactNameMatch = providers.find(p => p.providerName.toLowerCase().trim() === name.toLowerCase().trim());
-    if (exactNameMatch) {
-      return {
-        excelName: name,
-        matchedProviderId: exactNameMatch.id,
-        matchedProviderName: exactNameMatch.providerName,
-        matchedProviderCode: exactNameMatch.providerCode,
-        confidence: 0.98,
-        matchType: 'exact',
-        status: 'confirmed'
-      };
-    }
-
-    // 3. Name + Location (LGA or State)
-    if (lga || state) {
-      const locationMatch = providers.find(p => 
-        p.providerName.toLowerCase().includes(normalizedName) && 
-        ((lga && p.lga.toLowerCase() === lga.toLowerCase()) || (state && p.state.toLowerCase() === state.toLowerCase()))
-      );
-      if (locationMatch) {
-        return {
-          excelName: name,
-          matchedProviderId: locationMatch.id,
-          matchedProviderName: locationMatch.providerName,
-          matchedProviderCode: locationMatch.providerCode,
-          confidence: 0.95,
-          matchType: 'location',
-          status: 'confirmed'
-        };
-      }
-    }
-
-    // 4. Normalized fuzzy match
-    const fuzzyMatch = providers.find(p => {
-      const normalizedP = p.providerName.toLowerCase().trim().replace(/[^a-z0-9]/g, '');
-      return normalizedP === normalizedName || normalizedP.includes(normalizedName) || normalizedName.includes(normalizedP);
+    const normalizedName = normalizeText(name);
+    const asCandidates = (items: typeof providers) => items.map(provider => ({ id: provider.id, name: provider.providerName, code: provider.providerCode }));
+    const confirmed = (provider: (typeof providers)[number], confidence: number, matchType: ProviderMatch['matchType']): ProviderMatch => ({
+      excelName: name,
+      matchedProviderId: provider.id,
+      matchedProviderName: provider.providerName,
+      matchedProviderCode: provider.providerCode,
+      confidence,
+      matchType,
+      status: 'confirmed',
+    });
+    const pending = (items: typeof providers, confidence: number, matchType: ProviderMatch['matchType']): ProviderMatch => ({
+      excelName: name,
+      matchedProviderId: items.length === 1 ? items[0].id : undefined,
+      matchedProviderName: items.length === 1 ? items[0].providerName : undefined,
+      matchedProviderCode: items.length === 1 ? items[0].providerCode : undefined,
+      candidates: asCandidates(items),
+      confidence,
+      matchType,
+      status: 'pending',
     });
 
-    if (fuzzyMatch) {
-      return {
-        excelName: name,
-        matchedProviderId: fuzzyMatch.id,
-        matchedProviderName: fuzzyMatch.providerName,
-        matchedProviderCode: fuzzyMatch.providerCode,
-        confidence: 0.85,
-        matchType: 'normalized',
-        status: 'pending'
-      };
+    if (code) {
+      const codeMatches = providers.filter(provider => normalizeText(provider.providerCode) === normalizeText(code));
+      if (codeMatches.length === 1) return confirmed(codeMatches[0], 1, 'exact');
+      if (codeMatches.length > 1) return pending(codeMatches, 0.99, 'exact');
     }
 
-    return {
-      excelName: name,
-      confidence: 0,
-      matchType: 'none',
-      status: 'pending'
+    const exactNameMatches = providers.filter(provider => normalizeText(provider.providerName) === normalizedName);
+    if (exactNameMatches.length === 1) return confirmed(exactNameMatches[0], 0.98, 'exact');
+    if (exactNameMatches.length > 1) return pending(exactNameMatches, 0.98, 'exact');
+
+    const sameLocation = (provider: (typeof providers)[number]) => {
+      const sameLga = Boolean(lga) && normalizeText(provider.lga) === normalizeText(lga);
+      const sameState = Boolean(state) && normalizeText(provider.state) === normalizeText(state);
+      return sameLga || sameState;
     };
+    const locationMatches = providers.filter(provider => {
+      const providerName = normalizeText(provider.providerName);
+      const similarName = providerName.includes(normalizedName) || normalizedName.includes(providerName);
+      return similarName && sameLocation(provider);
+    });
+    if (locationMatches.length === 1) return confirmed(locationMatches[0], 0.93, 'location');
+    if (locationMatches.length > 1) return pending(locationMatches, 0.93, 'location');
+
+    const fuzzyMatches = providers.filter(provider => {
+      const providerName = normalizeText(provider.providerName);
+      return providerName.includes(normalizedName) || normalizedName.includes(providerName);
+    });
+    if (fuzzyMatches.length === 1) return pending(fuzzyMatches, 0.82, 'normalized');
+    if (fuzzyMatches.length > 1) return pending(fuzzyMatches, 0.7, 'normalized');
+
+    return { excelName: name, confidence: 0, matchType: 'none', status: 'pending' };
   },
 
   /**
@@ -171,7 +173,8 @@ export const financialDataService = {
     mappings: ColumnMapping[], 
     dataType: FinancialDataType,
     batchId: string,
-    fileName: string
+    fileName: string,
+    sourceSheet?: string
   ): FinancialRecord[] {
     const records: FinancialRecord[] = [];
     const now = new Date().toISOString();
@@ -190,6 +193,7 @@ export const financialDataService = {
         id: `rec-${batchId}-${index}`,
         importBatchId: batchId,
         sourceFile: fileName,
+        sourceSheet,
         sourceRow: index + 2,
         dataType,
         createdAt: now,
@@ -203,10 +207,7 @@ export const financialDataService = {
           let value = row[mapping.excelField];
           
           // Clean numeric values
-          if (typeof value === 'string' && (mapping.nmisField.toString().toLowerCase().includes('amount') || mapping.nmisField === 'eligibleLives')) {
-            value = parseFloat(value.replace(/,/g, ''));
-          }
-          
+          if (numericFields.has(String(mapping.nmisField))) value = toNumber(value);
           (baseData as any)[mapping.nmisField] = value;
         }
       });
@@ -225,14 +226,17 @@ export const financialDataService = {
               reportingMonth: finalMonthIdx + 1,
               reportingYear: baseData.reportingYear || new Date().getFullYear(),
               period: `${baseData.reportingYear || new Date().getFullYear()}-${(finalMonthIdx + 1).toString().padStart(2, '0')}`,
-              amount: typeof monthVal === 'string' ? parseFloat(monthVal.replace(/,/g, '')) : monthVal
+              amount: toNumber(monthVal)
             };
+            monthRecord.fingerprint = buildFingerprint(monthRecord);
             records.push(monthRecord);
           }
         });
       } else {
         // Single record per row
-        records.push(baseData as FinancialRecord);
+        const record = baseData as FinancialRecord;
+        record.fingerprint = buildFingerprint(record);
+        records.push(record);
       }
     });
 
@@ -248,10 +252,10 @@ export const financialDataService = {
       record.providerCode,
       record.period,
       record.dataType,
-      record.amountPaid || record.amount || 0,
-      record.eligibleLives || 0
+      record.amountPaid ?? record.netAmountPaid ?? record.amount ?? 0,
+      record.eligibleLives ?? 0
     ];
-    return components.map(c => String(c).toLowerCase().trim()).join('|');
+    return components.map(c => normalizeText(c)).join('|');
   },
 
   /**

@@ -182,19 +182,33 @@ export default function FinancialDashboardPage() {
         <div className="rounded-3xl border border-slate-200 bg-white p-8">
           <h3 className="mb-6 text-lg font-bold text-slate-900">Top Expenditure by State</h3>
           <div className="space-y-6">
-            <LocationBar label="Lagos State" value={75000000} max={100000000} color="bg-brand-blue" />
-            <LocationBar label="FCT Abuja" value={62000000} max={100000000} color="bg-brand-blue" />
-            <LocationBar label="Kano State" value={48000000} max={100000000} color="bg-brand-blue" />
-            <LocationBar label="Rivers State" value={35000000} max={100000000} color="bg-brand-blue" />
+            {analytics?.byState?.slice(0, 4).map((item: any) => (
+              <LocationBar 
+                key={item.name} 
+                label={item.name} 
+                value={item.value} 
+                max={analytics.byState[0]?.value || 1} 
+                color="bg-brand-blue" 
+              />
+            )) || (
+              <p className="text-center text-slate-400 py-10">No state data available</p>
+            )}
           </div>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-8">
           <h3 className="mb-6 text-lg font-bold text-slate-900">Expenditure by Facility Type</h3>
           <div className="space-y-6">
-            <LocationBar label="General Hospitals" value={92000000} max={120000000} color="bg-emerald-500" />
-            <LocationBar label="Primary Health Centres" value={54000000} max={120000000} color="bg-emerald-500" />
-            <LocationBar label="Specialist Centres" value={38000000} max={120000000} color="bg-emerald-500" />
-            <LocationBar label="Pharmacies" value={22000000} max={120000000} color="bg-emerald-500" />
+            {analytics?.byFacilityType?.slice(0, 4).map((item: any) => (
+              <LocationBar 
+                key={item.name} 
+                label={item.name} 
+                value={item.value} 
+                max={analytics.byFacilityType[0]?.value || 1} 
+                color="bg-emerald-500" 
+              />
+            )) || (
+              <p className="text-center text-slate-400 py-10">No facility type data available</p>
+            )}
           </div>
         </div>
       </div>

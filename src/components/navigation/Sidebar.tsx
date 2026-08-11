@@ -35,6 +35,7 @@ const sections = [
     children: [
       { label: 'Financial Overview', path: '/financial/dashboard', icon: Grid, visible: true },
       { label: 'Claims Data', path: '/financial/claims', icon: FileText, visible: true },
+      { label: 'Claims Analytics', path: '/financial/claims/analytics', icon: FileChartColumn, visible: true },
       { label: 'Capitation Data', path: '/financial/capitation', icon: FileChartColumn, visible: true },
       { label: 'FFS Data', path: '/financial/ffs', icon: FileText, visible: true },
       { label: 'Enrolment Data', path: '/financial/enrolment', icon: Users, visible: true },

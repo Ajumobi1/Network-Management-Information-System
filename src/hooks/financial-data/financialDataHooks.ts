@@ -5,8 +5,11 @@ import {
   fetchImportBatchById,
   createImportBatch,
   fetchFinancialAnalytics,
+  fetchFinancialRegisterSummary,
+  checkDuplicateBatch,
   FinancialFilters 
 } from '../../repositories/financial-data/financialDataRepository';
+import { FinancialDataType } from '../../types/financial-data';
 
 export function useFinancialRecords(filters: FinancialFilters = {}) {
   return useQuery({
@@ -41,12 +44,29 @@ export function useFinancialAnalytics(filters: FinancialFilters = {}) {
   });
 }
 
+export function useFinancialRegisterSummary(filters: FinancialFilters = {}) {
+  return useQuery({
+    queryKey: ['financial-data', 'register-summary', filters],
+    queryFn: () => fetchFinancialRegisterSummary(filters),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function useCreateImportBatch() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createImportBatch,
+    mutationFn: ({ batch, records }: { batch: any, records: any[] }) => createImportBatch(batch, records),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['financial-data', 'batches'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-data'] });
     },
+  });
+}
+
+export function useCheckDuplicateBatch(period: string, dataType: FinancialDataType) {
+  return useQuery({
+    queryKey: ['financial-data', 'duplicate-check', period, dataType],
+    queryFn: () => checkDuplicateBatch(period, dataType),
+    enabled: !!period && !!dataType,
+    staleTime: 0, // Always check
   });
 }
