@@ -13,6 +13,7 @@ import CredentialingTab from '../CredentialingTab';
 import DocumentsTab from '../DocumentsTab';
 import FacilityTab from '../FacilityTab';
 import FinancialTab from '../FinancialTab';
+import EnrolmentTab from '../EnrolmentTab';
 import InspectionsTab from '../InspectionsTab';
 import OverviewTab from '../OverviewTab';
 import PerformanceTab from '../PerformanceTab';
@@ -29,6 +30,7 @@ const tabs = [
   'Complaints',
   'Performance',
   'Financials',
+  'Enrolment / Population',
   'Documents',
   'Audit Log',
   'Timeline',
@@ -53,6 +55,7 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
     Complaints: <ComplaintsTab provider={provider} />,
     Performance: <PerformanceTab provider={provider} />,
     Financials: <FinancialTab provider={provider} />,
+    'Enrolment / Population': <EnrolmentTab provider={provider} />,
     Documents: <DocumentsTab provider={provider} />,
     'Audit Log': <AuditLogTab provider={provider} />,
     Timeline: <TimelineTab provider={provider} />,

@@ -43,6 +43,16 @@ const sections = [
       { label: 'Import History', path: '/financial/history', icon: ClipboardCheck, visible: true },
     ],
   },
+  {
+    label: 'Population & Enrolment',
+    icon: Users,
+    visible: true,
+    children: [
+      { label: 'Population Overview', path: '/population/enrolment', icon: Grid, visible: true },
+      { label: 'Enrolment Register', path: '/population/enrolment/register', icon: Users, visible: true },
+      { label: 'Upload Capitation List', path: '/population/enrolment/upload', icon: ClipboardList, visible: true },
+    ],
+  },
   { label: 'Capitation', path: '/capitation', icon: FileChartColumn, visible: true },
   { label: 'Facility Inspection', path: '/inspections', icon: ClipboardCheck, visible: true },
   { label: 'Performance', path: '/performance', icon: Zap, visible: true },

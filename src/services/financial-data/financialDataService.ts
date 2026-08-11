@@ -119,12 +119,16 @@ export const financialDataService = {
       return { ...persistedMatch, status: 'confirmed', confidence: 1 };
     }
 
-    const asCandidates = (items: typeof providers) => items.map(provider => ({ id: provider.id, name: provider.providerName, code: provider.providerCode }));
+    const asCandidates = (items: typeof providers) => items.map(provider => ({ id: provider.id, name: provider.providerName, code: provider.providerCode, lga: provider.lga, state: provider.state, senatorialDistrict: undefined, facilityType: provider.category, ownership: provider.ownership }));
     const confirmed = (provider: (typeof providers)[number], confidence: number, matchType: ProviderMatch['matchType']): ProviderMatch => ({
       excelName: name,
       matchedProviderId: provider.id,
       matchedProviderName: provider.providerName,
       matchedProviderCode: provider.providerCode,
+      matchedProviderLga: provider.lga,
+      matchedProviderState: provider.state,
+      matchedProviderFacilityType: provider.category,
+      matchedProviderOwnership: provider.ownership,
       confidence,
       matchType,
       status: 'confirmed',
@@ -134,6 +138,10 @@ export const financialDataService = {
       matchedProviderId: items.length === 1 ? items[0].id : undefined,
       matchedProviderName: items.length === 1 ? items[0].providerName : undefined,
       matchedProviderCode: items.length === 1 ? items[0].providerCode : undefined,
+      matchedProviderLga: items.length === 1 ? items[0].lga : undefined,
+      matchedProviderState: items.length === 1 ? items[0].state : undefined,
+      matchedProviderFacilityType: items.length === 1 ? items[0].category : undefined,
+      matchedProviderOwnership: items.length === 1 ? items[0].ownership : undefined,
       candidates: asCandidates(items),
       confidence,
       matchType,

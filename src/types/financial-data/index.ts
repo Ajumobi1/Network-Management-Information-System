@@ -108,7 +108,12 @@ export interface ProviderMatch {
   matchedProviderId?: string;
   matchedProviderName?: string;
   matchedProviderCode?: string;
-  candidates?: Array<{ id: string; name: string; code: string }>;
+  matchedProviderLga?: string;
+  matchedProviderState?: string;
+  matchedProviderSenatorialDistrict?: string;
+  matchedProviderFacilityType?: ProviderCategory;
+  matchedProviderOwnership?: ProviderOwnership;
+  candidates?: Array<{ id: string; name: string; code: string; lga?: string; state?: string; senatorialDistrict?: string; facilityType?: ProviderCategory; ownership?: ProviderOwnership }>;
   confidence: number;
   matchType: 'exact' | 'normalized' | 'alias' | 'location' | 'manual' | 'none';
   status: 'confirmed' | 'pending' | 'rejected';

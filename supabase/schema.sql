@@ -172,3 +172,61 @@ CREATE POLICY "Read access for all authenticated users" ON audit_logs FOR SELECT
 CREATE POLICY "Append-only for authenticated users" ON audit_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "No update for audit logs" ON audit_logs FOR UPDATE TO authenticated USING (false);
 CREATE POLICY "No delete for audit logs" ON audit_logs FOR DELETE TO authenticated USING (false);
+
+
+-- Enrolment Records (normalized monthly beneficiary population)
+CREATE TABLE IF NOT EXISTS enrollees (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    policy_number TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('principal', 'dependant')),
+    sector TEXT NOT NULL CHECK (sector IN ('formal', 'informal')),
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    gender TEXT NOT NULL,
+    phone_number TEXT,
+
+    -- Provider Directory association; source facility values remain in metadata
+    provider_id UUID REFERENCES providers(id) ON DELETE SET NULL,
+    provider_code TEXT,
+    provider_name TEXT NOT NULL,
+    facility_type TEXT,
+    ownership TEXT,
+    lga TEXT NOT NULL,
+    state TEXT NOT NULL,
+    senatorial_district TEXT,
+
+    -- Historical reporting context
+    reporting_year INTEGER NOT NULL,
+    reporting_month INTEGER NOT NULL CHECK (reporting_month BETWEEN 1 AND 12),
+    period TEXT NOT NULL,
+
+    -- Import traceability
+    source_file TEXT,
+    import_batch_id UUID REFERENCES import_batches(id) ON DELETE CASCADE,
+    source_row INTEGER,
+    record_status TEXT NOT NULL CHECK (record_status IN ('valid', 'warning', 'error', 'match-review-required', 'duplicate')),
+    fingerprint TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    metadata JSONB DEFAULT '{}'::jsonb
+);
+
+ALTER TABLE enrollees ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Enrollees readable by authenticated users"
+ON enrollees FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Enrollees writable by Finance and Network Management"
+ON enrollees FOR ALL TO authenticated
+USING (public.is_finance() OR public.is_network_mgmt())
+WITH CHECK (public.is_finance() OR public.is_network_mgmt());
+
+CREATE INDEX IF NOT EXISTS idx_enrollees_policy_number ON enrollees(policy_number);
+CREATE INDEX IF NOT EXISTS idx_enrollees_provider_id ON enrollees(provider_id);
+CREATE INDEX IF NOT EXISTS idx_enrollees_reporting_year_month ON enrollees(reporting_year, reporting_month);
+CREATE INDEX IF NOT EXISTS idx_enrollees_period ON enrollees(period);
+CREATE INDEX IF NOT EXISTS idx_enrollees_sector ON enrollees(sector);
+CREATE INDEX IF NOT EXISTS idx_enrollees_category ON enrollees(category);
+CREATE INDEX IF NOT EXISTS idx_enrollees_lga ON enrollees(lga);
+CREATE INDEX IF NOT EXISTS idx_enrollees_senatorial_district ON enrollees(senatorial_district);
+CREATE INDEX IF NOT EXISTS idx_enrollees_fingerprint ON enrollees(fingerprint);

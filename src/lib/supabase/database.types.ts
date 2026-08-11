@@ -183,6 +183,36 @@ export interface ProviderMatchResolutionsRow {
   resolved_at: string;
 }
 
+export interface EnrolleesRow {
+  id: string;
+  policy_number: string;
+  category: string;
+  sector: string;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  phone_number: string | null;
+  provider_id: string | null;
+  provider_code: string | null;
+  provider_name: string;
+  facility_type: string | null;
+  ownership: string | null;
+  lga: string;
+  state: string;
+  senatorial_district: string | null;
+  reporting_year: number;
+  reporting_month: number;
+  period: string;
+  source_file: string | null;
+  import_batch_id: string | null;
+  source_row: number | null;
+  record_status: string;
+  fingerprint: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata: Json;
+}
+
 export interface InspectionsRow {
   id: string;
   provider_id: string;
@@ -312,6 +342,11 @@ export interface Database {
         Row: ProviderMatchResolutionsRow;
         Insert: Partial<ProviderMatchResolutionsRow>;
         Update: Partial<ProviderMatchResolutionsRow>;
+      };
+      enrollees: {
+        Row: EnrolleesRow;
+        Insert: Partial<EnrolleesRow>;
+        Update: Partial<EnrolleesRow>;
       };
       audit_logs: {
         Row: AuditLogsRow;
