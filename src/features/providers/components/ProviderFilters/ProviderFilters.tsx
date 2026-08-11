@@ -8,13 +8,14 @@ type ProviderFiltersProps = {
   filters: ProviderDirectoryFilters;
   states: string[];
   categories: string[];
+  ownerships: string[];
   onChange: (filters: ProviderDirectoryFilters) => void;
 };
 
-export default function ProviderFilters({ filters, states, categories, onChange }: ProviderFiltersProps) {
+export default function ProviderFilters({ filters, states, categories, ownerships, onChange }: ProviderFiltersProps) {
   return (
     <Card>
-      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr_auto]">
+      <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
         <ProviderSearch value={filters.search} onChange={search => onChange({ ...filters, search })} />
         <select
           className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
@@ -28,9 +29,16 @@ export default function ProviderFilters({ filters, states, categories, onChange 
           value={filters.category}
           onChange={event => onChange({ ...filters, category: event.target.value })}
         >
-          {categories.map(category => <option key={category} value={category}>{category === 'all' ? 'All categories' : category}</option>)}
+          {categories.map(category => <option key={category} value={category}>{category === 'all' ? 'All facility types' : category}</option>)}
         </select>
-        <Button variant="secondary" className="gap-2"><Settings2 className="h-4 w-4" /> Saved filters</Button>
+        <select
+          className="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900"
+          value={filters.ownership}
+          onChange={event => onChange({ ...filters, ownership: event.target.value as any })}
+        >
+          {ownerships.map(ownership => <option key={ownership} value={ownership}>{ownership === 'all' ? 'All ownerships' : ownership}</option>)}
+        </select>
+        <Button variant="secondary" className="gap-2"><Settings2 className="h-4 w-4" /> Saved</Button>
       </div>
     </Card>
   );

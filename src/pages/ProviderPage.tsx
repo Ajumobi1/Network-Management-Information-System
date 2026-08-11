@@ -11,11 +11,24 @@ import { useProviderDirectory } from '../features/providers/hooks';
 import { ProviderDirectoryFilters } from '../features/providers/types';
 
 export default function ProviderPage() {
-  const [filters, setFilters] = useState<ProviderDirectoryFilters>({ search: '', status: 'all', state: 'all', category: 'all' });
+  const [filters, setFilters] = useState<ProviderDirectoryFilters>({
+    search: '',
+    status: 'all',
+    contractStatus: 'all',
+    credentialStatus: 'all',
+    inspectionStatus: 'all',
+    capitationStatus: 'all',
+    state: 'all',
+    lga: 'all',
+    category: 'all',
+    subcategory: 'all',
+    ownership: 'all',
+  });
   const { data: providers = [], isLoading } = useProviderDirectory(filters);
   const [selectedProviderId, setSelectedProviderId] = useState('prov-1');
   const states = useMemo(() => ['all', ...new Set(providers.map(provider => provider.state))], [providers]);
   const categories = useMemo(() => ['all', ...new Set(providers.map(provider => provider.category))], [providers]);
+  const ownerships = useMemo(() => ['all', ...new Set(providers.map(provider => provider.ownership))], [providers]);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8">
@@ -40,7 +53,7 @@ export default function ProviderPage() {
           ))}
         </div>
 
-        <ProviderFilters filters={filters} states={states} categories={categories} onChange={setFilters} />
+        <ProviderFilters filters={filters} states={states} categories={categories} ownerships={ownerships} onChange={setFilters} />
         {isLoading ? <Card>Loading providers...</Card> : <ProviderTable providers={providers} onSelect={setSelectedProviderId} />}
         <ProviderRegistrationWizard />
         <ProviderProfile providerId={selectedProviderId} />
