@@ -19,6 +19,7 @@ import {
 import { FinancialDataType, FinancialRecord } from '../../types/financial-data';
 import type { FinancialFilters, FinancialRegisterSummary } from '../../repositories/financial-data/financialDataRepository';
 import { useAuth } from '../../contexts/AuthContext';
+import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
 
 interface Props {
   type: FinancialDataType;
@@ -44,6 +45,7 @@ export default function FinancialRegisterPage({ type }: Props) {
   const [claimsCategory, setClaimsCategory] = useState('');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
   const filters = useMemo<FinancialFilters>(() => ({
     dataType: type,
@@ -66,6 +68,32 @@ export default function FinancialRegisterPage({ type }: Props) {
   const clearFilters = () => {
     setSearch(''); setYear(''); setMonth(''); setFacilityType(''); setOwnership('');
     setState(''); setLga(''); setClaimsCategory(''); setMinAmount(''); setMaxAmount('');
+  };
+
+  const activeFilterChips = [
+    search ? { id: 'search', label: 'Search', value: search } : null,
+    year ? { id: 'year', label: 'Year', value: year } : null,
+    month ? { id: 'month', label: 'Month', value: months.find(item => String(item.value) === month)?.label || month } : null,
+    facilityType ? { id: 'facilityType', label: 'Facility', value: facilityType } : null,
+    ownership ? { id: 'ownership', label: 'Ownership', value: ownership } : null,
+    state ? { id: 'state', label: 'State', value: state } : null,
+    lga ? { id: 'lga', label: 'LGA', value: lga } : null,
+    isClaims && claimsCategory ? { id: 'claimsCategory', label: 'Category', value: claimsCategory } : null,
+    minAmount ? { id: 'minAmount', label: 'Minimum', value: formatNaira(Number(minAmount)) } : null,
+    maxAmount ? { id: 'maxAmount', label: 'Maximum', value: formatNaira(Number(maxAmount)) } : null,
+  ].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
+
+  const removeFilter = (id: string) => {
+    if (id === 'search') setSearch('');
+    if (id === 'year') setYear('');
+    if (id === 'month') setMonth('');
+    if (id === 'facilityType') setFacilityType('');
+    if (id === 'ownership') setOwnership('');
+    if (id === 'state') setState('');
+    if (id === 'lga') setLga('');
+    if (id === 'claimsCategory') setClaimsCategory('');
+    if (id === 'minAmount') setMinAmount('');
+    if (id === 'maxAmount') setMaxAmount('');
   };
 
   const exportCsv = () => {
@@ -106,18 +134,22 @@ export default function FinancialRegisterPage({ type }: Props) {
             <input type="search" placeholder="Search provider, code, facility, state, or LGA..." className="w-full rounded-2xl border-slate-200 py-3 pl-12 text-sm focus:ring-brand-blue" value={search} onChange={event => setSearch(event.target.value)} />
           </div>
           <Button variant="secondary" className="flex items-center gap-2 py-3" onClick={clearFilters}><Filter className="h-4 w-4" /> Clear filters</Button>
+          <button type="button" className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50" onClick={() => setMoreFiltersOpen(value => !value)}>{moreFiltersOpen ? 'Hide more filters' : 'More filters'}</button>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           <Select label="Year" value={year} onChange={setYear} options={['2026', '2025']} placeholder="All years" />
           <Select label="Month" value={month} onChange={setMonth} options={months.map(item => String(item.value))} optionLabels={months.map(item => item.label)} placeholder="All months" />
           <Select label="Facility type" value={facilityType} onChange={setFacilityType} options={Object.values(ProviderCategory)} placeholder="All facility types" />
           <Select label="Ownership" value={ownership} onChange={setOwnership} options={Object.values(ProviderOwnership)} placeholder="All ownerships" />
+        </div>
+        {moreFiltersOpen ? <div className="mt-3 grid gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-3 sm:grid-cols-2 lg:grid-cols-4">
           {isClaims && <Select label="Claims category" value={claimsCategory} onChange={setClaimsCategory} options={claimCategories} placeholder="All categories" />}
           <input aria-label="State filter" placeholder="State" className="rounded-xl border-slate-200 text-sm" value={state} onChange={event => setState(event.target.value)} />
           <input aria-label="LGA filter" placeholder="LGA" className="rounded-xl border-slate-200 text-sm" value={lga} onChange={event => setLga(event.target.value)} />
           <input aria-label="Minimum amount filter" inputMode="decimal" placeholder="Min amount" className="rounded-xl border-slate-200 text-sm" value={minAmount} onChange={event => setMinAmount(event.target.value.replace(/[^0-9.]/g, ''))} />
           <input aria-label="Maximum amount filter" inputMode="decimal" placeholder="Max amount" className="rounded-xl border-slate-200 text-sm" value={maxAmount} onChange={event => setMaxAmount(event.target.value.replace(/[^0-9.]/g, ''))} />
-        </div>
+        </div> : null}
+        <ActiveFilterChips chips={activeFilterChips} onRemove={removeFilter} onClear={clearFilters} />
       </section>
 
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">

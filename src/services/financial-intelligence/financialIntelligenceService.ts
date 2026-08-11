@@ -1,0 +1,112 @@
+import { fetchFinancialAnalytics, fetchFinancialRecords, FinancialFilters } from '../../repositories/financial-data/financialDataRepository';
+import { fetchEnrolmentAnalyticsWithFinance, fetchEnrollees } from '../../repositories/enrolment/enrolmentRepository';
+import { EnrolleeRecord, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
+import { FinancialRecord } from '../../types/financial-data';
+import { FinancialIntelligenceFilters, FinancialIntelligenceBreakdown, FinancialIntelligenceSummary } from '../../types/financial-intelligence';
+
+function amountForRecord(record: FinancialRecord): number {
+  return record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? record.netAmount ?? record.amount ?? 0;
+}
+
+function groupAmount(records: FinancialRecord[], key: (record: FinancialRecord) => string): FinancialIntelligenceBreakdown[] {
+  const grouped = records.reduce<Record<string, number>>((accumulator, record) => {
+    const name = key(record) || 'Unknown';
+    accumulator[name] = (accumulator[name] || 0) + amountForRecord(record);
+    return accumulator;
+  }, {});
+  return Object.entries(grouped).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+}
+
+function mapFinancialFilters(filters: FinancialIntelligenceFilters): FinancialFilters {
+  return {
+    year: filters.year,
+    month: filters.month,
+    period: filters.period,
+    state: filters.state,
+    lga: filters.lga,
+    providerId: filters.providerId,
+    facilityType: filters.facilityType,
+    ownership: filters.ownership,
+    dataType: filters.dataType && filters.dataType !== 'all' ? filters.dataType : undefined,
+  };
+}
+
+function mapEnrolmentFilters(filters: FinancialIntelligenceFilters): EnrolmentFilters {
+  return {
+    year: filters.year,
+    month: filters.month,
+    period: filters.period,
+    state: filters.state,
+    lga: filters.lga,
+    providerId: filters.providerId,
+    sector: filters.sector,
+  };
+}
+
+function providerKey(record: { providerId?: string; providerCode?: string; providerName: string }): string {
+  return record.providerId || record.providerCode || record.providerName;
+}
+
+function allocateBySector(records: FinancialRecord[], enrollees: EnrolleeRecord[], sector?: 'formal' | 'informal'): FinancialRecord[] {
+  if (!sector) return records;
+
+  const sectorCounts = new Map<string, number>();
+  const totalCounts = new Map<string, number>();
+  enrollees.forEach(enrollee => {
+    const key = `${providerKey(enrollee)}|${enrollee.period}`;
+    totalCounts.set(key, (totalCounts.get(key) || 0) + 1);
+    if (enrollee.sector === sector) sectorCounts.set(key, (sectorCounts.get(key) || 0) + 1);
+  });
+
+  return records.map(record => {
+    const key = `${providerKey(record)}|${record.period}`;
+    const total = totalCounts.get(key) || 0;
+    const sectorCount = sectorCounts.get(key) || 0;
+    const share = total > 0 ? sectorCount / total : 0;
+    return {
+      ...record,
+      amountPaid: amountForRecord(record) * share,
+      netAmountPaid: amountForRecord(record) * share,
+      amount: amountForRecord(record) * share,
+    };
+  });
+}
+
+export async function fetchFinancialIntelligence(filters: FinancialIntelligenceFilters = {}): Promise<FinancialIntelligenceSummary> {
+  const financialFilters = mapFinancialFilters(filters);
+  const enrolmentFilters = mapEnrolmentFilters(filters);
+  const [financialAnalytics, financialRecords, enrolmentAnalytics, enrollees] = await Promise.all([
+    fetchFinancialAnalytics(financialFilters),
+    fetchFinancialRecords(financialFilters),
+    fetchEnrolmentAnalyticsWithFinance(enrolmentFilters),
+    fetchEnrollees(enrolmentFilters),
+  ]);
+
+  const allocatedRecords = allocateBySector(financialRecords, enrollees, filters.sector && filters.sector !== 'all' ? filters.sector : undefined);
+  const totalExpenditure = allocatedRecords.reduce((sum, record) => sum + amountForRecord(record), 0);
+  const byType = groupAmount(allocatedRecords, record => record.dataType);
+  const claimsExpenditure = byType.find(item => item.name === 'claims')?.value || 0;
+  const capitationExpenditure = byType.find(item => item.name === 'capitation')?.value || 0;
+  const ffsExpenditure = byType.find(item => item.name === 'ffs')?.value || 0;
+
+  return {
+    totalExpenditure,
+    claimsExpenditure,
+    capitationExpenditure,
+    ffsExpenditure,
+    totalEnrolment: enrolmentAnalytics.totalEnrollees,
+    formalEnrolment: enrolmentAnalytics.formalCount,
+    informalEnrolment: enrolmentAnalytics.informalCount,
+    pepm: enrolmentAnalytics.totalEnrollees > 0 ? totalExpenditure / enrolmentAnalytics.totalEnrollees : 0,
+    providerCount: financialAnalytics.providerCount,
+    financialRecordCount: allocatedRecords.length,
+    providerRanking: groupAmount(allocatedRecords, record => record.providerName).slice(0, 10),
+    lgaRanking: groupAmount(allocatedRecords, record => record.lga || 'Unknown').slice(0, 10),
+    monthlyTrend: groupAmount(allocatedRecords, record => record.period).sort((a, b) => a.name.localeCompare(b.name)),
+    expenditureMix: byType,
+  };
+}
+
+export const financialIntelligenceService = {
+  fetchFinancialIntelligence,
+};

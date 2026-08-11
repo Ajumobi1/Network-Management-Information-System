@@ -24,6 +24,11 @@ type MappingOption = {
   label: string;
 };
 
+const workflowSteps: { key: UploadStep; label: string }[] = [
+  { key: 'upload', label: 'Upload' }, { key: 'inspect', label: 'Inspect' }, { key: 'map', label: 'Map' },
+  { key: 'match', label: 'Match' }, { key: 'preview', label: 'Preview' }, { key: 'commit', label: 'Commit' },
+];
+
 const mappingOptions: MappingOption[] = [
   { value: 'ignored', label: 'Ignore this column' },
   { value: 'providerCode', label: 'Provider code' },
@@ -65,6 +70,7 @@ export default function DataUploadCentrePage() {
 
   const createBatch = useCreateImportBatch();
   const detectedPeriod = normalizedRecords[0]?.period || '';
+  const currentStepIndex = workflowSteps.findIndex(item => item.key === step);
   const { data: duplicateBatch } = useCheckDuplicateBatch(detectedPeriod, dataType);
   const lowConfidenceMappings = mappings.filter(mapping => mapping.nmisField !== 'ignored' && mapping.confidence === 'LOW' && !mapping.isCustom);
   const matchSummary = useMemo(() => ({
@@ -211,7 +217,7 @@ export default function DataUploadCentrePage() {
     <div className="mx-auto max-w-7xl space-y-8">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div><h1 className="text-2xl font-bold text-slate-900">Data Upload Centre</h1><p className="mt-1 text-slate-500">Upload, inspect, map, validate, match, preview, and commit processed financial workbooks.</p></div>
-        <div className="flex items-center gap-2 rounded-2xl bg-slate-100 p-1">{(['upload', 'inspect', 'map', 'match', 'preview', 'commit'] as UploadStep[]).map((item, index) => <React.Fragment key={item}><StepIndicator active={step === item} label={String(index + 1)} />{index < 5 && <div className="h-px w-3 bg-slate-300" />}</React.Fragment>)}</div>
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">{workflowSteps.map((item, index) => <React.Fragment key={item.key}><StepIndicator active={index <= currentStepIndex} current={step === item.key} number={String(index + 1)} label={item.label} />{index < workflowSteps.length - 1 && <div className="h-px w-3 shrink-0 bg-slate-300" />}</React.Fragment>)}</div>
       </header>
 
       {errorMessage && <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-5 w-5 shrink-0" /><p>{errorMessage}</p></div>}
@@ -263,7 +269,7 @@ function PreviewPanel({ records, rawRowCount, validCount, invalidCount, duplicat
 }
 
 function CommitPanel({ onReset }: { onReset: () => void }) { return <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-12 text-center"><CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" /><h2 className="mt-5 text-2xl font-black text-emerald-900">Dataset committed</h2><p className="mx-auto mt-2 max-w-xl text-emerald-800">The normalized records are available to the relevant Financial Data register and analytics queries. The original file and import batch remain traceable.</p><Button variant="primary" className="mt-8" onClick={onReset}>Upload another dataset</Button></div>; }
-function StepIndicator({ active, label }: { active: boolean; label: string }) { return <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${active ? 'bg-brand-blue text-white' : 'bg-white text-slate-400'}`}>{label}</div>; }
+function StepIndicator({ active, current, number, label }: { active: boolean; current: boolean; number: string; label: string }) { return <div className={`flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold ${current ? 'bg-brand-blue text-white shadow-sm' : active ? 'text-brand-blue' : 'text-slate-400'}`}><span className={`flex h-7 w-7 items-center justify-center rounded-full ${current ? 'bg-white/20' : active ? 'bg-brand-blue/10' : 'bg-white'}`}>{number}</span><span className="hidden sm:inline">{label}</span></div>; }
 function InfoRow({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 break-words text-sm font-semibold text-slate-700">{value}</p></div>; }
 function PreviewStat({ label, value, color = 'text-slate-900' }: { label: string; value: number | string; color?: string }) { return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className={`mt-2 text-2xl font-black ${color}`}>{value}</p></div>; }
 function formatNaira(amount: number) { return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number.isFinite(amount) ? amount : 0); }

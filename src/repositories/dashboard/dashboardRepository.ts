@@ -2,7 +2,9 @@ import { useMockData } from '../common';
 import * as dashboardMocks from '../../mocks/dashboardMocks';
 import { getProviderDirectory } from '../providers/providersRepository';
 import { fetchFinancialRecords } from '../financial-data/financialDataRepository';
+import { fetchEnrolmentAnalyticsWithFinance } from '../enrolment/enrolmentRepository';
 import { ProviderLifecycleStatus } from '../../constants/providerNetwork';
+import { EnrolmentAnalytics } from '../../types/enrolment/enrolmentTypes';
 import {
   AiInsight,
   ActivityItem,
@@ -41,31 +43,93 @@ export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
   };
 }
 
+function formatNaira(value: number): string {
+  if (value >= 1_000_000_000) return `₦${(value / 1_000_000_000).toFixed(2)}B`;
+  if (value >= 1_000_000) return `₦${(value / 1_000_000).toFixed(2)}M`;
+  return `₦${Math.round(value).toLocaleString('en-NG')}`;
+}
+
 export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
-  const providers = await getProviderDirectory();
-  const financialRecords = await fetchFinancialRecords();
-  
+  const [providers, financialRecords, population] = await Promise.all([
+    getProviderDirectory(),
+    fetchFinancialRecords(),
+    fetchEnrolmentAnalyticsWithFinance(),
+  ]);
+
   const totalProviders = providers.length;
   const activeProviders = providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
-  const totalExpenditure = financialRecords.reduce((sum, r) => sum + (r.netAmountPaid ?? r.amountPaid ?? r.amount ?? 0), 0);
-  
+  const totalExpenditure = financialRecords.reduce((sum, r) => sum + (r.netAmountPaid ?? r.amountPaid ?? r.amount ?? r.netAmount ?? 0), 0);
   const baseMetrics = await dashboardMocks.getKpiMetrics();
+  const baseById = new Map(baseMetrics.map(metric => [metric.id, metric]));
+  const totalProvidersMetric = baseById.get('total-providers');
+  const activeProvidersMetric = baseById.get('active-providers');
 
-  return baseMetrics.map(m => {
-    if (m.id === 'total-providers') return { ...m, value: totalProviders.toLocaleString() };
-    if (m.id === 'active-providers') return { ...m, value: activeProviders.toLocaleString() };
-    if (m.id === 'monthly-capitation') {
-      const bValue = totalExpenditure / 1000000000;
-      const displayValue = bValue >= 0.01 ? `₦${bValue.toFixed(2)}B` : `₦${(totalExpenditure / 1000000).toFixed(2)}M`;
-      return { 
-        ...m, 
-        label: 'Total Network Expenditure', 
-        value: displayValue, 
-        subtitle: 'Aggregated claims, capitation, and FFS' 
-      };
-    }
-    return m;
-  });
+  return [
+    {
+      ...(totalProvidersMetric || { id: 'total-providers', delta: 'Live', trend: 'steady' as const, color: 'indigo' as const, icon: 'Users', subtitle: 'Authoritative Provider Directory' }),
+      label: 'Total providers',
+      value: totalProviders.toLocaleString(),
+    },
+    {
+      ...(activeProvidersMetric || { id: 'active-providers', delta: 'Live', trend: 'steady' as const, color: 'emerald' as const, icon: 'ShieldCheck', subtitle: 'Active in the Provider Directory' }),
+      label: 'Active providers',
+      value: activeProviders.toLocaleString(),
+    },
+    {
+      id: 'total-enrollees',
+      label: 'Total enrollees',
+      value: population.totalEnrollees.toLocaleString(),
+      delta: `${population.providerCount} facilities`,
+      trend: 'steady',
+      color: 'sky',
+      icon: 'Users',
+      subtitle: 'Normalized monthly population',
+    },
+    {
+      id: 'formal-enrollees',
+      label: 'Formal enrollees',
+      value: population.formalCount.toLocaleString(),
+      delta: `${population.formalPercentage}% of population`,
+      trend: 'steady',
+      color: 'indigo',
+      icon: 'ShieldCheck',
+      subtitle: 'Policy numbers containing /C/',
+    },
+    {
+      id: 'informal-enrollees',
+      label: 'Informal enrollees',
+      value: population.informalCount.toLocaleString(),
+      delta: `${population.informalPercentage}% of population`,
+      trend: 'steady',
+      color: 'amber',
+      icon: 'Users',
+      subtitle: 'Policy numbers containing /D/',
+    },
+    {
+      id: 'network-expenditure',
+      label: 'Network expenditure',
+      value: formatNaira(totalExpenditure),
+      delta: `${financialRecords.length} financial records`,
+      trend: 'steady',
+      color: 'emerald',
+      icon: 'CurrencyNaira',
+      subtitle: 'Claims, capitation, and FFS',
+    },
+    {
+      id: 'pepm',
+      label: 'Expenditure per enrollee',
+      value: formatNaira(population.pepm),
+      delta: `${population.financialRecordCount} linked records`,
+      trend: 'steady',
+      color: 'rose',
+      icon: 'CurrencyNaira',
+      subtitle: 'PEPM analytical view',
+    },
+  ];
+}
+
+export async function fetchPopulationSnapshot(): Promise<EnrolmentAnalytics> {
+  return fetchEnrolmentAnalyticsWithFinance();
 }
 
 export async function fetchProviderDistribution(): Promise<DistributionPoint[]> {

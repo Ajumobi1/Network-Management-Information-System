@@ -14,6 +14,7 @@ import {
   fetchProviderCategories,
   fetchProviderDistribution,
   fetchMonthlyGrowth,
+  fetchPopulationSnapshot,
   fetchUpcomingActivities,
   fetchUtilizationTrend,
 } from '../../services/dashboard/dashboardService';
@@ -30,6 +31,14 @@ export function useKpiMetrics() {
   return useQuery({
     queryKey: ['dashboard', 'kpis'],
     queryFn: fetchKpiMetrics,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function usePopulationSnapshot() {
+  return useQuery({
+    queryKey: ['dashboard', 'populationSnapshot'],
+    queryFn: fetchPopulationSnapshot,
     staleTime: 1000 * 60 * 5,
   });
 }

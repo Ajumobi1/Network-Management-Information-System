@@ -10,6 +10,7 @@ import ProviderCoverageMap from '../../components/dashboard/ProviderCoverageMap'
 import UpcomingActivities from '../../components/dashboard/UpcomingActivities';
 import ExecutiveSummaryCard from '../../components/dashboard/ExecutiveSummaryCard';
 import QuickActionCards from '../../components/dashboard/QuickActionCards';
+import PopulationSnapshotPanel from '../../components/dashboard/PopulationSnapshotPanel';
 
 export default function ExecutiveDashboardPage() {
   return (
@@ -17,6 +18,7 @@ export default function ExecutiveDashboardPage() {
       <div className="mx-auto max-w-7xl space-y-8">
         <ExecutiveHeader />
         <KpiGrid />
+        <PopulationSnapshotPanel />
 
         <div className="grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
           <DashboardCharts />

@@ -16,6 +16,7 @@ import {
   ActivityItem,
   UpcomingActivity,
 } from '../../types/dashboard/dashboardTypes';
+import { EnrolmentAnalytics } from '../../types/enrolment/enrolmentTypes';
 
 export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
   return dashboardRepository.fetchExecutiveSummary();
@@ -23,6 +24,10 @@ export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
 
 export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
   return dashboardRepository.fetchKpiMetrics();
+}
+
+export async function fetchPopulationSnapshot(): Promise<EnrolmentAnalytics> {
+  return dashboardRepository.fetchPopulationSnapshot();
 }
 
 export async function fetchProviderDistribution(): Promise<DistributionPoint[]> {
