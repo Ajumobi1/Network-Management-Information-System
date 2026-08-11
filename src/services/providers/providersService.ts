@@ -23,15 +23,15 @@ export async function deleteProvider(id: string): Promise<boolean> {
 }
 
 export async function registerNewProvider(payload: Omit<ProviderDirectoryItem, 'id'>): Promise<ProviderDirectoryItem> {
-  return providersRepository.createDirectoryProvider(payload);
+  return providersRepository.createDirectoryProvider(payload) as unknown as ProviderDirectoryItem;
 }
 
 export async function editDirectoryProvider(id: string, payload: Partial<ProviderDirectoryItem>): Promise<ProviderDirectoryItem> {
-  return providersRepository.updateDirectoryProvider(id, payload);
+  return providersRepository.updateDirectoryProvider(id, payload) as unknown as ProviderDirectoryItem;
 }
 
 export async function changeProviderStatus(id: string, status: ProviderLifecycleStatus): Promise<ProviderDirectoryItem> {
-  return providersRepository.setProviderLifecycleStatus(id, status);
+  return providersRepository.setProviderLifecycleStatus(id, status) as unknown as ProviderDirectoryItem;
 }
 
 export async function fetchProviderContacts(providerId: string) {

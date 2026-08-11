@@ -26,16 +26,29 @@ export interface PermissionsRow {
 
 export interface ProvidersRow {
   id: string;
-  name: string;
-  type: ProviderType;
-  category_id: string;
-  status: ProviderStatus;
+  provider_code: string;
+  provider_name: string;
+  category: string;
+  subcategory: string | null;
+  ownership: string;
+  lga: string;
+  state: string;
+  contact_person: string | null;
   phone: string | null;
   email: string | null;
+  status: string;
+  contract_status: string;
+  credential_status: string;
+  inspection_status: string;
+  capitation_status: string;
+  inspection_rating: string | null;
+  last_inspection_date: string | null;
   address: string | null;
-  region: string | null;
+  bank_name: string | null;
+  account_name: string | null;
+  account_number: string | null;
   created_at: string;
-  updated_at: string | null;
+  updated_at: string;
 }
 
 export interface ProviderContactsRow {
@@ -110,6 +123,66 @@ export interface CapitationUploadRow {
   uploaded_at: string;
 }
 
+export interface ImportBatchesRow {
+  id: string;
+  file_name: string;
+  data_type: string;
+  reporting_year: number | null;
+  reporting_month: number | null;
+  uploaded_by: string;
+  uploaded_at: string;
+  total_rows: number;
+  imported_rows: number;
+  warning_rows: number;
+  error_rows: number;
+  duplicate_rows: number;
+  unmatched_providers: number;
+  total_amount: number | null;
+  status: string;
+  period_covered: string | null;
+  metadata: Json;
+}
+
+export interface FinancialRecordsRow {
+  id: string;
+  provider_id: string | null;
+  provider_code: string | null;
+  provider_name: string;
+  facility_type: string | null;
+  ownership: string | null;
+  state: string | null;
+  lga: string | null;
+  reporting_year: number;
+  reporting_month: number;
+  period: string;
+  data_type: string;
+  amount_submitted: number | null;
+  amount_claimed: number | null;
+  amount_approved: number | null;
+  amount_paid: number | null;
+  net_amount_paid: number | null;
+  claim_count: number | null;
+  encounter_count: number | null;
+  eligible_lives: number | null;
+  source_file: string | null;
+  import_batch_id: string | null;
+  record_status: string;
+  fingerprint: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProviderMatchResolutionsRow {
+  id: string;
+  excel_name: string;
+  matched_provider_id: string | null;
+  matched_provider_name: string | null;
+  matched_provider_code: string | null;
+  match_type: string;
+  resolved_by: string | null;
+  resolved_at: string;
+}
+
 export interface InspectionsRow {
   id: string;
   provider_id: string;
@@ -160,10 +233,11 @@ export interface NotificationsRow {
 
 export interface AuditLogsRow {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  user_email: string | null;
   action: string;
   entity: string;
-  entity_id: string;
+  entity_id: string | null;
   metadata: Json;
   created_at: string;
 }
@@ -210,3 +284,40 @@ export type ReportType = 'operational' | 'financial' | 'compliance' | 'audit';
 export type ReportStatus = 'draft' | 'published' | 'archived';
 export type NotificationLevel = 'info' | 'warning' | 'critical' | 'success';
 export type Currency = 'NGN' | 'USD' | 'EUR';
+
+export interface Database {
+  public: {
+    Tables: {
+      providers: {
+        Row: ProvidersRow;
+        Insert: Partial<ProvidersRow>;
+        Update: Partial<ProvidersRow>;
+      };
+      provider_documents: {
+        Row: DocumentsRow;
+        Insert: Partial<DocumentsRow>;
+        Update: Partial<DocumentsRow>;
+      };
+      import_batches: {
+        Row: ImportBatchesRow;
+        Insert: Partial<ImportBatchesRow>;
+        Update: Partial<ImportBatchesRow>;
+      };
+      financial_records: {
+        Row: FinancialRecordsRow;
+        Insert: Partial<FinancialRecordsRow>;
+        Update: Partial<FinancialRecordsRow>;
+      };
+      provider_match_resolutions: {
+        Row: ProviderMatchResolutionsRow;
+        Insert: Partial<ProviderMatchResolutionsRow>;
+        Update: Partial<ProviderMatchResolutionsRow>;
+      };
+      audit_logs: {
+        Row: AuditLogsRow;
+        Insert: Partial<AuditLogsRow>;
+        Update: Partial<AuditLogsRow>;
+      };
+    };
+  };
+}

@@ -16,29 +16,29 @@ import {
 const providers: ProvidersRow[] = [
   {
     id: 'prov-1',
-    name: 'Lagos Medical Center',
-    type: 'hospital',
-    category_id: 'hospitals',
-    status: 'active',
+    provider_code: 'PRV001',
+    provider_name: 'Lagos Medical Center',
+    category: 'hospital',
+    subcategory: 'General',
+    ownership: 'Private',
+    lga: 'Ikeja',
+    state: 'Lagos',
+    contact_person: 'Dr. Ayesha Bello',
     phone: '+234 800 123 4567',
     email: 'info@lagosmed.org',
+    status: 'active',
+    contract_status: 'active',
+    credential_status: 'approved',
+    inspection_status: 'compliant',
+    capitation_status: 'active',
+    inspection_rating: '4.5',
+    last_inspection_date: '2025-07-15',
     address: '12 Victoria Island, Lagos',
-    region: 'South',
+    bank_name: 'GTBank',
+    account_name: 'Lagos Medical Center',
+    account_number: '0123456789',
     created_at: new Date().toISOString(),
-    updated_at: null,
-  },
-  {
-    id: 'prov-2',
-    name: 'Abuja Health Hub',
-    type: 'clinic',
-    category_id: 'clinics',
-    status: 'pending',
-    phone: '+234 800 765 4321',
-    email: 'contact@abujahealth.ng',
-    address: '45 Central Business District, Abuja',
-    region: 'North',
-    created_at: new Date().toISOString(),
-    updated_at: null,
+    updated_at: new Date().toISOString(),
   },
 ];
 
@@ -53,16 +53,6 @@ const providerContacts: ProviderContactsRow[] = [
     created_at: new Date().toISOString(),
     updated_at: null,
   },
-  {
-    id: 'contact-2',
-    provider_id: 'prov-2',
-    name: 'Mr. Tunde Akintola',
-    role: 'Operations Lead',
-    email: 'tunde.akintola@abujahealth.ng',
-    phone: '+234 800 333 4444',
-    created_at: new Date().toISOString(),
-    updated_at: null,
-  },
 ];
 
 const facilities: FacilitiesRow[] = [
@@ -74,17 +64,6 @@ const facilities: FacilitiesRow[] = [
     address: '12 Victoria Island, Lagos',
     region: 'South',
     active: true,
-    created_at: new Date().toISOString(),
-    updated_at: null,
-  },
-  {
-    id: 'fac-2',
-    provider_id: 'prov-2',
-    name: 'Abuja Health Hub - East Clinic',
-    type: 'clinic',
-    address: '45 Central Business District, Abuja',
-    region: 'North',
-    active: false,
     created_at: new Date().toISOString(),
     updated_at: null,
   },
@@ -144,7 +123,7 @@ const capitationUploads: CapitationUploadRow[] = [
 const inspections: InspectionsRow[] = [
   {
     id: 'inspect-1',
-    provider_id: 'prov-2',
+    provider_id: 'prov-1',
     inspector_id: 'inspector-1',
     scheduled_at: '2025-08-12T10:00:00Z',
     completed_at: null,
@@ -198,7 +177,7 @@ export async function createProvider(payload: Partial<ProvidersRow>) {
     id: `prov-${Date.now()}`,
     ...payload,
     created_at: new Date().toISOString(),
-    updated_at: null,
+    updated_at: new Date().toISOString(),
   } as ProvidersRow;
 
   providers.push(provider);
