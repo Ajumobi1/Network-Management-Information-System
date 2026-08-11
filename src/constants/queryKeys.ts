@@ -1,0 +1,20 @@
+export const QUERY_KEYS = {
+  dashboard: {
+    summary: ['dashboard', 'summary'] as const,
+    kpis: ['dashboard', 'kpis'] as const,
+    distribution: ['dashboard', 'distribution'] as const,
+    categories: ['dashboard', 'categories'] as const,
+    growth: ['dashboard', 'growth'] as const,
+    inspectionCompletion: ['dashboard', 'inspectionCompletion'] as const,
+    performanceRating: ['dashboard', 'performanceRating'] as const,
+    capitationTrend: ['dashboard', 'capitationTrend'] as const,
+    utilizationTrend: ['dashboard', 'utilizationTrend'] as const,
+    coverageLocations: ['dashboard', 'coverageLocations'] as const,
+    tasks: ['dashboard', 'tasks'] as const,
+    activities: ['dashboard', 'activities'] as const,
+    upcomingActivities: ['dashboard', 'upcomingActivities'] as const,
+    notifications: ['dashboard', 'notifications'] as const,
+    aiInsights: ['dashboard', 'aiInsights'] as const,
+    performanceGauges: ['dashboard', 'performanceGauges'] as const,
+  },
+};
