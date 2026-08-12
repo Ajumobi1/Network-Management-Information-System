@@ -12,6 +12,7 @@ import {
   NotificationsRow,
   SettingsRow,
 } from '../lib/supabase/database.types';
+import * as inspectionsMocks from './inspectionsMocks';
 
 const providers: ProvidersRow[] = [
   {
@@ -307,29 +308,20 @@ export async function uploadCapitationFile(payload: Partial<CapitationUploadRow>
 }
 
 export async function getInspections() {
-  return inspections;
+  return inspectionsMocks.getInspectionsMock();
 }
 
 export async function getInspectionById(id: string) {
-  return inspections.find(inspection => inspection.id === id) as InspectionsRow;
+  return inspectionsMocks.getInspectionByIdMock(id);
 }
 
 export async function getInspectionChecklist(inspectionId: string) {
-  return inspectionChecklists.filter(checklist => checklist.inspection_id === inspectionId);
+  const inspection = await inspectionsMocks.getInspectionByIdMock(inspectionId);
+  return inspection?.checklist || [];
 }
 
 export async function updateInspection(id: string, payload: Partial<InspectionsRow>) {
-  const index = inspections.findIndex(inspection => inspection.id === id);
-  if (index === -1) {
-    throw new Error('Inspection not found');
-  }
-
-  inspections[index] = {
-    ...inspections[index],
-    ...payload,
-  } as InspectionsRow;
-
-  return inspections[index];
+  return inspectionsMocks.updateInspectionMock(id, payload as any);
 }
 
 export async function getNotifications() {

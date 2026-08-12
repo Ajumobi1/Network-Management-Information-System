@@ -3,9 +3,9 @@ import { getApiClient } from '../../api/client';
 import { formatSupabaseError } from '../../utils/api';
 import { apiMocks } from '../../mocks';
 import { ProvidersRow, ProviderMatchResolutionsRow } from '../../lib/supabase/database.types';
-import { 
-  providerDirectory, 
-  providerProfiles, 
+import {
+  providerDirectory,
+  providerProfiles,
   providerRegistrationDraft,
   addProviderMock,
   updateProviderMock,
@@ -81,7 +81,7 @@ export async function getProviderDirectory(): Promise<ProviderDirectoryItem[]> {
   if (useMockData) {
     return providerDirectory;
   }
-  
+
   const providers = await fetchTable<ProvidersRow>('providers');
   // Map Supabase row to UI type
   return providers.map(p => ({
@@ -110,7 +110,7 @@ export async function createDirectoryProvider(payload: Omit<ProviderDirectoryIte
   if (useMockData) {
     return addProviderMock(payload);
   }
-  
+
   // Map UI type to Supabase row
   const row: Partial<ProvidersRow> = {
     provider_code: payload.providerCode,
@@ -129,7 +129,7 @@ export async function createDirectoryProvider(payload: Omit<ProviderDirectoryIte
     inspection_status: payload.inspectionStatus,
     capitation_status: payload.capitationStatus,
   };
-  
+
   const created = await insertRow<ProvidersRow>('providers', row);
   await logAction({
     action: 'PROVIDER_REGISTERED',
@@ -144,7 +144,7 @@ export async function updateDirectoryProvider(id: string, payload: Partial<Provi
   if (useMockData) {
     return updateProviderMock(id, payload);
   }
-  
+
   const row: Partial<ProvidersRow> = {};
   if (payload.providerCode) row.provider_code = payload.providerCode;
   if (payload.providerName) row.provider_name = payload.providerName;
@@ -154,7 +154,7 @@ export async function updateDirectoryProvider(id: string, payload: Partial<Provi
   if (payload.lga) row.lga = payload.lga;
   if (payload.state) row.state = payload.state;
   if (payload.status) row.status = payload.status;
-  
+
   const updated = await updateRow<ProvidersRow>('providers', id, row);
   await logAction({
     action: 'PROVIDER_DIRECTORY_UPDATED',
@@ -185,9 +185,9 @@ export async function getProviderProfile(providerId: string): Promise<ProviderPr
     if (!profile) throw new Error('Provider profile not found');
     return profile;
   }
-  
+
   const provider = await fetchSingle<ProvidersRow>('providers', 'id', providerId);
-  
+
   // Map Supabase row to UI type
   return {
     id: provider.id,
@@ -285,14 +285,14 @@ export async function saveProviderMatchResolution(match: ProviderMatch, resolved
   };
 
   const saved = await upsertRow<ProviderMatchResolutionsRow>('provider_match_resolutions', row);
-  
+
   await logAction({
     action: 'PROVIDER_MATCH_RESOLVED',
     entity: 'provider_match_resolutions',
     entityId: saved.id,
     metadata: { excelName: match.excelName, matchedProviderName: match.matchedProviderName }
   });
-  
+
   return saved;
 }
 

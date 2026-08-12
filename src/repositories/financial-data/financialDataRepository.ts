@@ -1,8 +1,8 @@
-import { 
-  FinancialRecord, 
-  ImportBatch, 
-  FinancialDataType, 
-  RecordValidationStatus 
+import {
+  FinancialRecord,
+  ImportBatch,
+  FinancialDataType,
+  RecordValidationStatus
 } from '../../types/financial-data';
 import { mockFinancialRecords, mockImportBatches } from '../../mocks/financialDataMocks';
 import { useMockData, fetchTable, insertRow, fetchSingle } from '../common';
@@ -99,7 +99,7 @@ function mapImportBatchRowToUI(r: ImportBatchesRow): ImportBatch {
 export async function fetchFinancialRecords(filters: FinancialFilters = {}): Promise<FinancialRecord[]> {
   if (useMockData) {
     let filtered = [...mockFinancialRecords];
-    
+
     if (filters.dataType) filtered = filtered.filter(r => r.dataType === filters.dataType);
     if (filters.year) filtered = filtered.filter(r => r.reportingYear === filters.year);
     if (filters.month) filtered = filtered.filter(r => r.reportingMonth === filters.month);
@@ -107,7 +107,7 @@ export async function fetchFinancialRecords(filters: FinancialFilters = {}): Pro
     if (filters.period) filtered = filtered.filter(r => r.period === filters.period);
     if (filters.providerId) filtered = filtered.filter(r => r.providerId === filters.providerId);
     if (filters.claimsCategory) filtered = filtered.filter(r => r.claimsCategory === filters.claimsCategory);
-    
+
     if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
       filtered = filtered.filter(r => {
         const amount = r.netAmountPaid ?? r.amountPaid ?? r.amountApproved ?? r.amount ?? 0;
@@ -120,17 +120,17 @@ export async function fetchFinancialRecords(filters: FinancialFilters = {}): Pro
     if (filters.lga) filtered = filtered.filter(r => r.lga === filters.lga);
     if (filters.facilityType) filtered = filtered.filter(r => r.facilityType === filters.facilityType);
     if (filters.ownership) filtered = filtered.filter(r => r.ownership === filters.ownership);
-    
+
     if (filters.search) {
       const search = filters.search.toLowerCase();
-      filtered = filtered.filter(r => 
-        r.providerName.toLowerCase().includes(search) || 
+      filtered = filtered.filter(r =>
+        r.providerName.toLowerCase().includes(search) ||
         r.providerCode?.toLowerCase().includes(search) ||
         r.state?.toLowerCase().includes(search) ||
         r.lga?.toLowerCase().includes(search)
       );
     }
-    
+
     return filtered;
   }
 
@@ -147,7 +147,7 @@ export async function fetchFinancialRecords(filters: FinancialFilters = {}): Pro
   if (filters.lga) query = query.eq('lga', filters.lga);
   if (filters.facilityType) query = query.eq('facility_type', filters.facilityType);
   if (filters.ownership) query = query.eq('ownership', filters.ownership);
-  
+
   if (filters.search) {
     query = query.or(`provider_name.ilike.%${filters.search}%,provider_code.ilike.%${filters.search}%`);
   }
@@ -217,7 +217,7 @@ export async function fetchFinancialAnalytics(filters: FinancialFilters = {}): P
   const claimsRecords = records.filter(record => record.dataType === 'claims');
   const capitationRecords = records.filter(record => record.dataType === 'capitation');
   const ffsRecords = records.filter(record => record.dataType === 'ffs');
-  
+
   const totalExpenditure = records.reduce((sum, record) => sum + amountForRecord(record), 0);
   const totalClaims = claimsRecords.reduce((sum, record) => sum + amountForRecord(record), 0);
   const totalCapitation = capitationRecords.reduce((sum, record) => sum + amountForRecord(record), 0);
@@ -274,7 +274,7 @@ export async function createImportBatch(
   if (useMockData) {
     const batchId = `batch-${Date.now()}`;
     const newBatch: ImportBatch = { ...batch, id: batchId, uploadedAt: new Date().toISOString() };
-    
+
     if (records && records.length > 0) {
       const existingFingerprints = new Set(mockFinancialRecords.map(record => record.fingerprint || recordFingerprint(record)));
       const preparedRecords = records.map(record => ({
@@ -290,7 +290,7 @@ export async function createImportBatch(
       newBatch.duplicateRows = records.length - recordsToImport.length;
     }
     mockImportBatches.unshift(newBatch);
-    
+
     await logAction({
       action: 'IMPORT_BATCH_CREATED',
       entity: 'import_batches',
@@ -302,7 +302,7 @@ export async function createImportBatch(
   }
 
   const supabase = getApiClient();
-  
+
   // 1. Create the batch
   const batchRow: Partial<ImportBatchesRow> = {
     file_name: batch.fileName,
@@ -315,7 +315,7 @@ export async function createImportBatch(
     period_covered: batch.periodCovered,
     metadata: batch.metadata as any,
   };
-  
+
   const { data: createdBatch, error: batchError } = await supabase.from('import_batches').insert(batchRow).select().single();
   if (batchError) throw formatSupabaseError(batchError);
 
@@ -354,11 +354,11 @@ export async function createImportBatch(
       const { error: recordsError } = await supabase.from('financial_records').insert(chunk);
       if (recordsError) throw formatSupabaseError(recordsError);
     }
-    
+
     // Update batch with final counts (simple version for now)
-    await supabase.from('import_batches').update({ 
+    await supabase.from('import_batches').update({
       imported_rows: records.length,
-      status: 'imported' 
+      status: 'imported'
     }).eq('id', createdBatch.id);
   }
 
@@ -378,7 +378,7 @@ export async function checkDuplicateBatch(period: string, dataType: FinancialDat
   if (useMockData) {
     return mockImportBatches.find(b => b.periodCovered === period && b.dataType === dataType && ['imported', 'partially-imported'].includes(b.status)) || null;
   }
-  
+
   const supabase = getApiClient();
   const { data, error } = await supabase
     .from('import_batches')
@@ -387,7 +387,7 @@ export async function checkDuplicateBatch(period: string, dataType: FinancialDat
     .eq('data_type', dataType)
     .in('status', ['imported', 'partially-imported'])
     .maybeSingle();
-    
+
   if (error) throw formatSupabaseError(error);
   return data ? mapImportBatchRowToUI(data as ImportBatchesRow) : null;
 }

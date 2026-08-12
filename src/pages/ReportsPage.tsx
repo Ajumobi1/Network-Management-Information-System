@@ -1,60 +1,141 @@
-import PageHeader from '../components/PageHeader';
+import React, { useState } from 'react';
+import { Download, FileText, LayoutGrid, PieChart, Users, Calendar, CheckCircle2, Clock, Settings } from 'lucide-react';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
+import Card from '../components/ui/Card';
+import PageHeader from '../components/ui/PageHeader';
+import { SectionHeader } from '../components/ui/LayoutComponents';
+import * as reportsService from '../services/reports/reportsService';
 
-const reports = [
-  { title: 'Provider performance', description: 'Track inspection trends and compliance results.', action: 'Open report' },
-  { title: 'Network capacity', description: 'Analyze provider coverage and utilization.', action: 'Open report' },
-  { title: 'Contract renewals', description: 'View upcoming contract expiries and follow-up tasks.', action: 'Open report' },
-];
+export default function ReportsPage() {
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
 
-function ReportsPage() {
+  const handleDownload = async (id: string, action: () => Promise<any>) => {
+    setIsGenerating(id);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate generation delay
+      await action();
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  const reports = [
+    {
+      id: 'provider-network',
+      title: 'Provider Network Report',
+      description: 'Comprehensive registry of all healthcare facilities, including classification and current compliance status.',
+      icon: <Users size={20} className="text-brand-blue" />,
+      action: () => reportsService.generateProviderReport()
+    },
+    {
+      id: 'inspections',
+      title: 'Inspection & Compliance',
+      description: 'Historical and scheduled inspection records with quality scores and follow-up requirements.',
+      icon: <CheckCircle2 size={20} className="text-status-success" />,
+      action: () => reportsService.generateInspectionReport()
+    },
+    {
+      id: 'financial-summary',
+      title: 'Financial Summary',
+      description: 'Consolidated view of Claims, Capitation, and FFS expenditure across reporting periods.',
+      icon: <PieChart size={20} className="text-brand-secondary" />,
+      action: async () => { alert('Financial report generation planned.'); }
+    },
+  ];
+
+  const templates = [
+    { name: 'Monthly compliance summary', status: 'Active', lastUsed: '2 days ago' },
+    { name: 'Inspection completion chart', status: 'Active', lastUsed: '1 week ago' },
+    { name: 'Provider onboarding trend', status: 'Draft', lastUsed: 'Never' },
+    { name: 'Credentialing status overview', status: 'Active', lastUsed: '3 days ago' },
+  ];
+
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-7xl space-y-6">
+    <main className="nmis-page">
+      <div className="space-y-6">
         <PageHeader
-          title="Analytics and exports"
-          description="Generate operational, financial, and provider reports with export-ready output for management review. [Planned Functionality]"
-          actions={[{ label: 'Create report (Coming Soon)', disabled: true }]}
+          eyebrow="Analytics & Reports"
+          title="Reporting Centre"
+          subtitle="Generate operational, financial, and provider reports with export-ready output for management review."
+          actions={<Button disabled className="gap-2"><Settings size={16} /> Manage Automations (Soon)</Button>}
         />
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-        </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           {reports.map(report => (
-            <div key={report.title} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
-              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Report</p>
-              <h2 className="mt-4 text-xl font-semibold text-slate-900">{report.title}</h2>
-              <p className="mt-3 text-sm text-slate-600">{report.description}</p>
-              <button disabled className="mt-6 inline-flex rounded-2xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-400 cursor-not-allowed">
-                {report.action} (Coming Soon)
-              </button>
-            </div>
+            <Card key={report.id} className="flex flex-col">
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-xl bg-brand-surface border border-brand-divider">
+                    {report.icon}
+                  </div>
+                  <Badge variant="default" className="text-[10px] uppercase">Standard</Badge>
+                </div>
+                <h2 className="text-lg font-black text-brand-foreground">{report.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-brand-secondary">{report.description}</p>
+              </div>
+              <div className="mt-8 pt-6 border-t border-brand-divider">
+                <Button
+                  variant="secondary"
+                  className="w-full gap-2"
+                  onClick={() => handleDownload(report.id, report.action)}
+                  disabled={isGenerating !== null}
+                >
+                  {isGenerating === report.id ? (
+                    <>Generating...</>
+                  ) : (
+                    <><Download size={16} /> Download CSV</>
+                  )}
+                </Button>
+              </div>
+            </Card>
           ))}
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+        <Card>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Quick exports</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-900">Saved report templates</h2>
-            </div>
-            <button className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300">
-              Manage templates
-            </button>
+            <SectionHeader title="Saved Report Templates" subtitle="Pre-defined report configurations for recurring operational reviews." />
+            <Button variant="secondary" size="sm" disabled>New Template (Soon)</Button>
           </div>
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {['Monthly compliance summary', 'Inspection completion chart', 'Provider onboarding trend', 'Credentialing status overview'].map(item => (
-              <div key={item} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <p className="font-semibold text-slate-900">{item}</p>
-                <p className="mt-2 text-sm text-slate-600">Use this report to keep stakeholders updated on network performance.</p>
+            {templates.map(item => (
+              <div key={item.name} className="flex items-center justify-between p-4 rounded-control border border-brand-divider bg-brand-surface hover:border-brand-blue/30 transition-colors group">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 rounded-lg bg-brand-soft text-brand-blue">
+                    <FileText size={18} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-brand-foreground group-hover:text-brand-blue transition-colors">{item.name}</p>
+                    <div className="mt-1 flex items-center gap-3">
+                      <span className="text-[10px] font-bold uppercase text-brand-muted flex items-center gap-1">
+                        <Clock size={10} /> {item.lastUsed}
+                      </span>
+                      <Badge variant={item.status === 'Active' ? 'success' : 'default'} size="sm">{item.status}</Badge>
+                    </div>
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" disabled><Settings size={14} /></Button>
               </div>
             ))}
           </div>
-        </div>
+        </Card>
+
+        <Card className="bg-brand-navy border-brand-navy p-8 overflow-hidden relative">
+          <div className="relative z-10">
+            <h3 className="text-xl font-black text-white uppercase tracking-wider">Scheduled Reports</h3>
+            <p className="mt-2 text-brand-subtle max-w-xl">
+              Automate your reporting workflow. Configure reports to be delivered to your email or a shared workspace on a daily, weekly, or monthly basis.
+            </p>
+            <Button className="mt-6 bg-white text-brand-navy hover:bg-brand-surface border-none" disabled>
+              Configure Schedule (Coming Soon)
+            </Button>
+          </div>
+          <div className="absolute -right-12 -bottom-12 opacity-10 text-white rotate-12 pointer-events-none">
+            <Calendar size={240} />
+          </div>
+        </Card>
       </div>
     </main>
   );
 }
-
-export default ReportsPage;

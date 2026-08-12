@@ -3,7 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
+import { Eye, EyeOff, ShieldCheck, Sparkles, Zap } from 'lucide-react';
 import useAuth from '../../hooks/useAuth';
+import Button from '../../components/ui/Button';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
@@ -41,105 +43,134 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB] flex items-center justify-center px-4 py-8">
-      <div className="grid w-full max-w-[1400px] grid-cols-1 overflow-hidden rounded-[2rem] bg-white shadow-2xl md:grid-cols-[1.2fr_0.9fr]">
-        <section className="relative overflow-hidden bg-gradient-to-br from-[#0F3C91] to-[#111D42] px-10 py-12 text-white md:px-16 md:py-16">
+    <div className="flex min-h-screen items-center justify-center bg-brand-background px-4 py-8">
+      <div className="grid w-full max-w-[1200px] grid-cols-1 overflow-hidden rounded-panel bg-brand-card shadow-panel md:grid-cols-[1fr_1fr]">
+        {/* Left Side: Branding & Value Props */}
+        <section className="relative overflow-hidden bg-brand-navy px-10 py-12 text-white md:px-16 md:py-20">
           <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-sky-200/80">Enterprise NMIS</p>
-            <h1 className="mt-8 text-4xl font-semibold leading-tight tracking-tight">Network Management Information System</h1>
-            <p className="mt-4 max-w-sm text-sm leading-7 text-slate-200/90">
-              Securely manage providers, inspections, capitation, credentialing, claims, and operations from a single intelligent command center.
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-control bg-brand-blue text-white shadow-soft">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[0.625rem] font-bold uppercase tracking-[0.3em] text-white/40">NMIS Enterprise</p>
+                <p className="text-sm font-semibold text-white">Health Enterprise Cloud</p>
+              </div>
+            </div>
+
+            <h1 className="mt-12 text-4xl font-black leading-tight tracking-tight lg:text-5xl">
+              Network Management Information System
+            </h1>
+            <p className="mt-6 max-w-sm text-base leading-relaxed text-white/70">
+              A premium intelligent command center for healthcare provider networks, population protection, and financial intelligence.
             </p>
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 top-0 opacity-70">
-            <div className="absolute right-10 top-10 h-28 w-28 rounded-full bg-slate-200/10 blur-3xl" />
-            <div className="absolute left-10 top-32 h-32 w-32 rounded-full bg-sky-300/20 blur-3xl" />
-            <div className="absolute right-24 bottom-16 h-52 w-52 rounded-full bg-slate-100/10 blur-3xl" />
+
+          {/* Decorative Elements */}
+          <div className="pointer-events-none absolute inset-0 opacity-20">
+            <div className="absolute -right-20 -top-20 h-80 w-80 rounded-full bg-brand-blue blur-[100px]" />
+            <div className="absolute -bottom-40 -left-20 h-96 w-96 rounded-full bg-status-info blur-[120px]" />
           </div>
-          <div className="relative mt-12 flex items-end justify-between gap-6">
-            <div className="max-w-[14rem] rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-900/10">
-              <p className="text-sm font-semibold text-slate-100">Role-based security</p>
-              <p className="mt-2 text-sm text-slate-300">Grant access to Super Admin, Claims, Inspectors, and more.</p>
+
+          <div className="relative mt-16 grid gap-6 sm:grid-cols-2">
+            <div className="rounded-panel border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+              <ShieldCheck className="h-6 w-6 text-brand-blue" />
+              <p className="mt-4 text-sm font-bold text-white">Hardened Security</p>
+              <p className="mt-2 text-xs leading-relaxed text-white/50">Role-based access control and append-only audit trails.</p>
             </div>
-            <div className="max-w-[14rem] rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-xl shadow-slate-900/10">
-              <p className="text-sm font-semibold text-slate-100">Instant insights</p>
-              <p className="mt-2 text-sm text-slate-300">View network health, provider status, and compliance at a glance.</p>
+            <div className="rounded-panel border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+              <Zap className="h-6 w-6 text-status-warning" />
+              <p className="mt-4 text-sm font-bold text-white">Instant Insights</p>
+              <p className="mt-2 text-xs leading-relaxed text-white/50">Live PEPM analytics and provider performance monitoring.</p>
             </div>
           </div>
         </section>
 
-        <section className="px-8 py-10 md:px-12 md:py-14">
-          <div className="mb-8 flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Welcome back</p>
-              <h2 className="mt-2 text-3xl font-semibold text-slate-900">Sign in to NMIS</h2>
-            </div>
-            <div className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">Enterprise</div>
+        {/* Right Side: Login Form */}
+        <section className="flex flex-col justify-center px-8 py-12 md:px-16 md:py-20">
+          <div className="mb-10">
+            <p className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-brand-muted">Welcome back</p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-brand-foreground">Sign in to NMIS</h2>
           </div>
 
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-            <div>
-              <label className="text-sm font-medium text-slate-700">Email address</label>
+          <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
+            <div className="space-y-1.5">
+              <label className="nmis-label" htmlFor="email">Email address</label>
               <input
+                id="email"
                 type="email"
                 autoComplete="email"
                 {...register('email')}
-                className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#0F3C91] focus:ring-2 focus:ring-sky-100"
+                className={`nmis-control ${errors.email ? 'border-status-error focus:border-status-error' : ''}`}
                 placeholder="you@company.com"
               />
-              {errors.email && <p className="mt-2 text-sm text-rose-600">{errors.email.message}</p>}
+              {errors.email && <p className="mt-1.5 text-xs font-medium text-status-error">{errors.email.message}</p>}
             </div>
 
-            <div>
-              <label className="text-sm font-medium text-slate-700">Password</label>
-              <div className="mt-3 flex items-center rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-[#0F3C91] focus-within:ring-2 focus-within:ring-sky-100">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="nmis-label" htmlFor="password">Password</label>
+                <button
+                  type="button"
+                  onClick={() => navigate('/forgot-password')}
+                  className="text-xs font-bold text-brand-blue hover:text-brand-hover"
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <div className="relative">
                 <input
+                  id="password"
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   {...register('password')}
-                  className="w-full border-none bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                  placeholder="Enter your password"
+                  className={`nmis-control pr-12 ${errors.password ? 'border-status-error focus:border-status-error' : ''}`}
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(value => !value)}
-                  className="text-slate-400 transition hover:text-slate-700"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-brand-subtle transition hover:text-brand-secondary"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? 'Hide' : 'Show'}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              {errors.password && <p className="mt-2 text-sm text-rose-600">{errors.password.message}</p>}
+              {errors.password && <p className="mt-1.5 text-xs font-medium text-status-error">{errors.password.message}</p>}
             </div>
 
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <label className="inline-flex items-center gap-3 text-sm text-slate-600">
-                <input type="checkbox" {...register('remember')} className="h-4 w-4 rounded border-slate-300 text-[#0F3C91] focus:ring-[#0F3C91]" />
+            <div className="flex items-center">
+              <label className="flex cursor-pointer items-center gap-3 text-sm font-medium text-brand-secondary">
+                <input
+                  type="checkbox"
+                  {...register('remember')}
+                  className="h-4 w-4 rounded border-brand-border text-brand-blue focus:ring-brand-blue"
+                />
                 Remember me
               </label>
-              <button
-                type="button"
-                onClick={() => navigate('/forgot-password')}
-                className="text-sm font-semibold text-[#0F3C91] hover:text-[#0B2E74]"
-              >
-                Forgot password?
-              </button>
             </div>
 
-            <div>
-              <button
+            <div className="pt-2">
+              <Button
                 type="submit"
+                className="w-full py-3 text-base font-bold"
                 disabled={loading}
-                className="inline-flex w-full items-center justify-center rounded-3xl bg-[#0F3C91] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-[#0B2E74] disabled:pointer-events-none disabled:opacity-70"
               >
-                {loading ? 'Signing in…' : 'Sign In'}
-              </button>
-              {error && <p className="mt-3 rounded-3xl border border-rose-100 bg-rose-50 p-4 text-sm text-rose-700">{error.message}</p>}
+                {loading ? 'Authenticating...' : 'Sign In'}
+              </Button>
+              {error && (
+                <div className="mt-4 flex items-start gap-3 rounded-control border border-status-error/20 bg-status-errorSoft p-4 text-sm text-status-error">
+                  <p>{error.message}</p>
+                </div>
+              )}
             </div>
           </form>
 
-          <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-            <p className="font-semibold text-slate-800">Enterprise-ready authentication</p>
-            <p className="mt-2 leading-6">Session persistence, role-based access, and secure password flows are backed by a service layer prepared for Supabase integration.</p>
+          <div className="mt-12 rounded-panel border border-brand-divider bg-brand-surface/50 p-5">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-foreground">Enterprise Authority</p>
+            <p className="mt-2 text-xs leading-relaxed text-brand-muted">
+              Access is restricted to authorized Network Management personnel. All authentication attempts and session activities are audited.
+            </p>
           </div>
         </section>
       </div>

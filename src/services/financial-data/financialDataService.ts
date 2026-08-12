@@ -1,8 +1,8 @@
-import { 
-  FinancialRecord, 
-  FinancialDataType, 
-  ColumnMapping, 
-  ProviderMatch 
+import {
+  FinancialRecord,
+  FinancialDataType,
+  ColumnMapping,
+  ProviderMatch
 } from '../../types/financial-data';
 import { getProviderDirectory, getPersistedProviderMatches, saveProviderMatchResolution } from '../../repositories/providers/providersRepository';
 
@@ -39,23 +39,23 @@ export const financialDataService = {
    */
   detectDataType(headers: string[]): FinancialDataType {
     const headerStr = headers.join(' ').toLowerCase();
-    
+
     if (headerStr.includes('claim') || headerStr.includes('dental') || headerStr.includes('optical') || headerStr.includes('diagnostic')) {
       return 'claims';
     }
-    
+
     if (headerStr.includes('capitation') || headerStr.includes('cap fee') || (headerStr.includes('enrollee') && headerStr.includes('amount'))) {
       return 'capitation';
     }
-    
+
     if (headerStr.includes('ffs') || headerStr.includes('fee for service')) {
       return 'ffs';
     }
-    
+
     if (headerStr.includes('enrolment') || headerStr.includes('informal') || headerStr.includes('formal')) {
       return 'enrolment';
     }
-    
+
     return 'other';
   },
 
@@ -64,7 +64,7 @@ export const financialDataService = {
    */
   suggestMappings(headers: string[]): ColumnMapping[] {
     const mappings: ColumnMapping[] = [];
-    
+
     const knownMappings: Record<string, { field: keyof FinancialRecord, keywords: string[] }> = {
       'providerName': { field: 'providerName', keywords: ['provider', 'facility', 'outlet', 'hospital', 'name'] },
       'providerCode': { field: 'providerCode', keywords: ['code', 'id', 'sn'] },
@@ -196,8 +196,8 @@ export const financialDataService = {
    * Normalize raw Excel data into FinancialRecord objects
    */
   normalizeData(
-    rows: any[], 
-    mappings: ColumnMapping[], 
+    rows: any[],
+    mappings: ColumnMapping[],
     dataType: FinancialDataType,
     batchId: string,
     fileName: string,
@@ -209,7 +209,7 @@ export const financialDataService = {
     // Identify month columns for horizontal-to-vertical transformation
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
     const monthShortNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    
+
     const monthColumns = mappings.filter(m => {
       const field = m.excelField.toLowerCase();
       return monthNames.includes(field) || monthShortNames.includes(field);
@@ -232,7 +232,7 @@ export const financialDataService = {
       mappings.forEach(mapping => {
         if (mapping.nmisField !== 'ignored' && !monthColumns.includes(mapping)) {
           let value = row[mapping.excelField];
-          
+
           // Clean numeric values
           if (numericFields.has(String(mapping.nmisField))) value = toNumber(value);
           (baseData as any)[mapping.nmisField] = value;
@@ -246,7 +246,7 @@ export const financialDataService = {
           if (monthVal !== undefined && monthVal !== null && monthVal !== '') {
             const monthIdx = monthNames.indexOf(mCol.excelField.toLowerCase());
             const finalMonthIdx = monthIdx !== -1 ? monthIdx : monthShortNames.indexOf(mCol.excelField.toLowerCase());
-            
+
             const monthRecord: FinancialRecord = {
               ...(baseData as FinancialRecord),
               id: `${baseData.id}-${mCol.excelField}`,

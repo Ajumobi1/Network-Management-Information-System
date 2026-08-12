@@ -3,12 +3,9 @@ import { ReactNode } from 'react';
 type CardProps = {
   children: ReactNode;
   className?: string;
+  interactive?: boolean;
 };
 
-export default function Card({ children, className = '' }: CardProps) {
-  return (
-    <div className={`rounded-3xl border border-slate-200 bg-white p-6 shadow-soft transition ${className}`.trim()}>
-      {children}
-    </div>
-  );
+export default function Card({ children, className = '', interactive = false }: CardProps) {
+  return <div className={`nmis-card ${interactive ? 'nmis-card-interactive' : ''} p-5 sm:p-6 ${className}`.trim()}>{children}</div>;
 }

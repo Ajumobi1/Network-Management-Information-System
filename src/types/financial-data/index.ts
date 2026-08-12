@@ -2,14 +2,14 @@ import { ProviderCategory, ProviderOwnership } from '../providers/providerTypes'
 
 export type FinancialDataType = 'claims' | 'capitation' | 'ffs' | 'enrolment' | 'provider-network' | 'other';
 
-export type ImportStatus = 
-  | 'uploaded' 
-  | 'processing' 
-  | 'validation-required' 
-  | 'ready-for-review' 
-  | 'imported' 
-  | 'partially-imported' 
-  | 'failed' 
+export type ImportStatus =
+  | 'uploaded'
+  | 'processing'
+  | 'validation-required'
+  | 'ready-for-review'
+  | 'imported'
+  | 'partially-imported'
+  | 'failed'
   | 'superseded';
 
 export type RecordValidationStatus = 'valid' | 'warning' | 'error' | 'match-review-required' | 'duplicate';
@@ -27,7 +27,7 @@ export interface FinancialRecord {
   reportingMonth: number;
   period: string; // YYYY-MM
   dataType: FinancialDataType;
-  
+
   // Claims-specific fields supplied by processed Claims/payment workbooks
   claimsCategory?: string;
   claimsType?: string;
@@ -41,7 +41,7 @@ export interface FinancialRecord {
   amountDisallowed?: number;
   amountPaid?: number;
   netAmountPaid?: number;
-  
+
   // Capitation specific
   eligibleLives?: number;
   formalEnrollees?: number;
@@ -51,15 +51,15 @@ export interface FinancialRecord {
   adjustments?: number;
   deductions?: number;
   netAmount?: number;
-  
+
   // FFS specific
   ffsCategory?: string;
-  
+
   // General
   amount?: number;
   paymentStatus?: 'pending' | 'processing' | 'paid' | 'failed';
   paymentDate?: string;
-  
+
   // Source metadata
   sourceFile: string;
   sourceSheet?: string;
@@ -70,7 +70,7 @@ export interface FinancialRecord {
   recordStatus: RecordValidationStatus;
   validationErrors?: string[];
   fingerprint?: string; // For duplicate detection
-  
+
   createdAt: string;
   updatedAt: string;
 }

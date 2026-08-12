@@ -1,9 +1,12 @@
 import { useState } from 'react';
-import { Mail, MapPin, MessageSquare } from 'lucide-react';
+import { Mail, MapPin, MessageSquare, ShieldCheck, ChevronRight } from 'lucide-react';
 import Button from '../../../../components/ui/Button';
 import Card from '../../../../components/ui/Card';
 import { useProviderProfile } from '../../hooks';
 import ProviderStatusBadge from '../../components/ProviderStatusBadge';
+import { SectionHeader } from '../../../../components/ui/LayoutComponents';
+import { LoadingState, ErrorState } from '../../../../components/ui/FeedbackStates';
+
 import AuditLogTab from '../AuditLogTab';
 import CapitationTab from '../CapitationTab';
 import ComplaintsTab from '../ComplaintsTab';
@@ -39,10 +42,11 @@ const tabs = [
 type ProviderProfileTab = (typeof tabs)[number];
 
 export default function ProviderProfile({ providerId }: { providerId: string }) {
-  const { data: provider } = useProviderProfile(providerId);
+  const { data: provider, isLoading, isError, refetch } = useProviderProfile(providerId);
   const [activeTab, setActiveTab] = useState<ProviderProfileTab>('Overview');
 
-  if (!provider) return null;
+  if (isLoading) return <LoadingState title="Loading provider profile..." />;
+  if (isError || !provider) return <ErrorState title="Profile not found" action={{ label: 'Retry', onClick: () => refetch() }} />;
 
   const tabContent: Record<ProviderProfileTab, JSX.Element> = {
     Overview: <OverviewTab provider={provider} />,
@@ -62,25 +66,71 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
   };
 
   return (
-    <Card>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Provider profile</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-900">{provider.providerName}</h2>
-          <p className="mt-2 flex items-center gap-2 text-sm text-slate-600"><MapPin className="h-4 w-4" /> {provider.address}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" className="gap-2"><Mail className="h-4 w-4" /> Email</Button>
-          <Button variant="secondary" className="gap-2"><MessageSquare className="h-4 w-4" /> SMS</Button>
-          <ProviderStatusBadge status={provider.status} />
+    <Card className="p-0 overflow-hidden">
+      {/* Profile Header */}
+      <div className="bg-brand-surface/50 border-b border-brand-divider p-6 sm:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-5">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand-blue shadow-sm">
+              <ShieldCheck size={32} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-muted">
+                <span>{provider.providerCode}</span>
+                <span className="opacity-30">|</span>
+                <span>{provider.category}</span>
+              </div>
+              <h2 className="mt-2 text-2xl font-black tracking-tight text-brand-foreground sm:text-3xl">
+                {provider.providerName}
+              </h2>
+              <p className="mt-2 flex items-center gap-2 text-sm font-medium text-brand-secondary">
+                <MapPin className="h-4 w-4 text-brand-subtle" />
+                {provider.address}, {provider.lga}, {provider.state}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="secondary" className="gap-2" size="md">
+              <Mail size={16} /> Email
+            </Button>
+            <Button variant="secondary" className="gap-2" size="md">
+              <MessageSquare size={16} /> SMS
+            </Button>
+            <div className="h-8 w-px bg-brand-divider mx-1 hidden sm:block" />
+            <ProviderStatusBadge status={provider.status} />
+          </div>
         </div>
       </div>
-      <div className="mt-6 flex gap-2 overflow-x-auto pb-2">
-        {tabs.map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-700'}`}>{tab}</button>
-        ))}
+
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b border-brand-divider px-6 overflow-x-auto scrollbar-hide">
+        <nav className="flex min-w-max gap-8" aria-label="Profile sections">
+          {tabs.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`relative py-4 text-sm font-bold transition-colors ${
+                activeTab === tab
+                  ? 'text-brand-blue'
+                  : 'text-brand-muted hover:text-brand-secondary'
+              }`}
+            >
+              {tab}
+              {activeTab === tab && (
+                <span className="absolute bottom-0 left-0 h-0.5 w-full bg-brand-blue" />
+              )}
+            </button>
+          ))}
+        </nav>
       </div>
-      <div className="mt-6">{tabContent[activeTab]}</div>
+
+      {/* Tab Content */}
+      <div className="p-6 sm:p-8 bg-white">
+        <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+          {tabContent[activeTab]}
+        </div>
+      </div>
     </Card>
   );
 }

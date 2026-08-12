@@ -214,14 +214,14 @@ export async function addProviderMock(newItem: Omit<ProviderDirectoryItem, 'id'>
 export async function updateProviderMock(id: string, updates: Partial<ProviderDirectoryItem>): Promise<ProviderDirectoryItem> {
   const index = providerDirectory.findIndex(p => p.id === id);
   if (index === -1) throw new Error('Provider not found');
-  
+
   providerDirectory[index] = { ...providerDirectory[index], ...updates };
-  
+
   const profileIndex = providerProfiles.findIndex(p => p.id === id);
   if (profileIndex !== -1) {
     providerProfiles[profileIndex] = { ...providerProfiles[profileIndex], ...updates };
   }
-  
+
   return providerDirectory[index];
 }
 

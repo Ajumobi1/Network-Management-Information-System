@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import Card from '../../components/ui/Card';
+import PageHeader from '../../components/ui/PageHeader';
 import { financialDataService } from '../../services/financial-data/financialDataService';
 import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from '../../types/financial-data';
 import { useCheckDuplicateBatch, useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
@@ -214,16 +216,14 @@ export default function DataUploadCentrePage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div><h1 className="text-2xl font-bold text-slate-900">Data Upload Centre</h1><p className="mt-1 text-slate-500">Upload, inspect, map, validate, match, preview, and commit processed financial workbooks.</p></div>
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">{workflowSteps.map((item, index) => <React.Fragment key={item.key}><StepIndicator active={index <= currentStepIndex} current={step === item.key} number={String(index + 1)} label={item.label} />{index < workflowSteps.length - 1 && <div className="h-px w-3 shrink-0 bg-slate-300" />}</React.Fragment>)}</div>
-      </header>
+    <div className="space-y-6">
+      <PageHeader eyebrow="Financial management" title="Data Upload Centre" subtitle="Upload, inspect, map, validate, match, preview, and commit processed financial workbooks." />
+      <div className="nmis-panel overflow-x-auto p-2"><div className="flex min-w-max items-center justify-center gap-1">{workflowSteps.map((item, index) => <React.Fragment key={item.key}><StepIndicator active={index <= currentStepIndex} current={step === item.key} number={String(index + 1)} label={item.label} />{index < workflowSteps.length - 1 && <div className="h-px w-3 shrink-0 bg-brand-border" />}</React.Fragment>)}</div></div>
 
-      {errorMessage && <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-5 w-5 shrink-0" /><p>{errorMessage}</p></div>}
-      {commitMessage && <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700"><CheckCircle2 className="h-5 w-5 shrink-0" /><p>{commitMessage}</p></div>}
+      {errorMessage && <div className="flex items-start gap-3 rounded-card border border-status-error/20 bg-status-errorSoft p-4 text-sm text-status-error"><AlertCircle className="h-5 w-5 shrink-0" /><p>{errorMessage}</p></div>}
+      {commitMessage && <div className="flex items-start gap-3 rounded-card border border-status-success/20 bg-status-successSoft p-4 text-sm text-status-success"><CheckCircle2 className="h-5 w-5 shrink-0" /><p>{commitMessage}</p></div>}
 
-      {isAnalyzing && <div className="flex flex-col items-center justify-center rounded-3xl border border-slate-200 bg-white py-24 text-center"><div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-brand-blue" /><h3 className="mt-6 text-lg font-semibold text-slate-900">Processing workbook...</h3><p className="mt-2 text-slate-500">Reading workbook structure and preparing the next workflow stage.</p></div>}
+      {isAnalyzing && <div className="nmis-panel flex flex-col items-center justify-center py-24 text-center"><div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-brand-blue" /><h3 className="mt-6 text-lg font-semibold text-slate-900">Processing workbook...</h3><p className="mt-2 text-slate-500">Reading workbook structure and preparing the next workflow stage.</p></div>}
 
       {!isAnalyzing && step === 'upload' && <UploadPanel onFileUpload={handleFileUpload} />}
       {!isAnalyzing && step === 'inspect' && file && <InspectPanel file={file} sheetNames={sheetNames} sourceSheet={sourceSheet} headers={headers} rowCount={rawRows.length} dataType={dataType} onSheetChange={setSourceSheet} onDataTypeChange={value => setDataType(value)} onContinue={() => setStep('map')} />}
@@ -249,7 +249,7 @@ export default function DataUploadCentrePage() {
 }
 
 function UploadPanel({ onFileUpload }: { onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void }) {
-  return <div className="rounded-[2.5rem] border-2 border-dashed border-slate-200 bg-white p-16 text-center transition hover:border-brand-blue/50"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-50 text-brand-blue"><Upload size={32} /></div><h3 className="mt-6 text-xl font-bold text-slate-900">Upload a processed financial workbook</h3><p className="mx-auto mt-2 max-w-xl text-slate-500">Supported formats: XLSX, XLS, and CSV. The first worksheet is inspected by default and can be changed during the inspection step.</p><label className="mt-8 inline-flex cursor-pointer items-center justify-center rounded-3xl bg-brand-blue px-8 py-3 text-sm font-semibold text-white hover:bg-brand-navy"><input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={onFileUpload} />Select File</label></div>;
+  return <Card className="border-2 border-dashed border-brand-border p-12 text-center transition hover:border-brand-blue/50 sm:p-16"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-50 text-brand-blue"><Upload size={32} /></div><h3 className="mt-6 text-xl font-bold text-slate-900">Upload a processed financial workbook</h3><p className="mx-auto mt-2 max-w-xl text-slate-500">Supported formats: XLSX, XLS, and CSV. The first worksheet is inspected by default and can be changed during the inspection step.</p><label className="mt-8 inline-flex cursor-pointer items-center justify-center rounded-3xl bg-brand-blue px-8 py-3 text-sm font-semibold text-white hover:bg-brand-navy"><input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={onFileUpload} />Select File</label></Card>;
 }
 
 function InspectPanel({ file, sheetNames, sourceSheet, headers, rowCount, dataType, onSheetChange, onDataTypeChange, onContinue }: { file: File; sheetNames: string[]; sourceSheet: string; headers: string[]; rowCount: number; dataType: FinancialDataType; onSheetChange: (value: string) => void; onDataTypeChange: (value: FinancialDataType) => void; onContinue: () => void }) {
@@ -269,7 +269,7 @@ function PreviewPanel({ records, rawRowCount, validCount, invalidCount, duplicat
 }
 
 function CommitPanel({ onReset }: { onReset: () => void }) { return <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-12 text-center"><CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" /><h2 className="mt-5 text-2xl font-black text-emerald-900">Dataset committed</h2><p className="mx-auto mt-2 max-w-xl text-emerald-800">The normalized records are available to the relevant Financial Data register and analytics queries. The original file and import batch remain traceable.</p><Button variant="primary" className="mt-8" onClick={onReset}>Upload another dataset</Button></div>; }
-function StepIndicator({ active, current, number, label }: { active: boolean; current: boolean; number: string; label: string }) { return <div className={`flex shrink-0 items-center gap-2 rounded-xl px-2 py-1.5 text-xs font-bold ${current ? 'bg-brand-blue text-white shadow-sm' : active ? 'text-brand-blue' : 'text-slate-400'}`}><span className={`flex h-7 w-7 items-center justify-center rounded-full ${current ? 'bg-white/20' : active ? 'bg-brand-blue/10' : 'bg-white'}`}>{number}</span><span className="hidden sm:inline">{label}</span></div>; }
+function StepIndicator({ active, current, number, label }: { active: boolean; current: boolean; number: string; label: string }) { return <div className={`flex shrink-0 items-center gap-2 rounded-control px-2 py-1.5 text-xs font-bold ${current ? 'bg-brand-blue text-white shadow-sm' : active ? 'text-brand-blue' : 'text-brand-muted'}`}><span className={`flex h-7 w-7 items-center justify-center rounded-full ${current ? 'bg-white/20' : active ? 'bg-brand-blue/10' : 'bg-brand-surface'}`}>{number}</span><span>{label}</span></div>; }
 function InfoRow({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 break-words text-sm font-semibold text-slate-700">{value}</p></div>; }
 function PreviewStat({ label, value, color = 'text-slate-900' }: { label: string; value: number | string; color?: string }) { return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className={`mt-2 text-2xl font-black ${color}`}>{value}</p></div>; }
 function formatNaira(amount: number) { return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number.isFinite(amount) ? amount : 0); }

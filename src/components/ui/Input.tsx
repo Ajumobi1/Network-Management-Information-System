@@ -1,8 +1,31 @@
-import { InputHTMLAttributes } from 'react';
+import { InputHTMLAttributes, forwardRef } from 'react';
 
-export default function Input(props: InputHTMLAttributes<HTMLInputElement>) {
-  const baseClasses =
-    'w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition duration-200 focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15';
-
-  return <input {...props} className={`${baseClasses} ${props.className ?? ''}`.trim()} />;
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  label?: string;
+  helper?: string;
+  error?: string;
 }
+
+const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ label, helper, error, className = '', ...props }, ref) => {
+    return (
+      <div className="w-full space-y-1.5">
+        {label && <label className="nmis-label">{label}</label>}
+        <input
+          ref={ref}
+          className={`nmis-control ${error ? 'border-status-error focus:border-status-error focus:ring-status-error' : ''} ${className}`}
+          {...props}
+        />
+        {error ? (
+          <p className="mt-1.5 text-xs text-status-error">{error}</p>
+        ) : helper ? (
+          <p className="nmis-helper">{helper}</p>
+        ) : null}
+      </div>
+    );
+  }
+);
+
+Input.displayName = 'Input';
+
+export default Input;

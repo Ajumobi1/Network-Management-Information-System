@@ -62,7 +62,7 @@ export interface EnrolleeRecord {
   recordStatus: 'valid' | 'warning' | 'error' | 'match-review-required' | 'duplicate';
   validationErrors?: string[];
   fingerprint: string;
-  
+
   createdAt: string;
   updatedAt: string;
   metadata?: Record<string, any>;
@@ -93,13 +93,13 @@ export interface EnrolmentAnalytics {
   providerCount: number;
   lgaCount: number;
   senatorialDistrictCount: number;
-  
+
   // Percentages
   formalPercentage: number;
   informalPercentage: number;
   principalPercentage: number;
   dependantPercentage: number;
-  
+
   // Distributions
   bySector: Array<{ name: string; value: number }>;
   byCategory: Array<{ name: string; value: number }>;

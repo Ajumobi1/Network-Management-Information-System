@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
-import { ArrowDownUp } from 'lucide-react';
+import { ArrowDownUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from '../../../../components/ui/Button';
-import Card from '../../../../components/ui/Card';
 import { ProviderDirectoryItem } from '../../types';
 import ProviderQuickActions from '../ProviderQuickActions';
 import ProviderStatusBadge, { formatProviderLabel } from '../ProviderStatusBadge';
@@ -36,54 +35,84 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
   const sortedProviders = useMemo(() => [...providers].sort((left, right) => String(left[sortKey]).localeCompare(String(right[sortKey]))), [providers, sortKey]);
 
   return (
-    <Card className="overflow-hidden p-0">
+    <div className="nmis-table-wrap">
       <ProviderToolbar selectedCount={selected.length} visibleColumnCount={visibleColumns.length} />
       <div className="overflow-x-auto">
-        <table className="min-w-[1600px] divide-y divide-slate-200 text-left">
-          <thead className="bg-slate-50">
+        <table className="nmis-table min-w-[1800px]">
+          <thead>
             <tr>
-              <th className="px-4 py-4"><input aria-label="Select all providers" type="checkbox" onChange={event => setSelected(event.target.checked ? providers.map(provider => provider.id) : [])} /></th>
+              <th className="w-12 px-4">
+                <input
+                  aria-label="Select all providers"
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-brand-border text-brand-blue focus:ring-brand-blue"
+                  onChange={event => setSelected(event.target.checked ? providers.map(provider => provider.id) : [])}
+                />
+              </th>
               {visibleColumns.map(column => (
-                <th key={column} className="px-4 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  <button className="inline-flex items-center gap-2" onClick={() => setSortKey(columnMap[column])}>
-                    {column}<ArrowDownUp className="h-3 w-3" />
+                <th key={column}>
+                  <button
+                    className="flex items-center gap-2 hover:text-brand-foreground transition-colors"
+                    onClick={() => setSortKey(columnMap[column])}
+                  >
+                    {column}
+                    <ArrowDownUp className="h-3 w-3 opacity-50" />
                   </button>
                 </th>
               ))}
-              <th className="px-4 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Actions</th>
+              <th className="sticky right-0 bg-brand-card-muted px-4 text-center">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200 bg-white">
+          <tbody>
             {sortedProviders.map(provider => (
-              <tr key={provider.id} className="hover:bg-slate-50">
-                <td className="px-4 py-4"><input aria-label={`Select ${provider.providerName}`} type="checkbox" checked={selected.includes(provider.id)} onChange={() => setSelected(current => current.includes(provider.id) ? current.filter(id => id !== provider.id) : [...current, provider.id])} /></td>
-                <td className="px-4 py-4 text-sm font-semibold text-slate-900">{provider.providerCode}</td>
-                <td className="px-4 py-4 text-sm font-semibold text-slate-900">{provider.providerName}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.category}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.subcategory}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{formatProviderLabel(provider.ownership)}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.lga}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.state}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.contactPerson}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.phone}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.email}</td>
-                <td className="px-4 py-4"><ProviderStatusBadge status={provider.status} /></td>
-                <td className="px-4 py-4"><ProviderStatusBadge status={provider.contractStatus} /></td>
-                <td className="px-4 py-4"><ProviderStatusBadge status={provider.credentialStatus} /></td>
-                <td className="px-4 py-4"><ProviderStatusBadge status={provider.inspectionStatus} /></td>
-                <td className="px-4 py-4"><ProviderStatusBadge status={provider.capitationStatus} /></td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.inspectionRating}</td>
-                <td className="px-4 py-4 text-sm text-slate-600">{provider.lastInspectionDate}</td>
-                <td className="px-4 py-4"><ProviderQuickActions providerId={provider.id} onSelect={onSelect} /></td>
+              <tr key={provider.id}>
+                <td className="px-4">
+                  <input
+                    aria-label={`Select ${provider.providerName}`}
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-brand-border text-brand-blue focus:ring-brand-blue"
+                    checked={selected.includes(provider.id)}
+                    onChange={() => setSelected(current => current.includes(provider.id) ? current.filter(id => id !== provider.id) : [...current, provider.id])}
+                  />
+                </td>
+                <td className="font-semibold text-brand-foreground">{provider.providerCode}</td>
+                <td className="font-semibold text-brand-foreground">{provider.providerName}</td>
+                <td>{provider.category}</td>
+                <td>{provider.subcategory}</td>
+                <td>{formatProviderLabel(provider.ownership)}</td>
+                <td>{provider.lga}</td>
+                <td>{provider.state}</td>
+                <td>{provider.contactPerson}</td>
+                <td>{provider.phone}</td>
+                <td>{provider.email}</td>
+                <td><ProviderStatusBadge status={provider.status} /></td>
+                <td><ProviderStatusBadge status={provider.contractStatus} /></td>
+                <td><ProviderStatusBadge status={provider.credentialStatus} /></td>
+                <td><ProviderStatusBadge status={provider.inspectionStatus} /></td>
+                <td><ProviderStatusBadge status={provider.capitationStatus} /></td>
+                <td>{provider.inspectionRating}</td>
+                <td>{provider.lastInspectionDate}</td>
+                <td className="sticky right-0 bg-brand-card-muted/50 backdrop-blur-sm px-4 text-center">
+                  <ProviderQuickActions providerId={provider.id} onSelect={onSelect} />
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="flex flex-col gap-3 border-t border-slate-200 p-5 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-        <span>Showing {sortedProviders.length} providers • Page 1 of 1</span>
-        <div className="flex gap-2"><Button variant="secondary">Previous</Button><Button variant="secondary">Next</Button></div>
+      <div className="flex flex-col gap-4 border-t border-brand-divider p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs font-bold uppercase tracking-wider text-brand-muted">
+          Showing {sortedProviders.length} providers <span className="mx-2 opacity-30">|</span> Page 1 of 1
+        </p>
+        <div className="flex gap-2">
+          <Button variant="secondary" size="sm" className="gap-1">
+            <ChevronLeft size={16} /> Previous
+          </Button>
+          <Button variant="secondary" size="sm" className="gap-1">
+            Next <ChevronRight size={16} />
+          </Button>
+        </div>
       </div>
-    </Card>
+    </div>
   );
 }

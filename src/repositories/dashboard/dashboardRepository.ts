@@ -1,10 +1,13 @@
 import { useMockData } from '../common';
 import * as dashboardMocks from '../../mocks/dashboardMocks';
 import { getProviderDirectory } from '../providers/providersRepository';
-import { fetchFinancialRecords } from '../financial-data/financialDataRepository';
-import { fetchEnrolmentAnalyticsWithFinance } from '../enrolment/enrolmentRepository';
 import { ProviderLifecycleStatus } from '../../constants/providerNetwork';
-import { EnrolmentAnalytics } from '../../types/enrolment/enrolmentTypes';
+import { EnrolleeRecord, EnrolmentAnalytics, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
+import { FinancialRecord, ImportBatch } from '../../types/financial-data';
+import { fetchEnrollees, fetchEnrolmentAnalyticsWithFinance } from '../enrolment/enrolmentRepository';
+import { fetchFinancialRecords, fetchImportBatches } from '../financial-data/financialDataRepository';
+import { fetchAuditLogs, AuditLogEntry } from '../audit/auditRepository';
+import { Dashboard2Intelligence, DashboardAttentionItem, DashboardActivityItem, DashboardBreakdown, DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTypes';
 import {
   AiInsight,
   ActivityItem,
@@ -139,7 +142,7 @@ export async function fetchProviderDistribution(): Promise<DistributionPoint[]> 
     acc[region] = (acc[region] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-  
+
   return Object.entries(distribution).map(([category, value]) => ({ category, value })).sort((a, b) => b.value - a.value);
 }
 
@@ -150,7 +153,7 @@ export async function fetchProviderCategories(): Promise<DistributionPoint[]> {
     acc[cat] = (acc[cat] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
-  
+
   return Object.entries(categories).map(([category, value]) => ({ category, value })).sort((a, b) => b.value - a.value);
 }
 
@@ -201,4 +204,290 @@ export async function fetchAiInsights(): Promise<AiInsight[]> {
 
 export async function fetchPerformanceGauges(): Promise<PerformanceGauge[]> {
   return dashboardMocks.getPerformanceGauges();
+}
+
+
+function normalizeValue(value?: string): string | undefined {
+  const normalized = value?.trim().toLowerCase();
+  return normalized && normalized !== 'all' ? normalized : undefined;
+}
+
+function recordProviderKeys(record: { providerId?: string; providerCode?: string; providerName: string }): string[] {
+  return [record.providerId, record.providerCode, record.providerName]
+    .map(value => normalizeValue(value))
+    .filter((value): value is string => Boolean(value));
+}
+
+function providerMatchesDirectory(record: { providerId?: string; providerCode?: string; providerName: string }, allowedKeys: Set<string>): boolean {
+  return recordProviderKeys(record).some(key => allowedKeys.has(key));
+}
+
+function amountForDashboardRecord(record: FinancialRecord): number {
+  return record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? record.amountClaimed ?? record.amountSubmitted ?? record.netAmount ?? record.amount ?? 0;
+}
+
+function groupDashboardValues<T>(records: T[], key: (record: T) => string | undefined, value: (record: T) => number = () => 1): DashboardBreakdown[] {
+  const grouped = records.reduce<Record<string, number>>((accumulator, record) => {
+    const name = key(record)?.trim() || 'Unknown';
+    accumulator[name] = (accumulator[name] || 0) + value(record);
+    return accumulator;
+  }, {});
+  return Object.entries(grouped).map(([name, total]) => ({ name, value: total })).sort((a, b) => b.value - a.value);
+}
+
+function sortPeriods(points: DashboardBreakdown[]): DashboardBreakdown[] {
+  return [...points].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function percentageChange(points: DashboardBreakdown[]): number | undefined {
+  if (points.length < 2) return undefined;
+  const previous = points[points.length - 2].value;
+  const current = points[points.length - 1].value;
+  if (previous === 0) return current === 0 ? 0 : undefined;
+  return Number((((current - previous) / previous) * 100).toFixed(1));
+}
+
+function scopedProviderKeys(providers: Awaited<ReturnType<typeof getProviderDirectory>>, filters: DashboardFilters): Set<string> {
+  const scoped = providers.filter(provider => {
+    const facilityType = normalizeValue(filters.facilityType);
+    const ownership = normalizeValue(filters.ownership);
+    const state = normalizeValue(filters.state);
+    const lga = normalizeValue(filters.lga);
+    return (!state || normalizeValue(provider.state) === state)
+      && (!lga || normalizeValue(provider.lga) === lga)
+      && (!facilityType || normalizeValue(String(provider.category)) === facilityType)
+      && (!ownership || normalizeValue(String(provider.ownership)) === ownership);
+  });
+
+  return new Set(scoped.flatMap(provider => recordProviderKeys({
+    providerId: provider.id,
+    providerCode: provider.providerCode,
+    providerName: provider.providerName,
+  })));
+}
+
+function filterByProviderDirectory<T extends { providerId?: string; providerCode?: string; providerName: string }>(records: T[], allowedKeys: Set<string>, shouldScope: boolean): T[] {
+  return shouldScope ? records.filter(record => providerMatchesDirectory(record, allowedKeys)) : records;
+}
+
+function allocateFinancialRecordsBySector(records: FinancialRecord[], enrollees: EnrolleeRecord[], sector?: 'formal' | 'informal'): FinancialRecord[] {
+  if (!sector) return records;
+
+  const totalByProviderPeriod = new Map<string, number>();
+  const sectorByProviderPeriod = new Map<string, number>();
+  enrollees.forEach(enrollee => {
+    const key = `${normalizeValue(enrollee.providerId || enrollee.providerCode || enrollee.providerName) || 'unknown'}|${enrollee.period}`;
+    totalByProviderPeriod.set(key, (totalByProviderPeriod.get(key) || 0) + 1);
+    if (enrollee.sector === sector) sectorByProviderPeriod.set(key, (sectorByProviderPeriod.get(key) || 0) + 1);
+  });
+
+  return records.map(record => {
+    const key = `${normalizeValue(record.providerId || record.providerCode || record.providerName) || 'unknown'}|${record.period}`;
+    const total = totalByProviderPeriod.get(key) || 0;
+    const sectorCount = sectorByProviderPeriod.get(key) || 0;
+    const share = total > 0 ? sectorCount / total : 0;
+    const allocatedAmount = amountForDashboardRecord(record) * share;
+    return { ...record, amountPaid: allocatedAmount, netAmountPaid: allocatedAmount, amount: allocatedAmount };
+  });
+}
+
+function sumDashboardAmount(records: FinancialRecord[]): number {
+  return records.reduce((total, record) => total + amountForDashboardRecord(record), 0);
+}
+
+function formatActivityLabel(dataType: ImportBatch['dataType']): string {
+  if (dataType === 'enrolment') return 'Enrolment dataset imported';
+  if (dataType === 'claims') return 'Claims dataset imported';
+  if (dataType === 'capitation') return 'Capitation dataset imported';
+  if (dataType === 'ffs') return 'FFS dataset imported';
+  return 'Financial dataset imported';
+}
+
+function toActivityFromBatch(batch: ImportBatch): DashboardActivityItem {
+  return {
+    id: `batch-${batch.id}`,
+    timestamp: batch.uploadedAt,
+    title: formatActivityLabel(batch.dataType),
+    description: `${batch.importedRows.toLocaleString()} of ${batch.totalRows.toLocaleString()} rows imported from ${batch.fileName}.`,
+    badge: batch.status,
+    href: batch.dataType === 'enrolment' ? '/population/enrolment' : '/financial/history',
+  };
+}
+
+function auditLabel(log: AuditLogEntry): { title: string; description: string; badge: string; href?: string } | null {
+  if (log.action === 'PROVIDER_REGISTERED') return { title: 'Provider registered', description: 'A provider was added to the authoritative Provider Directory.', badge: 'Provider', href: '/providers' };
+  if (log.action === 'PROVIDER_STATUS_CHANGED') return { title: 'Provider status changed', description: 'A provider lifecycle status was updated.', badge: 'Provider', href: '/providers' };
+  if (log.action === 'PROVIDER_MATCH_RESOLVED') return { title: 'Provider match resolved', description: 'An uploaded entity was linked to a Provider Directory record.', badge: 'Matching', href: '/financial/history' };
+  if (log.action === 'ENROLMENT_IMPORT_COMMITTED') return { title: 'Enrolment dataset imported', description: 'An enrolment import was committed to the population register.', badge: 'Enrolment', href: '/population/enrolment' };
+  return null;
+}
+
+function buildAttentionItems(
+  intelligence: {
+    population: { growthPercentage?: number };
+    financial: { growthPercentage?: number };
+    efficiency: { networkPepm: number; byLga: DashboardBreakdown[]; byProvider: DashboardBreakdown[] };
+    unmatchedProviderCount: number;
+  },
+  batches: ImportBatch[],
+): DashboardAttentionItem[] {
+  const items: DashboardAttentionItem[] = [];
+  const highPepmLga = intelligence.efficiency.byLga.find(item => item.value > intelligence.efficiency.networkPepm * 1.15 && (item.secondaryValue || 0) > 0);
+  const highPepmProvider = intelligence.efficiency.byProvider.find(item => item.value > intelligence.efficiency.networkPepm * 1.25 && (item.secondaryValue || 0) > 0);
+  const latestImportWithWarnings = batches.find(batch => batch.warningRows > 0 || batch.errorRows > 0 || batch.duplicateRows > 0 || batch.unmatchedProviders > 0);
+  const populationGrowth = intelligence.population.growthPercentage;
+  const financialGrowth = intelligence.financial.growthPercentage;
+
+  if (highPepmLga) items.push({ id: 'high-pepm-lga', level: 'warning', title: 'High PEPM LGA', subject: highPepmLga.name, detail: `PEPM is ${Math.round(((highPepmLga.value / intelligence.efficiency.networkPepm) - 1) * 100)}% above the network average.`, href: '/analytics/financial-intelligence' });
+  if (highPepmProvider) items.push({ id: 'high-pepm-provider', level: 'warning', title: 'High PEPM provider', subject: highPepmProvider.name, detail: `PEPM is ${Math.round(((highPepmProvider.value / intelligence.efficiency.networkPepm) - 1) * 100)}% above the network average.`, href: '/analytics/financial-intelligence' });
+  if (populationGrowth !== undefined && populationGrowth <= -10) items.push({ id: 'enrolment-decline', level: 'critical', title: 'Enrolment decline', subject: 'Latest reporting period', detail: `Enrolment decreased by ${Math.abs(populationGrowth)}% compared with the previous period.`, href: '/population/enrolment/register' });
+  if (financialGrowth !== undefined && financialGrowth >= 25) items.push({ id: 'financial-increase', level: 'warning', title: 'Large financial increase', subject: 'Latest reporting period', detail: `Expenditure increased by ${financialGrowth}% compared with the previous period.`, href: '/analytics/financial-intelligence' });
+  if (intelligence.unmatchedProviderCount > 0) items.push({ id: 'unmatched-providers', level: 'critical', title: 'Data quality', subject: `${intelligence.unmatchedProviderCount} unmatched provider${intelligence.unmatchedProviderCount === 1 ? '' : 's'} remain`, detail: 'Review provider matching before using the latest financial data for decisions.', href: '/financial/upload' });
+  if (latestImportWithWarnings) items.push({ id: `import-warning-${latestImportWithWarnings.id}`, level: 'warning', title: 'Import warnings', subject: latestImportWithWarnings.fileName, detail: `${latestImportWithWarnings.warningRows + latestImportWithWarnings.errorRows + latestImportWithWarnings.duplicateRows + latestImportWithWarnings.unmatchedProviders} warning, error, duplicate, or unmatched rows were recorded.`, href: '/financial/history' });
+  return items.slice(0, 6);
+}
+
+export async function fetchDashboardIntelligence(filters: DashboardFilters = {}): Promise<Dashboard2Intelligence> {
+  const providerDirectory = await getProviderDirectory();
+  const shouldScopeToDirectory = Boolean(normalizeValue(filters.state) || normalizeValue(filters.lga) || normalizeValue(filters.facilityType) || normalizeValue(filters.ownership));
+  const providerKeys = scopedProviderKeys(providerDirectory, filters);
+  const enrolmentFilters: EnrolmentFilters = {
+    year: filters.year,
+    month: filters.month,
+    state: filters.state,
+    lga: filters.lga,
+  };
+
+  const [allEnrolmentRecords, financialRecords, importBatches, auditLogs] = await Promise.all([
+    fetchEnrollees(enrolmentFilters),
+    fetchFinancialRecords({ year: filters.year, month: filters.month, state: filters.state, lga: filters.lga }),
+    fetchImportBatches(),
+    fetchAuditLogs(),
+  ]);
+
+  const scopedEnrolmentRecords = filterByProviderDirectory(allEnrolmentRecords, providerKeys, shouldScopeToDirectory);
+  const selectedEnrolmentRecords = filters.sector && filters.sector !== 'all'
+    ? scopedEnrolmentRecords.filter(record => record.sector === filters.sector)
+    : scopedEnrolmentRecords;
+  const scopedFinancialRecords = filterByProviderDirectory(financialRecords, providerKeys, shouldScopeToDirectory);
+  const selectedSector = filters.sector && filters.sector !== 'all' ? filters.sector : undefined;
+  const allocatedFinancialRecords = allocateFinancialRecordsBySector(scopedFinancialRecords, scopedEnrolmentRecords, selectedSector);
+  const scopedProviders = providerDirectory.filter(provider => {
+    const state = normalizeValue(filters.state);
+    const lga = normalizeValue(filters.lga);
+    const facilityType = normalizeValue(filters.facilityType);
+    const ownership = normalizeValue(filters.ownership);
+    return (!state || normalizeValue(provider.state) === state)
+      && (!lga || normalizeValue(provider.lga) === lga)
+      && (!facilityType || normalizeValue(String(provider.category)) === facilityType)
+      && (!ownership || normalizeValue(String(provider.ownership)) === ownership);
+  });
+
+  const formalCount = selectedEnrolmentRecords.filter(record => record.sector === 'formal').length;
+  const informalCount = selectedEnrolmentRecords.filter(record => record.sector === 'informal').length;
+  const principalCount = selectedEnrolmentRecords.filter(record => record.category === 'principal').length;
+  const dependantCount = selectedEnrolmentRecords.filter(record => record.category === 'dependant').length;
+  const totalExpenditure = sumDashboardAmount(allocatedFinancialRecords);
+  const financialByType = groupDashboardValues(allocatedFinancialRecords, record => record.dataType, amountForDashboardRecord);
+  const financialMonthlyTrend = sortPeriods(groupDashboardValues(allocatedFinancialRecords, record => record.period, amountForDashboardRecord));
+  const populationMonthlyTrend = sortPeriods(groupDashboardValues(selectedEnrolmentRecords, record => record.period));
+  const allFinancialProviderKeys = new Set(providerDirectory.flatMap(provider => recordProviderKeys({ providerId: provider.id, providerCode: provider.providerCode, providerName: provider.providerName })));
+  const unmatchedProviderCount = new Set(scopedFinancialRecords.filter(record => !providerMatchesDirectory(record, allFinancialProviderKeys)).flatMap(record => recordProviderKeys(record))).size;
+  const networkPepm = selectedEnrolmentRecords.length > 0 ? totalExpenditure / selectedEnrolmentRecords.length : 0;
+  const sectorOptions: Array<'formal' | 'informal'> = selectedSector ? [selectedSector] : ['formal', 'informal'];
+  const bySectorEfficiency = sectorOptions.map(sector => {
+    const sectorRecords = allocateFinancialRecordsBySector(scopedFinancialRecords, scopedEnrolmentRecords, sector).filter(record => amountForDashboardRecord(record) > 0 || scopedEnrolmentRecords.some(enrollee => enrollee.sector === sector));
+    const enrolleeCount = scopedEnrolmentRecords.filter(record => record.sector === sector).length;
+    return { name: sector, value: enrolleeCount > 0 ? Number((sumDashboardAmount(sectorRecords) / enrolleeCount).toFixed(2)) : 0, secondaryValue: enrolleeCount };
+  });
+  const byLgaEfficiency = groupDashboardValues(selectedEnrolmentRecords, record => record.lga).map(item => {
+    const lgaRecords = allocatedFinancialRecords.filter(record => record.lga === item.name);
+    return { name: item.name, value: item.value > 0 ? Number((sumDashboardAmount(lgaRecords) / item.value).toFixed(2)) : 0, secondaryValue: item.value };
+  }).sort((a, b) => b.value - a.value).slice(0, 10);
+  const byProviderEfficiency = groupDashboardValues(selectedEnrolmentRecords, record => record.providerName).map(item => {
+    const providerRecords = allocatedFinancialRecords.filter(record => record.providerName === item.name || record.providerCode === item.name || record.providerId === item.name);
+    return { name: item.name, value: item.value > 0 ? Number((sumDashboardAmount(providerRecords) / item.value).toFixed(2)) : 0, secondaryValue: item.value };
+  }).sort((a, b) => b.value - a.value).slice(0, 10);
+  const attentionBase = {
+    population: { growthPercentage: percentageChange(populationMonthlyTrend) },
+    financial: { growthPercentage: percentageChange(financialMonthlyTrend) },
+    efficiency: { networkPepm, byLga: byLgaEfficiency, byProvider: byProviderEfficiency },
+    unmatchedProviderCount,
+  };
+  const activityItems = [
+    ...importBatches.filter(batch => Boolean(batch.uploadedAt)).map(toActivityFromBatch),
+    ...auditLogs.filter(log => Boolean(log.createdAt)).flatMap(log => {
+      const label = auditLabel(log);
+      return label && log.createdAt ? [{ id: `audit-${log.id || log.createdAt}-${log.action}`, timestamp: log.createdAt, ...label }] : [];
+    }),
+  ].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 8);
+  const timestamps = [
+    ...scopedEnrolmentRecords.flatMap(record => [record.updatedAt, record.createdAt]),
+    ...scopedFinancialRecords.flatMap(record => [record.updatedAt, record.createdAt]),
+    ...importBatches.map(batch => batch.uploadedAt),
+    ...auditLogs.flatMap(log => log.createdAt ? [log.createdAt] : []),
+  ].filter(Boolean).sort();
+  const periodCandidates = [...populationMonthlyTrend, ...financialMonthlyTrend].map(item => item.name).sort();
+  const reportingPeriod = filters.year && filters.month ? `${filters.year}-${String(filters.month).padStart(2, '0')}` : filters.year ? String(filters.year) : periodCandidates[periodCandidates.length - 1] || 'All periods';
+  const filterOptions: Dashboard2Intelligence['filterOptions'] = {
+    years: Array.from(new Set([...allEnrolmentRecords.map(record => record.reportingYear), ...financialRecords.map(record => record.reportingYear)].filter(Boolean))).sort((a, b) => b - a),
+    months: Array.from(new Set([...allEnrolmentRecords.map(record => record.reportingMonth), ...financialRecords.map(record => record.reportingMonth)].filter(Boolean))).sort((a, b) => a - b),
+    states: Array.from(new Set(providerDirectory.map(provider => provider.state).filter(Boolean))).sort(),
+    lgas: Array.from(new Set(providerDirectory.map(provider => provider.lga).filter(Boolean))).sort(),
+    facilityTypes: Array.from(new Set(providerDirectory.map(provider => String(provider.category)).filter(Boolean))).sort(),
+    ownerships: Array.from(new Set(providerDirectory.map(provider => String(provider.ownership)).filter(Boolean))).sort(),
+  };
+
+  return {
+    reportingPeriod,
+    lastUpdatedAt: timestamps[timestamps.length - 1],
+    provider: {
+      total: scopedProviders.length,
+      active: scopedProviders.filter(provider => provider.status === ProviderLifecycleStatus.Active).length,
+      inactive: scopedProviders.filter(provider => provider.status !== ProviderLifecycleStatus.Active).length,
+      byLga: groupDashboardValues(scopedProviders, provider => provider.lga),
+      byFacilityType: groupDashboardValues(scopedProviders, provider => String(provider.category)),
+      byOwnership: groupDashboardValues(scopedProviders, provider => String(provider.ownership)),
+      byLifecycle: groupDashboardValues(scopedProviders, provider => String(provider.status)),
+    },
+    population: {
+      total: selectedEnrolmentRecords.length,
+      formal: formalCount,
+      informal: informalCount,
+      principal: principalCount,
+      dependant: dependantCount,
+      bySector: groupDashboardValues(selectedEnrolmentRecords, record => record.sector),
+      byCategory: groupDashboardValues(selectedEnrolmentRecords, record => record.category),
+      byLga: groupDashboardValues(selectedEnrolmentRecords, record => record.lga),
+      topFacilities: groupDashboardValues(selectedEnrolmentRecords, record => record.providerName).slice(0, 10),
+      monthlyTrend: populationMonthlyTrend,
+      growthPercentage: percentageChange(populationMonthlyTrend),
+    },
+    financial: {
+      totalExpenditure,
+      claims: financialByType.find(item => item.name === 'claims')?.value || 0,
+      capitation: financialByType.find(item => item.name === 'capitation')?.value || 0,
+      ffs: financialByType.find(item => item.name === 'ffs')?.value || 0,
+      byFundingType: financialByType,
+      monthlyTrend: financialMonthlyTrend,
+      topLgas: groupDashboardValues(allocatedFinancialRecords, record => record.lga, amountForDashboardRecord).slice(0, 10),
+      topProviders: groupDashboardValues(allocatedFinancialRecords, record => record.providerName, amountForDashboardRecord).slice(0, 10),
+      growthPercentage: percentageChange(financialMonthlyTrend),
+    },
+    efficiency: {
+      networkPepm: Number(networkPepm.toFixed(2)),
+      bySector: bySectorEfficiency,
+      byLga: byLgaEfficiency,
+      byProvider: byProviderEfficiency,
+      trend: sortPeriods(populationMonthlyTrend.map(item => {
+        const spend = financialMonthlyTrend.find(financialPoint => financialPoint.name === item.name)?.value || 0;
+        return { name: item.name, value: item.value > 0 ? Number((spend / item.value).toFixed(2)) : 0 };
+      })),
+    },
+    managementAttention: buildAttentionItems({ population: attentionBase.population, financial: attentionBase.financial, efficiency: attentionBase.efficiency, unmatchedProviderCount }, importBatches),
+    recentActivity: activityItems,
+    filterOptions,
+    matchedFinancialRecords: scopedFinancialRecords.filter(record => providerMatchesDirectory(record, allFinancialProviderKeys)).length,
+    unmatchedProviderCount,
+  };
 }

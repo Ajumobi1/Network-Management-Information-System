@@ -14,7 +14,7 @@ export interface AuditLogEntry {
 
 export async function logAction(entry: AuditLogEntry): Promise<AuditLogEntry> {
   const now = new Date().toISOString();
-  
+
   if (useMockData) {
     console.log('[Audit Log (Mock)]', entry);
     return { ...entry, id: `audit-${Date.now()}`, createdAt: now };

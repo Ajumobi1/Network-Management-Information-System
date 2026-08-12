@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTypes';
 import {
   fetchAiInsights,
   fetchCapitationTrend,
@@ -17,6 +18,7 @@ import {
   fetchPopulationSnapshot,
   fetchUpcomingActivities,
   fetchUtilizationTrend,
+  fetchDashboardIntelligence,
 } from '../../services/dashboard/dashboardService';
 
 export function useExecutiveSummary() {
@@ -151,6 +153,14 @@ export function usePerformanceGauges() {
   return useQuery({
     queryKey: ['dashboard', 'performanceGauges'],
     queryFn: fetchPerformanceGauges,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useDashboardIntelligence(filters: DashboardFilters = {}) {
+  return useQuery({
+    queryKey: ['dashboard', 'intelligence', filters],
+    queryFn: () => fetchDashboardIntelligence(filters),
     staleTime: 1000 * 60 * 5,
   });
 }

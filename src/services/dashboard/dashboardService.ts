@@ -17,6 +17,7 @@ import {
   UpcomingActivity,
 } from '../../types/dashboard/dashboardTypes';
 import { EnrolmentAnalytics } from '../../types/enrolment/enrolmentTypes';
+import { Dashboard2Intelligence, DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTypes';
 
 export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
   return dashboardRepository.fetchExecutiveSummary();
@@ -84,4 +85,8 @@ export async function fetchAiInsights(): Promise<AiInsight[]> {
 
 export async function fetchPerformanceGauges(): Promise<PerformanceGauge[]> {
   return dashboardRepository.fetchPerformanceGauges();
+}
+
+export async function fetchDashboardIntelligence(filters: DashboardFilters = {}): Promise<Dashboard2Intelligence> {
+  return dashboardRepository.fetchDashboardIntelligence(filters);
 }
