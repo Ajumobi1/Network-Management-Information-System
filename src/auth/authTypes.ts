@@ -13,7 +13,7 @@ export type AuthUser = {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: UserRole | null;
   avatarUrl?: string;
   isActive?: boolean;
 };
@@ -51,11 +51,5 @@ export type AuthError = {
 };
 
 export type AuthResult<T> =
-  | {
-      success: true;
-      data: T;
-    }
-  | {
-      success: false;
-      error: AuthError;
-    };
+  | { success: true; data: T }
+  | { success: false; error: AuthError };

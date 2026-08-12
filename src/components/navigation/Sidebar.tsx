@@ -65,7 +65,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => getInitialExpanded(location.pathname));
-  const role = session?.user.role ?? 'super-admin';
+  const role = session?.user.role ?? 'unassigned';
   const visibleSections = useMemo(() => sections.filter(section => section.visible !== false), []);
 
   useEffect(() => { sessionStorage.setItem('nmis.sidebar.expanded', JSON.stringify(expanded)); }, [expanded]);
@@ -93,7 +93,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           </nav>
         </div>
         <div className={`${collapsed ? 'p-2' : 'p-3'} rounded-panel border border-white/10 bg-white/5 text-sm text-white/60`}>
-          {collapsed ? <button type="button" onClick={signOut} className="flex w-full justify-center text-white/60" title="Logout" aria-label="Logout"><LogOut className="h-4 w-4" /></button> : <><p className="font-semibold text-white">Need help?</p><p className="mt-1.5 text-xs leading-5 text-white/50">Use the assistant to find modules, reports, and tasks.</p><button type="button" onClick={signOut} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white"><LogOut className="h-3.5 w-3.5" /> Logout</button></>}
+          {collapsed ? <button type="button" onClick={() => { void signOut(); }} className="flex w-full justify-center text-white/60" title="Logout" aria-label="Logout"><LogOut className="h-4 w-4" /></button> : <><p className="font-semibold text-white">Need help?</p><p className="mt-1.5 text-xs leading-5 text-white/50">Use the assistant to find modules, reports, and tasks.</p><button type="button" onClick={() => { void signOut(); }} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white"><LogOut className="h-3.5 w-3.5" /> Logout</button></>}
         </div>
       </div>
     </aside>

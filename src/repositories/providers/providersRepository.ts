@@ -1,182 +1,246 @@
-import { fetchTable, fetchSingle, insertRow, updateRow, deleteRow, useMockData, upsertRow } from '../common';
+import {
+  accessRestricted,
+  providerWorkflowError,
+  trustedOperationRequired,
+} from '../../lib/security/secureContracts';
 import { getApiClient } from '../../api/client';
-import { formatSupabaseError } from '../../utils/api';
+import { invokeSecureRpc } from '../contracts/secureRpcRepository';
+import { useMockData } from '../common';
 import { apiMocks } from '../../mocks';
-import { ProvidersRow, ProviderMatchResolutionsRow } from '../../lib/supabase/database.types';
 import {
   providerDirectory,
   providerProfiles,
   providerRegistrationDraft,
   addProviderMock,
   updateProviderMock,
-  setProviderStatusMock
+  setProviderStatusMock,
 } from '../../mocks/providersMocks';
 import { ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile } from '../../types/providers/providerTypes';
+import type { ProvidersRow } from '../../lib/supabase/database.types';
 import { ProviderMatch } from '../../types/financial-data';
-import { logAction } from '../audit/auditRepository';
 
-/**
- * Basic CRUD operations for Providers
- */
+export type ProviderRegistrationCommand = Pick<
+  ProviderDirectoryItem,
+  'providerCode' | 'providerName' | 'category' | 'subcategory' | 'ownership' | 'state' | 'lga'
+>;
 
-export async function getProviders() {
-  if (useMockData) {
-    return apiMocks.getProviders();
-  }
-  return fetchTable<ProvidersRow>('providers');
+export type ProviderOperationalUpdate = Partial<Pick<ProviderDirectoryItem, 'subcategory' | 'state' | 'lga'>>;
+
+type ProviderDirectoryRpcRow = {
+  id: string;
+  provider_code: string;
+  provider_name: string;
+  category: string;
+  subcategory?: string | null;
+  ownership: string;
+  state: string;
+  lga: string;
+  status: string;
+  contract_status: string;
+  credential_status: string;
+  inspection_status: string;
+  capitation_status: string;
+  inspection_rating?: string | null;
+  last_inspection_date?: string | null;
+};
+
+type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
+  services?: string[] | null;
+  departments?: string[] | null;
+  staff_strength?: number | null;
+  equipment?: string[] | null;
+};
+
+type ProviderDirectoryRpcResult = ProviderDirectoryRpcRow[] | { items: ProviderDirectoryRpcRow[] };
+type ProviderAdminResponse = { data?: { provider?: ProviderDirectoryRpcRow } };
+type ProviderAdminFunctionError = { message?: string; context?: { json?: () => Promise<unknown> } } | null;
+type ProviderAdminFunctionClient = {
+  functions: {
+    invoke: <T>(functionName: string, options: { body: Record<string, unknown> }) => Promise<{ data: T | null; error: ProviderAdminFunctionError }>;
+  };
+};
+
+const providerWorkflowCodes = [
+  'UNAUTHORIZED',
+  'AAL_REQUIRED',
+  'VALIDATION_ERROR',
+  'DUPLICATE_PROVIDER',
+  'PROVIDER_NOT_FOUND',
+  'INVALID_LIFECYCLE_TRANSITION',
+  'TRUSTED_OPERATION_REQUIRED',
+  'AUDIT_FAILURE',
+  'INTERNAL_ERROR',
+] as const;
+
+type ProviderWorkflowCode = (typeof providerWorkflowCodes)[number];
+
+function directoryRows(result: ProviderDirectoryRpcResult): ProviderDirectoryRpcRow[] {
+  return Array.isArray(result) ? result : result.items;
 }
 
-export async function getProviderById(id: string) {
-  if (useMockData) {
-    return apiMocks.getProviderById(id);
-  }
-  return fetchSingle<ProvidersRow>('providers', 'id', id);
+function normalizedLifecycleStatus(status: string): ProviderLifecycleStatus {
+  return status.trim().toLowerCase() as ProviderLifecycleStatus;
 }
 
-export async function createProvider(payload: Partial<ProvidersRow>) {
-  if (useMockData) {
-    return apiMocks.createProvider(payload);
-  }
-  const created = await insertRow<ProvidersRow>('providers', payload);
-  await logAction({
-    action: 'PROVIDER_CREATED',
-    entity: 'providers',
-    entityId: created.id,
-    metadata: { providerName: created.provider_name, providerCode: created.provider_code }
-  });
-  return created;
+function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
+  return {
+    id: row.id,
+    providerCode: row.provider_code,
+    providerName: row.provider_name,
+    category: row.category as ProviderDirectoryItem['category'],
+    subcategory: row.subcategory ?? '',
+    ownership: row.ownership as ProviderDirectoryItem['ownership'],
+    lga: row.lga,
+    state: row.state,
+    contactPerson: '',
+    phone: '',
+    email: '',
+    status: normalizedLifecycleStatus(row.status),
+    contractStatus: row.contract_status as ProviderDirectoryItem['contractStatus'],
+    credentialStatus: row.credential_status as ProviderDirectoryItem['credentialStatus'],
+    inspectionStatus: row.inspection_status as ProviderDirectoryItem['inspectionStatus'],
+    capitationStatus: row.capitation_status as ProviderDirectoryItem['capitationStatus'],
+    inspectionRating: row.inspection_rating ?? '',
+    lastInspectionDate: row.last_inspection_date ?? '',
+  };
 }
 
-export async function updateProvider(id: string, payload: Partial<ProvidersRow>) {
-  if (useMockData) {
-    return apiMocks.updateProvider(id, payload);
-  }
-  const updated = await updateRow<ProvidersRow>('providers', id, payload);
-  await logAction({
-    action: 'PROVIDER_UPDATED',
-    entity: 'providers',
-    entityId: id,
-    metadata: { changes: payload }
-  });
-  return updated;
+function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
+  return {
+    ...mapDirectoryRow(row),
+    address: 'Access restricted',
+    bankName: 'Access restricted',
+    accountName: 'Access restricted',
+    accountNumber: 'Access restricted',
+    services: row.services ?? [],
+    departments: row.departments ?? [],
+    staffStrength: row.staff_strength ?? 0,
+    equipment: row.equipment ?? [],
+    documents: [],
+    timeline: [],
+    performance: { inspectionRating: 0, complaintScore: 0, utilization: 0, claimsTrend: 'unavailable', capitationTrend: 'unavailable', compliance: 0 },
+    communicationHistory: [],
+  };
 }
 
-export async function deleteProvider(id: string) {
-  if (useMockData) {
-    return apiMocks.deleteProvider(id);
-  }
-  await logAction({
-    action: 'PROVIDER_DELETED',
-    entity: 'providers',
-    entityId: id
-  });
-  return deleteRow('providers', id);
+function isProviderWorkflowCode(value: unknown): value is ProviderWorkflowCode {
+  return typeof value === 'string' && (providerWorkflowCodes as readonly string[]).includes(value);
 }
 
-/**
- * Extended Provider Directory & Profile operations
- */
+async function mapProviderAdminError(error: ProviderAdminFunctionError) {
+  let code: ProviderWorkflowCode = 'INTERNAL_ERROR';
+  try {
+    const body = await error?.context?.json?.();
+    if (body && typeof body === 'object' && isProviderWorkflowCode((body as { code?: unknown }).code)) {
+      code = (body as { code: ProviderWorkflowCode }).code;
+    }
+  } catch {
+    // The Edge Function error body is intentionally optional and never exposed to the UI.
+  }
+  if (code === 'TRUSTED_OPERATION_REQUIRED') throw trustedOperationRequired('provider administration');
+  throw providerWorkflowError(code);
+}
+
+async function invokeProviderAdmin(body: Record<string, unknown>): Promise<ProviderDirectoryItem> {
+  const client = getApiClient() as unknown as ProviderAdminFunctionClient;
+  const { data, error } = await client.functions.invoke<ProviderAdminResponse>('nmis-provider-admin', { body });
+  if (error) await mapProviderAdminError(error);
+  const row = data?.data?.provider;
+  if (!row) throw providerWorkflowError('INTERNAL_ERROR');
+  return mapDirectoryRow(row);
+}
+
+/** Legacy raw provider calls remain blocked in live mode. */
+export async function getProviders(): Promise<ProvidersRow[]> {
+  if (useMockData) return apiMocks.getProviders();
+  throw accessRestricted('raw provider records');
+}
+
+export async function getProviderById(id: string): Promise<ProvidersRow> {
+  if (useMockData) return apiMocks.getProviderById(id);
+  throw accessRestricted('raw provider record');
+}
+
+export async function createProvider(payload: Partial<ProvidersRow>): Promise<ProvidersRow> {
+  if (useMockData) return apiMocks.createProvider(payload);
+  throw trustedOperationRequired('provider registration');
+}
+
+export async function updateProvider(id: string, payload: Partial<ProvidersRow>): Promise<ProvidersRow> {
+  if (useMockData) return apiMocks.updateProvider(id, payload);
+  throw trustedOperationRequired('provider edit');
+}
+
+export async function deleteProvider(id: string): Promise<boolean> {
+  if (useMockData) return apiMocks.deleteProvider(id);
+  throw trustedOperationRequired('provider retention or correction');
+}
 
 export async function getProviderDirectory(): Promise<ProviderDirectoryItem[]> {
-  if (useMockData) {
-    return providerDirectory;
-  }
-
-  const providers = await fetchTable<ProvidersRow>('providers');
-  // Map Supabase row to UI type
-  return providers.map(p => ({
-    id: p.id,
-    providerCode: p.provider_code,
-    providerName: p.provider_name,
-    category: p.category as any,
-    subcategory: p.subcategory || '',
-    ownership: p.ownership as any,
-    lga: p.lga,
-    state: p.state,
-    contactPerson: p.contact_person || '',
-    phone: p.phone || '',
-    email: p.email || '',
-    status: p.status as ProviderLifecycleStatus,
-    contractStatus: p.contract_status as any,
-    credentialStatus: p.credential_status as any,
-    inspectionStatus: p.inspection_status as any,
-    capitationStatus: p.capitation_status as any,
-    inspectionRating: p.inspection_rating || '',
-    lastInspectionDate: p.last_inspection_date || '',
-  }));
+  if (useMockData) return providerDirectory;
+  const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory');
+  return directoryRows(result).map(mapDirectoryRow);
 }
 
-export async function createDirectoryProvider(payload: Omit<ProviderDirectoryItem, 'id'>) {
+export async function createDirectoryProvider(payload: ProviderRegistrationCommand): Promise<ProviderDirectoryItem> {
   if (useMockData) {
-    return addProviderMock(payload);
+    return addProviderMock({
+      ...payload,
+      contactPerson: '',
+      phone: '',
+      email: '',
+      status: ProviderLifecycleStatus.Pending,
+      contractStatus: 'pending' as ProviderDirectoryItem['contractStatus'],
+      credentialStatus: 'pending' as ProviderDirectoryItem['credentialStatus'],
+      inspectionStatus: 'pending' as ProviderDirectoryItem['inspectionStatus'],
+      capitationStatus: 'not-started' as ProviderDirectoryItem['capitationStatus'],
+      inspectionRating: '',
+      lastInspectionDate: '',
+    });
   }
-
-  // Map UI type to Supabase row
-  const row: Partial<ProvidersRow> = {
-    provider_code: payload.providerCode,
-    provider_name: payload.providerName,
-    category: payload.category,
-    subcategory: payload.subcategory,
-    ownership: payload.ownership,
-    lga: payload.lga,
-    state: payload.state,
-    contact_person: payload.contactPerson,
-    phone: payload.phone,
-    email: payload.email,
-    status: payload.status,
-    contract_status: payload.contractStatus,
-    credential_status: payload.credentialStatus,
-    inspection_status: payload.inspectionStatus,
-    capitation_status: payload.capitationStatus,
-  };
-
-  const created = await insertRow<ProvidersRow>('providers', row);
-  await logAction({
-    action: 'PROVIDER_REGISTERED',
-    entity: 'providers',
-    entityId: created.id,
-    metadata: { providerName: payload.providerName, providerCode: payload.providerCode }
+  return invokeProviderAdmin({
+    command: 'register',
+    payload: {
+      provider_code: payload.providerCode,
+      provider_name: payload.providerName,
+      category: payload.category,
+      subcategory: payload.subcategory || null,
+      ownership: payload.ownership,
+      state: payload.state,
+      lga: payload.lga,
+    },
   });
-  return created;
 }
 
-export async function updateDirectoryProvider(id: string, payload: Partial<ProviderDirectoryItem>) {
-  if (useMockData) {
-    return updateProviderMock(id, payload);
-  }
-
-  const row: Partial<ProvidersRow> = {};
-  if (payload.providerCode) row.provider_code = payload.providerCode;
-  if (payload.providerName) row.provider_name = payload.providerName;
-  if (payload.category) row.category = payload.category;
-  if (payload.subcategory) row.subcategory = payload.subcategory;
-  if (payload.ownership) row.ownership = payload.ownership;
-  if (payload.lga) row.lga = payload.lga;
-  if (payload.state) row.state = payload.state;
-  if (payload.status) row.status = payload.status;
-
-  const updated = await updateRow<ProvidersRow>('providers', id, row);
-  await logAction({
-    action: 'PROVIDER_DIRECTORY_UPDATED',
-    entity: 'providers',
-    entityId: id,
-    metadata: { changes: payload }
-  });
-  return updated;
+export async function updateDirectoryProvider(id: string, payload: ProviderOperationalUpdate): Promise<ProviderDirectoryItem> {
+  if (useMockData) return updateProviderMock(id, payload);
+  const safePayload: Record<string, unknown> = {};
+  if (payload.subcategory !== undefined) safePayload.subcategory = payload.subcategory || null;
+  if (payload.state !== undefined) safePayload.state = payload.state;
+  if (payload.lga !== undefined) safePayload.lga = payload.lga;
+  return invokeProviderAdmin({ command: 'edit_operational', providerId: id, payload: safePayload });
 }
 
-export async function setProviderLifecycleStatus(id: string, status: ProviderLifecycleStatus) {
+export async function setProviderLifecycleStatus(id: string, status: ProviderLifecycleStatus): Promise<ProviderDirectoryItem> {
+  if (useMockData) return setProviderStatusMock(id, status);
+  return invokeProviderAdmin({ command: 'change_lifecycle', providerId: id, payload: { status } });
+}
+
+export async function findSafeProviderMatchCandidates(query: string, limit = 10): Promise<ProviderDirectoryItem[]> {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return [];
   if (useMockData) {
-    return setProviderStatusMock(id, status);
+    const needle = normalizedQuery.toLowerCase();
+    return providerDirectory
+      .filter(provider => [provider.providerCode, provider.providerName, provider.lga, provider.state].join(' ').toLowerCase().includes(needle))
+      .slice(0, Math.min(Math.max(limit, 1), 25));
   }
-  const updated = await updateRow<ProvidersRow>('providers', id, { status });
-  await logAction({
-    action: 'PROVIDER_STATUS_CHANGED',
-    entity: 'providers',
-    entityId: id,
-    metadata: { newStatus: status }
+  const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
+    p_search: normalizedQuery,
+    p_page_size: Math.min(Math.max(limit, 1), 25),
+    p_sort: 'provider_name',
   });
-  return updated;
+  return directoryRows(result).map(mapDirectoryRow);
 }
 
 export async function getProviderProfile(providerId: string): Promise<ProviderProfile> {
@@ -185,134 +249,33 @@ export async function getProviderProfile(providerId: string): Promise<ProviderPr
     if (!profile) throw new Error('Provider profile not found');
     return profile;
   }
-
-  const provider = await fetchSingle<ProvidersRow>('providers', 'id', providerId);
-
-  // Map Supabase row to UI type
-  return {
-    id: provider.id,
-    providerCode: provider.provider_code,
-    providerName: provider.provider_name,
-    category: provider.category as any,
-    subcategory: provider.subcategory || '',
-    ownership: provider.ownership as any,
-    lga: provider.lga,
-    state: provider.state,
-    contactPerson: provider.contact_person || '',
-    phone: provider.phone || '',
-    email: provider.email || '',
-    status: provider.status as ProviderLifecycleStatus,
-    contractStatus: provider.contract_status as any,
-    credentialStatus: provider.credential_status as any,
-    inspectionStatus: provider.inspection_status as any,
-    capitationStatus: provider.capitation_status as any,
-    inspectionRating: provider.inspection_rating || '',
-    lastInspectionDate: provider.last_inspection_date || '',
-    address: provider.address || '',
-    bankName: provider.bank_name || '',
-    accountName: provider.account_name || '',
-    accountNumber: provider.account_number || '',
-    services: [], // Would fetch from related tables in real DB
-    departments: [],
-    staffStrength: 0,
-    equipment: [],
-    documents: [],
-    timeline: [],
-    performance: {
-      inspectionRating: 0,
-      complaintScore: 0,
-      utilization: 0,
-      claimsTrend: 'stable',
-      capitationTrend: 'stable',
-      compliance: 0
-    },
-    communicationHistory: []
-  };
+  const result = await invokeSecureRpc<ProviderProfileRpcRow | ProviderProfileRpcRow[]>('nmis_get_provider_operational_profile', { p_provider_id: providerId });
+  const row = Array.isArray(result) ? result[0] : result;
+  if (!row) throw accessRestricted('provider operational profile');
+  return mapOperationalProfile(row);
 }
 
 export async function getProviderRegistrationDraft() {
-  if (useMockData) {
-    return providerRegistrationDraft;
-  }
   return providerRegistrationDraft;
 }
 
-export async function getProviderContacts(providerId: string) {
-  if (useMockData) {
-    return apiMocks.getProviderContacts(providerId);
-  }
-
-  const supabase = getApiClient();
-  const { data, error } = await supabase.from('provider_contacts').select('*').eq('provider_id', providerId);
-  if (error) {
-    throw formatSupabaseError(error);
-  }
-
-  return data;
+export async function getProviderContacts(_providerId: string) {
+  throw accessRestricted('provider contact data');
 }
 
-export async function getProviderFacilities(providerId: string) {
-  if (useMockData) {
-    return apiMocks.getProviderFacilities(providerId);
-  }
-
-  const supabase = getApiClient();
-  const { data, error } = await supabase.from('facilities').select('*').eq('provider_id', providerId);
-  if (error) {
-    throw formatSupabaseError(error);
-  }
-
-  return data;
+export async function getProviderFacilities(_providerId: string) {
+  throw accessRestricted('provider facility data');
 }
 
-/**
- * Provider Match Resolution Persistence
- */
-
-export async function saveProviderMatchResolution(match: ProviderMatch, resolvedBy?: string) {
+export async function saveProviderMatchResolution(match: ProviderMatch, _resolvedBy?: string) {
   if (useMockData) {
     console.log('[Mock] Saving provider match resolution:', match);
     return;
   }
-
-  const row: Partial<ProviderMatchResolutionsRow> = {
-    excel_name: match.excelName,
-    matched_provider_id: match.matchedProviderId,
-    matched_provider_name: match.matchedProviderName,
-    matched_provider_code: match.matchedProviderCode,
-    match_type: match.matchType,
-    resolved_by: resolvedBy || 'system',
-  };
-
-  const saved = await upsertRow<ProviderMatchResolutionsRow>('provider_match_resolutions', row);
-
-  await logAction({
-    action: 'PROVIDER_MATCH_RESOLVED',
-    entity: 'provider_match_resolutions',
-    entityId: saved.id,
-    metadata: { excelName: match.excelName, matchedProviderName: match.matchedProviderName }
-  });
-
-  return saved;
+  throw trustedOperationRequired('provider match resolution');
 }
 
 export async function getPersistedProviderMatches(): Promise<Record<string, ProviderMatch>> {
   if (useMockData) return {};
-
-  const resolutions = await fetchTable<ProviderMatchResolutionsRow>('provider_match_resolutions');
-  const matchMap: Record<string, ProviderMatch> = {};
-
-  resolutions.forEach(r => {
-    matchMap[r.excel_name.toLowerCase().trim()] = {
-      excelName: r.excel_name,
-      matchedProviderId: r.matched_provider_id || undefined,
-      matchedProviderName: r.matched_provider_name || undefined,
-      matchedProviderCode: r.matched_provider_code || undefined,
-      confidence: 1,
-      matchType: r.match_type as any,
-      status: 'confirmed'
-    };
-  });
-
-  return matchMap;
+  throw trustedOperationRequired('provider match history');
 }

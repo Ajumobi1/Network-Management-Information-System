@@ -13,6 +13,7 @@ import type { FinancialFilters, FinancialRegisterSummary } from '../../repositor
 import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
 import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
+import { isSecureContractError } from '../../lib/security/secureContracts';
 
 interface Props {
   type: FinancialDataType;
@@ -57,7 +58,7 @@ export default function FinancialRegisterPage({ type }: Props) {
     maxAmount: maxAmount ? Number(maxAmount) : undefined,
   }), [claimsCategory, facilityType, isClaims, lga, maxAmount, minAmount, month, ownership, search, state, type, year]);
 
-  const { data: records = [], isLoading, isError, refetch } = useFinancialRecords(filters);
+  const { data: records = [], isLoading, isError, error, refetch } = useFinancialRecords(filters);
   const { data: summary, isLoading: isSummaryLoading } = useFinancialRegisterSummary(filters);
 
   const title = type === 'claims' ? 'Claims Register' : type === 'capitation' ? 'Capitation Analysis' : type === 'ffs' ? 'FFS Register' : 'Enrolment Financials';
@@ -110,7 +111,7 @@ export default function FinancialRegisterPage({ type }: Props) {
     URL.revokeObjectURL(url);
   };
 
-  if (isError) return <main className="nmis-page"><ErrorState title="Financial data unavailable" action={{ label: 'Retry', onClick: () => refetch() }} /></main>;
+  if (isError) return <main className="nmis-page"><ErrorState title={isSecureContractError(error) ? 'Secure financial register unavailable' : 'Financial data unavailable'} description={isSecureContractError(error) ? 'No raw financial records were loaded. This register requires an approved financial-reader contract.' : undefined} action={{ label: 'Retry', onClick: () => refetch() }} /></main>;
 
   return (
     <main className="nmis-page">

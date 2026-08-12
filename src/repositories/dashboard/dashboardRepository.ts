@@ -1,4 +1,5 @@
 import { useMockData } from '../common';
+import { invokeSecureRpc } from '../contracts/secureRpcRepository';
 import * as dashboardMocks from '../../mocks/dashboardMocks';
 import { getProviderDirectory } from '../providers/providersRepository';
 import { ProviderLifecycleStatus } from '../../constants/providerNetwork';
@@ -53,6 +54,17 @@ function formatNaira(value: number): string {
 }
 
 export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
+  if (!useMockData) {
+    const intelligence = await fetchDashboardIntelligence();
+    return [
+      { id: 'total-providers', label: 'Total providers', value: intelligence.provider.total.toLocaleString(), delta: 'Secure aggregate', trend: 'steady', color: 'indigo', icon: 'Users', subtitle: 'Provider network' },
+      { id: 'active-providers', label: 'Active providers', value: intelligence.provider.active.toLocaleString(), delta: 'Secure aggregate', trend: 'steady', color: 'emerald', icon: 'ShieldCheck', subtitle: 'Active provider network' },
+      { id: 'total-enrollees', label: 'Total enrollees', value: intelligence.population.total.toLocaleString(), delta: 'Secure aggregate', trend: 'steady', color: 'sky', icon: 'Users', subtitle: 'Population aggregate' },
+      { id: 'network-expenditure', label: 'Network expenditure', value: formatNaira(intelligence.financial.totalExpenditure), delta: 'Secure aggregate', trend: 'steady', color: 'emerald', icon: 'CurrencyNaira', subtitle: 'Financial aggregate' },
+      { id: 'pepm', label: 'Expenditure per enrollee', value: formatNaira(intelligence.efficiency.networkPepm), delta: 'Secure aggregate', trend: 'steady', color: 'rose', icon: 'CurrencyNaira', subtitle: 'PEPM analytical view' },
+    ];
+  }
+
   const [providers, financialRecords, population] = await Promise.all([
     getProviderDirectory(),
     fetchFinancialRecords(),
@@ -132,10 +144,12 @@ export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
 }
 
 export async function fetchPopulationSnapshot(): Promise<EnrolmentAnalytics> {
+  if (!useMockData) return invokeSecureRpc<EnrolmentAnalytics>('nmis_population_analytics');
   return fetchEnrolmentAnalyticsWithFinance();
 }
 
 export async function fetchProviderDistribution(): Promise<DistributionPoint[]> {
+  if (!useMockData) return (await fetchDashboardIntelligence()).provider.byLga.map(item => ({ category: item.name, value: item.value }));
   const providers = await getProviderDirectory();
   const distribution = providers.reduce((acc, p) => {
     const region = p.state || 'Other';
@@ -147,6 +161,7 @@ export async function fetchProviderDistribution(): Promise<DistributionPoint[]> 
 }
 
 export async function fetchProviderCategories(): Promise<DistributionPoint[]> {
+  if (!useMockData) return (await fetchDashboardIntelligence()).provider.byFacilityType.map(item => ({ category: item.name, value: item.value }));
   const providers = await getProviderDirectory();
   const categories = providers.reduce((acc, p) => {
     const cat = p.category || 'Other';
@@ -348,6 +363,18 @@ function buildAttentionItems(
 }
 
 export async function fetchDashboardIntelligence(filters: DashboardFilters = {}): Promise<Dashboard2Intelligence> {
+  if (!useMockData) {
+    return invokeSecureRpc<Dashboard2Intelligence>('nmis_dashboard_intelligence', {
+      p_year: filters.year ?? null,
+      p_month: filters.month ?? null,
+      p_sector: normalizeValue(filters.sector),
+      p_state: normalizeValue(filters.state),
+      p_lga: normalizeValue(filters.lga),
+      p_facility_type: normalizeValue(filters.facilityType),
+      p_ownership: normalizeValue(filters.ownership),
+    });
+  }
+
   const providerDirectory = await getProviderDirectory();
   const shouldScopeToDirectory = Boolean(normalizeValue(filters.state) || normalizeValue(filters.lga) || normalizeValue(filters.facilityType) || normalizeValue(filters.ownership));
   const providerKeys = scopedProviderKeys(providerDirectory, filters);

@@ -11,6 +11,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import { useEnrollee, useEnrollees } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
 import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
+import { isSecureContractError } from '../../lib/security/secureContracts';
 
 type SortField = 'policyNumber' | 'beneficiary' | 'providerName' | 'lga' | 'period';
 
@@ -29,10 +30,15 @@ export default function EnrolmentRegisterPage() {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pageSize = 15;
-  const { data: allRecords = [], isLoading: allLoading } = useEnrollees();
+  const allRecordsQuery = useEnrollees();
+  const allRecords = allRecordsQuery.data ?? [];
+  const allLoading = allRecordsQuery.isLoading;
   const filters = useMemo<EnrolmentFilters>(() => ({ search, sector, category, gender, state, lga, senatorialDistrict: district, providerId, period }), [category, district, gender, lga, period, providerId, search, sector, state]);
-  const { data: records = [], isLoading } = useEnrollees(filters);
+  const recordsQuery = useEnrollees(filters);
+  const records = recordsQuery.data ?? [];
+  const isLoading = recordsQuery.isLoading;
   const { data: selectedRecord } = useEnrollee(selectedId);
+  const secureError = [allRecordsQuery.error, recordsQuery.error].find(isSecureContractError);
   useEffect(() => setPage(1), [search, sector, category, gender, state, lga, district, providerId, period]);
 
   const options = useMemo(() => ({
@@ -56,6 +62,10 @@ export default function EnrolmentRegisterPage() {
   const informalCount = records.filter(record => record.sector === 'informal').length;
   const principalCount = records.filter(record => record.category === 'principal').length;
   const dependantCount = records.filter(record => record.category === 'dependant').length;
+
+  if (secureError) {
+    return <div className="space-y-6"><PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Individual beneficiary records require an explicitly approved PII access contract." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/upload"><Button>Upload list</Button></Link></>} /><Card className="border-amber-200 bg-amber-50"><div className="space-y-2 p-5"><p className="font-semibold text-amber-900">Secure access unavailable</p><p className="text-sm text-amber-800">This user does not have an approved browser contract for enrollee register, detail, or export access. No records were loaded.</p><p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{secureError.code}</p></div></Card></div>;
+  }
 
   return <div className="space-y-6">
     <PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/upload"><Button>Upload list</Button></Link><Button variant="secondary" onClick={exportCsv} disabled={sortedRecords.length === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />

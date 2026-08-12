@@ -1,6 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchProviderDirectory, fetchProviderProfile, fetchProviderRegistrationDraft, registerNewProvider, editDirectoryProvider, changeProviderStatus } from '../../services/providers/providersService';
-import { ProviderDirectoryFilters, ProviderDirectoryItem, ProviderLifecycleStatus } from '../../types/providers/providerTypes';
+import { ProviderDirectoryFilters, ProviderLifecycleStatus } from '../../types/providers/providerTypes';
+import type { ProviderOperationalUpdate, ProviderRegistrationCommand } from '../../repositories/providers/providersRepository';
+
+function invalidateProviderIntelligence(queryClient: ReturnType<typeof useQueryClient>, providerId?: string) {
+  queryClient.invalidateQueries({ queryKey: ['providers', 'directory'] });
+  if (providerId) queryClient.invalidateQueries({ queryKey: ['providers', 'profile', providerId] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+}
 
 export function useProviderDirectory(filters: ProviderDirectoryFilters) {
   return useQuery({
@@ -30,9 +37,9 @@ export function useProviderRegistrationDraft() {
 export function useRegisterProvider() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: Omit<ProviderDirectoryItem, 'id'>) => registerNewProvider(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['providers', 'directory'] });
+    mutationFn: (payload: ProviderRegistrationCommand) => registerNewProvider(payload),
+    onSuccess: provider => {
+      invalidateProviderIntelligence(queryClient, provider.id);
     },
   });
 }
@@ -40,10 +47,9 @@ export function useRegisterProvider() {
 export function useUpdateProvider() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<ProviderDirectoryItem> }) => editDirectoryProvider(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: ProviderOperationalUpdate }) => editDirectoryProvider(id, payload),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['providers', 'directory'] });
-      queryClient.invalidateQueries({ queryKey: ['providers', 'profile', variables.id] });
+      invalidateProviderIntelligence(queryClient, variables.id);
     },
   });
 }
@@ -53,9 +59,7 @@ export function useUpdateProviderStatus() {
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: ProviderLifecycleStatus }) => changeProviderStatus(id, status),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['providers', 'directory'] });
-      queryClient.invalidateQueries({ queryKey: ['providers', 'profile', variables.id] });
+      invalidateProviderIntelligence(queryClient, variables.id);
     },
   });
 }
-

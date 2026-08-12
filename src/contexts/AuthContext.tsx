@@ -1,15 +1,15 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { authService } from '../services/auth/authService';
 import { AuthError, AuthSession } from '../auth/authTypes';
+import { authService } from '../services/auth/authService';
 
 type AuthContextState = {
   session: AuthSession | null;
   loading: boolean;
   error: AuthError | null;
   signIn: (email: string, password: string, remember: boolean) => Promise<boolean>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   forgotPassword: (email: string) => Promise<AuthError | null>;
-  resetPassword: (token: string, password: string) => Promise<AuthError | null>;
+  resetPassword: (password: string) => Promise<AuthError | null>;
 };
 
 const AuthContext = createContext<AuthContextState | undefined>(undefined);
@@ -20,9 +20,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<AuthError | null>(null);
 
   useEffect(() => {
-    const currentSession = authService.getSession();
-    setSession(currentSession);
-    setLoading(false);
+    let active = true;
+    void authService.getSession()
+      .then(currentSession => {
+        if (active) setSession(currentSession);
+      })
+      .catch(() => {
+        if (active) setSession(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    const unsubscribe = authService.subscribe(nextSession => {
+      if (active) setSession(nextSession);
+    });
+
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string, remember: boolean) => {
@@ -40,8 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
-  const signOut = useCallback(() => {
-    authService.signOut();
+  const signOut = useCallback(async () => {
+    await authService.signOut();
     setSession(null);
   }, []);
 
@@ -57,10 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return null;
   }, []);
 
-  const resetPassword = useCallback(async (token: string, password: string) => {
+  const resetPassword = useCallback(async (password: string) => {
     setError(null);
     setLoading(true);
-    const response = await authService.resetPassword(token, password);
+    const response = await authService.resetPassword(password);
     setLoading(false);
     if (!response.success) {
       setError(response.error);
@@ -70,15 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({
-      session,
-      loading,
-      error,
-      signIn,
-      signOut,
-      forgotPassword,
-      resetPassword,
-    }),
+    () => ({ session, loading, error, signIn, signOut, forgotPassword, resetPassword }),
     [session, loading, error, signIn, signOut, forgotPassword, resetPassword],
   );
 
@@ -87,8 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }

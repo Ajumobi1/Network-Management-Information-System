@@ -7,7 +7,7 @@ import ProviderStatusBadge, { formatProviderLabel } from '../ProviderStatusBadge
 import ProviderToolbar from '../ProviderToolbar';
 import { PROVIDER_IMPORT_EXPORT_COLUMNS } from '../../../../constants/providerNetwork';
 
-const visibleColumns = PROVIDER_IMPORT_EXPORT_COLUMNS;
+const visibleColumns = PROVIDER_IMPORT_EXPORT_COLUMNS.filter(column => !['Contact Person', 'Phone', 'Email'].includes(column));
 
 const columnMap: Record<string, keyof ProviderDirectoryItem> = {
   'Provider Code': 'providerCode',
@@ -82,9 +82,6 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
                 <td>{formatProviderLabel(provider.ownership)}</td>
                 <td>{provider.lga}</td>
                 <td>{provider.state}</td>
-                <td>{provider.contactPerson}</td>
-                <td>{provider.phone}</td>
-                <td>{provider.email}</td>
                 <td><ProviderStatusBadge status={provider.status} /></td>
                 <td><ProviderStatusBadge status={provider.contractStatus} /></td>
                 <td><ProviderStatusBadge status={provider.credentialStatus} /></td>
@@ -93,7 +90,7 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
                 <td>{provider.inspectionRating}</td>
                 <td>{provider.lastInspectionDate}</td>
                 <td className="sticky right-0 bg-brand-card-muted/50 backdrop-blur-sm px-4 text-center">
-                  <ProviderQuickActions providerId={provider.id} onSelect={onSelect} />
+                  <ProviderQuickActions providerId={provider.id} status={provider.status} onSelect={onSelect} />
                 </td>
               </tr>
             ))}

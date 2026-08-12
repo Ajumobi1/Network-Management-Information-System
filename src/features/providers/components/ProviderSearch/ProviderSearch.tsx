@@ -12,7 +12,7 @@ export default function ProviderSearch({ value, onChange }: ProviderSearchProps)
       <Search className="pointer-events-none absolute left-4 top-3.5 h-4 w-4 text-slate-400" />
       <Input
         className="pl-10"
-        placeholder="Global search by code, name, contact, phone, email, state..."
+        placeholder="Search by provider code, name, category, LGA, or state..."
         value={value}
         onChange={event => onChange(event.target.value)}
       />

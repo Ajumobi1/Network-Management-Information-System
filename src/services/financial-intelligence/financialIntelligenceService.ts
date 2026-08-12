@@ -3,6 +3,8 @@ import { fetchEnrolmentAnalyticsWithFinance, fetchEnrollees } from '../../reposi
 import { EnrolleeRecord, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
 import { FinancialRecord } from '../../types/financial-data';
 import { FinancialIntelligenceFilters, FinancialIntelligenceBreakdown, FinancialIntelligenceSummary } from '../../types/financial-intelligence';
+import { useMockData } from '../../repositories/common';
+import { invokeSecureRpc } from '../../repositories/contracts/secureRpcRepository';
 
 function amountForRecord(record: FinancialRecord): number {
   return record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? record.netAmount ?? record.amount ?? 0;
@@ -73,6 +75,21 @@ function allocateBySector(records: FinancialRecord[], enrollees: EnrolleeRecord[
 }
 
 export async function fetchFinancialIntelligence(filters: FinancialIntelligenceFilters = {}): Promise<FinancialIntelligenceSummary> {
+  if (!useMockData) {
+    return invokeSecureRpc<FinancialIntelligenceSummary>('nmis_financial_intelligence', {
+      p_year: filters.year ?? null,
+      p_month: filters.month ?? null,
+      p_period: filters.period ?? null,
+      p_sector: filters.sector && filters.sector !== 'all' ? filters.sector : null,
+      p_state: filters.state ?? null,
+      p_lga: filters.lga ?? null,
+      p_provider_id: filters.providerId ?? null,
+      p_facility_type: filters.facilityType ?? null,
+      p_ownership: filters.ownership ?? null,
+      p_data_type: filters.dataType && filters.dataType !== 'all' ? filters.dataType : null,
+    });
+  }
+
   const financialFilters = mapFinancialFilters(filters);
   const enrolmentFilters = mapEnrolmentFilters(filters);
   const [financialAnalytics, financialRecords, enrolmentAnalytics, enrollees] = await Promise.all([

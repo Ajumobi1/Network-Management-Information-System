@@ -9,9 +9,10 @@ import { useImportBatch, useImportBatches } from '../../hooks/financial-data/fin
 import { ImportBatch } from '../../types/financial-data';
 import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
+import { isSecureContractError } from '../../lib/security/secureContracts';
 
 export default function ImportHistoryPage() {
-  const { data: batches = [], isLoading, isError, refetch } = useImportBatches();
+  const { data: batches = [], isLoading, isError, error, refetch } = useImportBatches();
   const [search, setSearch] = useState('');
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const { data: selectedBatch } = useImportBatch(selectedBatchId);
@@ -40,7 +41,7 @@ export default function ImportHistoryPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (isError) return <main className="nmis-page"><ErrorState title="Import history unavailable" action={{ label: 'Retry', onClick: () => refetch() }} /></main>;
+  if (isError) return <main className="nmis-page"><ErrorState title={isSecureContractError(error) ? 'Secure import history unavailable' : 'Import history unavailable'} description={isSecureContractError(error) ? 'No import history was loaded because this screen requires the approved secure import-history contract.' : undefined} action={{ label: 'Retry', onClick: () => refetch() }} /></main>;
 
   return (
     <main className="nmis-page">

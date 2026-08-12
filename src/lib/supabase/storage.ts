@@ -1,30 +1,18 @@
-import { supabase } from './supabaseClient';
+import { accessRestricted, trustedOperationRequired } from '../security/secureContracts';
 
-export async function uploadDocument(bucket: string, file: File, path: string) {
-  const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
-    cacheControl: '3600',
-    upsert: false,
-  });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return data;
+/**
+ * Generic browser Storage access is intentionally disabled. Provider documents
+ * and ORANGHIS source files require separately approved classification,
+ * retention, signing, and trusted-workflow contracts.
+ */
+export async function uploadDocument(_bucket: string, _file: File, _path: string): Promise<never> {
+  throw trustedOperationRequired('secure document or source-file upload');
 }
 
-export async function getDocumentUrl(bucket: string, path: string) {
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 60);
-  if (error) {
-    throw new Error(error.message);
-  }
-  return data.signedUrl;
+export async function getDocumentUrl(_bucket: string, _path: string): Promise<never> {
+  throw accessRestricted('document URL');
 }
 
-export async function deleteDocument(bucket: string, path: string) {
-  const { error } = await supabase.storage.from(bucket).remove([path]);
-  if (error) {
-    throw new Error(error.message);
-  }
-  return true;
+export async function deleteDocument(_bucket: string, _path: string): Promise<never> {
+  throw trustedOperationRequired('document retention or deletion');
 }

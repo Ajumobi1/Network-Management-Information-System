@@ -6,6 +6,8 @@ import { useProviderProfile } from '../../hooks';
 import ProviderStatusBadge from '../../components/ProviderStatusBadge';
 import { SectionHeader } from '../../../../components/ui/LayoutComponents';
 import { LoadingState, ErrorState } from '../../../../components/ui/FeedbackStates';
+import { isSecureContractError } from '../../../../lib/security/secureContracts';
+import ProviderOperationalEditor from './ProviderOperationalEditor';
 
 import AuditLogTab from '../AuditLogTab';
 import CapitationTab from '../CapitationTab';
@@ -42,11 +44,11 @@ const tabs = [
 type ProviderProfileTab = (typeof tabs)[number];
 
 export default function ProviderProfile({ providerId }: { providerId: string }) {
-  const { data: provider, isLoading, isError, refetch } = useProviderProfile(providerId);
+  const { data: provider, isLoading, isError, error, refetch } = useProviderProfile(providerId);
   const [activeTab, setActiveTab] = useState<ProviderProfileTab>('Overview');
 
   if (isLoading) return <LoadingState title="Loading provider profile..." />;
-  if (isError || !provider) return <ErrorState title="Profile not found" action={{ label: 'Retry', onClick: () => refetch() }} />;
+  if (isError || !provider) return <ErrorState title={isSecureContractError(error) ? 'Secure provider profile unavailable' : 'Profile not found'} description={isSecureContractError(error) ? 'No provider profile was loaded because the approved operational-profile contract is unavailable.' : undefined} action={{ label: 'Retry', onClick: () => refetch() }} />;
 
   const tabContent: Record<ProviderProfileTab, JSX.Element> = {
     Overview: <OverviewTab provider={provider} />,
@@ -85,22 +87,26 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
               </h2>
               <p className="mt-2 flex items-center gap-2 text-sm font-medium text-brand-secondary">
                 <MapPin className="h-4 w-4 text-brand-subtle" />
-                {provider.address}, {provider.lga}, {provider.state}
+                {provider.lga}, {provider.state}
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button variant="secondary" className="gap-2" size="md">
-              <Mail size={16} /> Email
+            <Button variant="secondary" className="gap-2" size="md" disabled title="Provider contact data is not available through this secure profile contract.">
+              <Mail size={16} /> Email unavailable
             </Button>
-            <Button variant="secondary" className="gap-2" size="md">
-              <MessageSquare size={16} /> SMS
+            <Button variant="secondary" className="gap-2" size="md" disabled title="Provider contact data is not available through this secure profile contract.">
+              <MessageSquare size={16} /> SMS unavailable
             </Button>
             <div className="h-8 w-px bg-brand-divider mx-1 hidden sm:block" />
             <ProviderStatusBadge status={provider.status} />
           </div>
         </div>
+      </div>
+
+      <div className="border-b border-brand-divider bg-white px-6 py-4 sm:px-8">
+        <ProviderOperationalEditor provider={provider} />
       </div>
 
       {/* Navigation Tabs */}

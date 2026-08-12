@@ -12,6 +12,7 @@ import { useProviderDirectory } from '../features/providers/hooks';
 import { ProviderDirectoryFilters } from '../features/providers/types';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
+import { isSecureContractError } from '../lib/security/secureContracts';
 
 export default function ProviderPage() {
   const [filters, setFilters] = useState<ProviderDirectoryFilters>({
@@ -28,7 +29,7 @@ export default function ProviderPage() {
     ownership: 'all',
   });
 
-  const { data: providers = [], isLoading, isError, refetch } = useProviderDirectory(filters);
+  const { data: providers = [], isLoading, isError, error, refetch } = useProviderDirectory(filters);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   const states = useMemo(() => ['all', ...new Set(providers.map(p => p.state))].sort(), [providers]);
@@ -43,12 +44,13 @@ export default function ProviderPage() {
   }), [providers]);
 
   if (isError) {
+    const secure = isSecureContractError(error);
     return (
       <main className="nmis-page">
         <ErrorState
-          title="Unable to load Provider Directory"
-          description="We encountered an issue while fetching the provider records. Please check your network connection or repository configuration."
-          action={{ label: 'Retry Fetch', onClick: () => refetch() }}
+          title={secure ? 'Secure provider access unavailable' : 'Unable to load Provider Directory'}
+          description={secure ? 'No provider records were loaded. This screen requires the approved field-minimized provider directory contract.' : 'We encountered an issue while fetching the provider records. Please check your network connection or repository configuration.'}
+          action={{ label: secure ? 'Retry secure contract' : 'Retry Fetch', onClick: () => refetch() }}
         />
       </main>
     );

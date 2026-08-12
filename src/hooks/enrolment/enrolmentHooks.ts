@@ -31,6 +31,15 @@ export function useEnrolmentAnalytics(filters: EnrolmentFilters = {}) {
   });
 }
 
+export function useProviderPopulationSummary(providerId: string, filters: EnrolmentFilters = {}) {
+  return useQuery({
+    queryKey: ['enrolment', 'provider-population-summary', providerId, filters],
+    queryFn: () => enrolmentService.fetchProviderPopulationSummary(providerId, filters),
+    enabled: Boolean(providerId),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function useInsertEnrollees() {
   const queryClient = useQueryClient();
   return useMutation({

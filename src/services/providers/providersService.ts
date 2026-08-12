@@ -1,6 +1,7 @@
 import { ProvidersRow } from '../../lib/supabase/database.types';
 import { ProviderDirectoryFilters, ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile, ProviderRegistrationDraft } from '../../types/providers/providerTypes';
 import * as providersRepository from '../../repositories/providers/providersRepository';
+import type { ProviderOperationalUpdate, ProviderRegistrationCommand } from '../../repositories/providers/providersRepository';
 
 export async function fetchProviders(): Promise<ProvidersRow[]> {
   return providersRepository.getProviders();
@@ -22,11 +23,11 @@ export async function deleteProvider(id: string): Promise<boolean> {
   return providersRepository.deleteProvider(id);
 }
 
-export async function registerNewProvider(payload: Omit<ProviderDirectoryItem, 'id'>): Promise<ProviderDirectoryItem> {
+export async function registerNewProvider(payload: ProviderRegistrationCommand): Promise<ProviderDirectoryItem> {
   return providersRepository.createDirectoryProvider(payload) as unknown as ProviderDirectoryItem;
 }
 
-export async function editDirectoryProvider(id: string, payload: Partial<ProviderDirectoryItem>): Promise<ProviderDirectoryItem> {
+export async function editDirectoryProvider(id: string, payload: ProviderOperationalUpdate): Promise<ProviderDirectoryItem> {
   return providersRepository.updateDirectoryProvider(id, payload) as unknown as ProviderDirectoryItem;
 }
 
@@ -63,7 +64,7 @@ export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters)
   return providers.filter(provider => {
     const matchesSearch =
       !searchTerm ||
-      [provider.providerCode, provider.providerName, provider.category, provider.subcategory, provider.ownership, provider.contactPerson, provider.phone, provider.email, provider.state, provider.lga]
+      [provider.providerCode, provider.providerName, provider.category, provider.subcategory, provider.ownership, provider.state, provider.lga]
         .join(' ')
         .toLowerCase()
         .includes(searchTerm);
@@ -80,6 +81,10 @@ export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters)
 
     return matchesSearch && matchesStatus && matchesContract && matchesCredential && matchesInspection && matchesCapitation && matchesState && matchesLga && matchesCategory && matchesSubcategory && matchesOwnership;
   });
+}
+
+export async function findProviderMatchCandidates(query: string, limit?: number): Promise<ProviderDirectoryItem[]> {
+  return providersRepository.findSafeProviderMatchCandidates(query, limit);
 }
 
 export async function fetchProviderProfile(providerId: string): Promise<ProviderProfile> {
