@@ -7,7 +7,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS providers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     provider_code TEXT UNIQUE NOT NULL,
-    provider_name TEXT NOT NULL,
+    provider_name TEXT UNIQUE NOT NULL,
     category TEXT NOT NULL,
     subcategory TEXT,
     ownership TEXT NOT NULL CHECK (ownership IN ('Government', 'Private')),
