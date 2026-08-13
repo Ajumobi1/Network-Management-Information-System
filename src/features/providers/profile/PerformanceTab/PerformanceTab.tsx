@@ -4,11 +4,11 @@ import KpiCard from '../../../../components/ui/KpiCard';
 
 export default function PerformanceTab({ provider }: ProviderTabProps) {
   // Derive score metrics for this specific provider
-  const compositeScore = 84.5;
-  const rating = 'Good';
-  const inspectionScore = provider.performance.inspectionRating;
-  const credentialingScore = provider.performance.compliance;
-  const complaintScore = provider.performance.complaintScore;
+  const compositeScore = 0;
+  const rating = 'N/A';
+  const inspectionScore = 0;
+  const credentialingScore = 0;
+  const complaintScore = 0;
 
   return (
     <div className="space-y-8">
@@ -43,42 +43,9 @@ export default function PerformanceTab({ provider }: ProviderTabProps) {
         />
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft space-y-4">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">Scorecard Contribution Breakdown</h4>
-          <div className="space-y-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Inspection Audit (35%)</span>
-              <span className="font-semibold text-slate-900">{inspectionScore}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Credentialing & Licensing (25%)</span>
-              <span className="font-semibold text-slate-900">{credentialingScore}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Complaint Resolution (20%)</span>
-              <span className="font-semibold text-slate-900">{100 - complaintScore}%</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-600">Financial / Capitation (20%)</span>
-              <span className="font-semibold text-slate-900">88.0%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft space-y-4">
-          <div className="flex items-center gap-2 text-amber-600">
-            <AlertTriangle size={18} />
-            <h4 className="text-xs font-semibold uppercase tracking-wider">Management Attention & Recommendations</h4>
-          </div>
-          <p className="text-sm text-slate-600">
-            Facility is operating within acceptable network standards. No critical interventions currently required. Continue routine quarterly audits and claims reconciliation.
-          </p>
-          <div className="pt-2 border-t border-slate-100 flex justify-between text-xs text-slate-500">
-            <span>Last Evaluation: August 2026</span>
-            <span>Next Review: November 2026</span>
-          </div>
-        </div>
+      <div className="p-12 text-center border border-dashed border-slate-200 rounded-3xl">
+        <p className="text-sm text-slate-500">No performance analytics available for this provider.</p>
+        <p className="mt-1 text-xs text-slate-400 italic">Performance scoring and management evaluations will appear here once the secure performance contract is active.</p>
       </div>
     </div>
   );

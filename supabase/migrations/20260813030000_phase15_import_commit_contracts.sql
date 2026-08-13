@@ -190,16 +190,25 @@ BEGIN
             v_category := coalesce(v_record->>'facilityType', 'Hospital');
           END IF;
 
-          -- Check if provider already exists by name to avoid duplicates
-          SELECT id INTO v_provider_id FROM public.providers WHERE lower(trim(provider_name)) = lower(trim(v_record->>'providerName'));
+          -- Check if provider already exists by name or ID
+          v_provider_id := (v_record->>'id')::uuid;
+          IF v_provider_id IS NULL THEN
+            SELECT id INTO v_provider_id FROM public.providers WHERE lower(trim(provider_name)) = lower(trim(v_record->>'providerName'));
+          END IF;
           
           IF v_provider_id IS NOT NULL THEN
-            v_duplicate_count := v_duplicate_count + 1;
-            v_rejected_rows := v_rejected_rows || jsonb_build_object(
-              'row', v_record->>'sourceRow',
-              'name', v_record->>'providerName',
-              'reason', 'Duplicate facility name'
-            );
+            -- UPDATE existing provider (LGA Fix / Data Integrity)
+            UPDATE public.providers
+            SET lga = coalesce(v_record->>'lga', lga),
+                ownership = v_ownership,
+                category = v_category,
+                subcategory = coalesce(v_record->>'subcategory', subcategory),
+                state = 'Ondo',
+                updated_at = now()
+            WHERE id = v_provider_id;
+
+            v_imported_count := v_imported_count + 1;
+            v_duplicate_count := v_duplicate_count + 1; -- Track as "updated existing"
           ELSE
             -- Generate stable internal code if not provided
             DECLARE

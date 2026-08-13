@@ -292,16 +292,32 @@ function UploadPanel({ onFileUpload }: { onFileUpload: (event: React.ChangeEvent
 
 function CommitPanel({ batch, onReset }: { batch: any; onReset: () => void }) {
   const rejectedRows = batch?.metadata?.rejectedRows || [];
+  const importedCount = batch?.importedRows || 0;
+  const errorCount = batch?.errorRows || 0;
   
+  let statusTitle = 'Import committed successfully';
+  let statusTone = 'border-emerald-200 bg-emerald-50 text-emerald-900';
+  let icon = <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" />;
+
+  if (importedCount === 0 && errorCount > 0) {
+    statusTitle = 'Import failed — no records were committed';
+    statusTone = 'border-rose-200 bg-rose-50 text-rose-900';
+    icon = <AlertCircle className="mx-auto h-16 w-16 text-rose-600" />;
+  } else if (errorCount > 0) {
+    statusTitle = 'Import completed with warnings/errors';
+    statusTone = 'border-amber-200 bg-amber-50 text-amber-900';
+    icon = <AlertCircle className="mx-auto h-16 w-16 text-amber-600" />;
+  }
+
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-12 text-center">
-        <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" />
-        <h2 className="mt-5 text-2xl font-black text-emerald-900">Import complete</h2>
+      <div className={`rounded-3xl border ${statusTone} p-12 text-center`}>
+        {icon}
+        <h2 className="mt-5 text-2xl font-black">{statusTitle}</h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase text-emerald-700">Imported</p><p className="mt-1 text-2xl font-black text-emerald-900">{batch?.importedRows || 0}</p></div>
-          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase text-amber-700">Duplicates</p><p className="mt-1 text-2xl font-black text-amber-900">{batch?.duplicateRows || 0}</p></div>
-          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase text-rose-700">Errors</p><p className="mt-1 text-2xl font-black text-rose-900">{batch?.errorRows || 0}</p></div>
+          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase opacity-75">Imported</p><p className="mt-1 text-2xl font-black">{importedCount}</p></div>
+          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase opacity-75">Duplicates</p><p className="mt-1 text-2xl font-black">{batch?.duplicateRows || 0}</p></div>
+          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase opacity-75">Errors</p><p className="mt-1 text-2xl font-black">{errorCount}</p></div>
         </div>
         <Button variant="primary" className="mt-8" onClick={onReset}>Upload another dataset</Button>
       </div>

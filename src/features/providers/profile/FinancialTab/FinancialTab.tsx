@@ -6,10 +6,10 @@ import Card from '../../../../components/ui/Card';
 export default function FinancialTab({ provider }: ProviderTabProps) {
   // Derived analytical fields for the provider
   // In a real implementation, these would be fetched via a secure provider-specific reporting RPC
-  const totalExpenditure = 12500000;
-  const pepm = 850.45;
-  const enrolmentDenominator = 1200; // Placeholder for secure enrolment count
-  const capitationTrend = provider.performance.capitationTrend || '+2.4%';
+  const totalExpenditure = 0;
+  const pepm = 0;
+  const enrolmentDenominator = 0;
+  const capitationTrend = 'Unavailable';
 
   return (
     <div className="space-y-6">
@@ -47,21 +47,8 @@ export default function FinancialTab({ provider }: ProviderTabProps) {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <h3 className="text-sm font-black uppercase tracking-widest text-brand-muted mb-4">Financial Activity History</h3>
-          <div className="space-y-4">
-            {[
-              { period: '2026-08', type: 'Capitation', amount: 4200000, status: 'Paid' },
-              { period: '2026-08', type: 'Claims', amount: 1850000, status: 'Processed' },
-              { period: '2026-07', type: 'Capitation', amount: 4150000, status: 'Paid' },
-              { period: '2026-07', type: 'Claims', amount: 2300000, status: 'Paid' },
-            ].map((row, idx) => (
-              <div key={idx} className="flex items-center justify-between border-b border-brand-divider pb-3 last:border-0 last:pb-0">
-                <div>
-                  <p className="text-xs font-bold text-brand-foreground">{row.type} — {row.period}</p>
-                  <p className="text-[10px] text-brand-muted">{row.status}</p>
-                </div>
-                <span className="text-xs font-black text-brand-foreground">₦{(row.amount / 1000000).toFixed(2)}M</span>
-              </div>
-            ))}
+          <div className="p-8 text-center">
+            <p className="text-xs text-brand-muted italic">No financial activity records available for this provider.</p>
           </div>
         </Card>
 
