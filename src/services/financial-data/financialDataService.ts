@@ -170,7 +170,7 @@ export const financialDataService = {
   async matchProvider(name: string, code?: string, lga?: string, state?: string, importSessionId?: string): Promise<ProviderMatch> {
     if (!useMockData) {
       try {
-        const sessionId = importSessionId || 'default-session';
+        const sessionId = importSessionId || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '00000000-0000-4000-8000-000000000001');
         const result = await providerMatchingService.fetchMatchCandidates(sessionId, name, code, lga, state);
         const candidates = result.candidates || [];
         const top = candidates[0];

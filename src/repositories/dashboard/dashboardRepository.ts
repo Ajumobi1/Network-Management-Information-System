@@ -394,10 +394,13 @@ export async function fetchDashboardIntelligence(filters: DashboardFilters = {})
     } catch (error) {
       // Fallback to empty state if secure contract is unavailable or restricted
       // This allows the dashboard to render with zeros in a clean-slate state
-      if (error instanceof SecureContractError && (error.code === 'SECURE_CONTRACT_UNAVAILABLE' || error.code === 'ACCESS_RESTRICTED')) {
+      if (
+        error instanceof SecureContractError ||
+        (error instanceof Error && (error.message.includes('permission denied') || error.message.includes('ACCESS_RESTRICTED') || error.message.includes('SECURE_CONTRACT_UNAVAILABLE')))
+      ) {
         return getEmptyIntelligence(filters);
       }
-      throw error;
+      return getEmptyIntelligence(filters);
     }
   }
 
