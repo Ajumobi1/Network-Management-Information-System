@@ -7,7 +7,9 @@ import Card from '../components/ui/Card';
 import KpiCard from '../components/ui/KpiCard';
 import ProviderFilters from '../features/providers/components/ProviderFilters';
 import ProviderTable from '../features/providers/components/ProviderTable';
+import ProviderGrid from '../features/providers/components/ProviderGrid';
 import ProviderRegistrationWizard from '../features/providers/registration/ProviderRegistrationWizard';
+import { LayoutGrid, List } from 'lucide-react';
 import ProviderProfile from '../features/providers/profile/ProviderProfile';
 import { useProviderDirectory } from '../features/providers/hooks';
 import { ProviderDirectoryFilters } from '../features/providers/types';
@@ -17,6 +19,7 @@ import { isSecureContractError } from '../lib/security/secureContracts';
 
 export default function ProviderPage() {
   const navigate = useNavigate();
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [filters, setFilters] = useState<ProviderDirectoryFilters>({
     search: '',
     status: 'all',
@@ -84,16 +87,43 @@ export default function ProviderPage() {
           <KpiCard title="Risk flagged" value={stats.risk.toLocaleString()} subtitle="Suspended or expired" tone="danger" />
         </section>
 
-        <ProviderFilters
-          filters={filters}
-          states={states}
-          categories={categories}
-          ownerships={ownerships}
-          onChange={setFilters}
-        />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <div className="flex-1">
+            <ProviderFilters
+              filters={filters}
+              states={states}
+              categories={categories}
+              ownerships={ownerships}
+              onChange={setFilters}
+            />
+          </div>
+          
+          <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-slate-100 p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                viewMode === 'grid' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+              title="Profile View"
+            >
+              <LayoutGrid size={20} />
+            </button>
+            <button
+              onClick={() => setViewMode('table')}
+              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                viewMode === 'table' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+              title="Table View"
+            >
+              <List size={20} />
+            </button>
+          </div>
+        </div>
 
         {isLoading ? (
           <LoadingState title="Loading provider directory..." />
+        ) : viewMode === 'grid' ? (
+          <ProviderGrid providers={providers} onSelect={setSelectedProviderId} />
         ) : (
           <ProviderTable providers={providers} onSelect={setSelectedProviderId} />
         )}

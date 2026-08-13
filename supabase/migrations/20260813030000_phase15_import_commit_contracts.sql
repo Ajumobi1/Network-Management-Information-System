@@ -164,7 +164,7 @@ BEGIN
   ) RETURNING id INTO v_batch_id;
 
   -- 3. Process Records based on data type
-  FOR v_record IN SELECT * FROM jsonb_array_elements(p_records)
+  FOR v_record IN SELECT r.value FROM jsonb_array_elements(p_records) AS r(value) ORDER BY (r.value->>'providerName') ASC
   LOOP
     BEGIN
       -- Handle Provider Directory Import
@@ -174,6 +174,7 @@ BEGIN
           v_ownership text;
           v_category text;
           v_raw_cat text;
+          v_next_code integer;
         BEGIN
           v_raw_cat := upper(trim(coalesce(v_record->>'facilityType', v_record->>'ownership', '')));
           
@@ -188,24 +189,32 @@ BEGIN
             v_category := coalesce(v_record->>'facilityType', 'Hospital');
           END IF;
 
-          INSERT INTO public.providers (
-            provider_code, provider_name, category, subcategory, ownership, state, lga, address, status
-          ) VALUES (
-            coalesce(upper(trim(v_record->>'providerCode')), 'PROV-' || floor(random()*1000000)::text),
-            trim(v_record->>'providerName'),
-            v_category,
-            v_record->>'subcategory',
-            v_ownership,
-            'Ondo',
-            coalesce(v_record->>'lga', 'Unknown'),
-            v_record->>'address',
-            'Active'
-          ) ON CONFLICT (provider_code) DO NOTHING;
+          -- Check if provider already exists by name to avoid duplicates
+          SELECT id INTO v_provider_id FROM public.providers WHERE lower(trim(provider_name)) = lower(trim(v_record->>'providerName'));
           
-          IF FOUND THEN
-            v_imported_count := v_imported_count + 1;
-          ELSE
+          IF v_provider_id IS NOT NULL THEN
             v_duplicate_count := v_duplicate_count + 1;
+          ELSE
+            -- Generate sequential code (1, 2, 3...)
+            SELECT coalesce(max(NULLIF(regexp_replace(provider_code, '\D', '', 'g'), '')::integer), 0) + 1 
+            INTO v_next_code 
+            FROM public.providers;
+
+            INSERT INTO public.providers (
+              provider_code, provider_name, category, subcategory, ownership, state, lga, address, status
+            ) VALUES (
+              v_next_code::text,
+              trim(v_record->>'providerName'),
+              v_category,
+              v_record->>'subcategory',
+              v_ownership,
+              'Ondo',
+              coalesce(v_record->>'lga', 'Unknown'),
+              v_record->>'address',
+              'Active'
+            );
+            
+            v_imported_count := v_imported_count + 1;
           END IF;
         END;
 
