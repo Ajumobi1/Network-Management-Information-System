@@ -23,6 +23,7 @@ import {
 } from '../types/capitation';
 import { PROVIDER_CATEGORIES, PROVIDER_OWNERSHIPS } from '../constants/providerNetwork';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
+import { isSecureContractError } from '../lib/security/secureContracts';
 import { ChartCard, SectionHeader } from '../components/ui/LayoutComponents';
 
 const chartColors = ['#0b3d91', '#0f9d8a', '#d97706', '#7c3aed', '#be123c', '#334155', '#0891b2'];
@@ -86,8 +87,22 @@ export default function CapitationPage() {
     URL.revokeObjectURL(url);
   };
 
+  if (query.isLoading) {
+    return <main className="nmis-page"><LoadingState title="Loading capitation data..." /></main>;
+  }
+
   if (query.isError) {
-    return <main className="nmis-page"><ErrorState title="Capitation data unavailable" action={{ label: 'Retry', onClick: () => query.refetch() }} /></main>;
+    const isSecureError = isSecureContractError(query.error);
+    return (
+      <main className="nmis-page">
+        <div className="rounded-card border border-amber-200 bg-amber-50 p-12 text-center text-amber-800">
+          <ShieldAlert className="mx-auto h-12 w-12 mb-4" />
+          <h2 className="text-xl font-black">{isSecureError ? 'Secure capitation contract unavailable' : 'Unable to load capitation data'}</h2>
+          <p className="mt-2 text-sm max-w-md mx-auto">{query.error instanceof Error ? query.error.message : 'An unexpected error occurred while fetching the capitation register.'}</p>
+          <Button variant="secondary" className="mt-6" onClick={() => query.refetch()}>Retry Connection</Button>
+        </div>
+      </main>
+    );
   }
 
   return (

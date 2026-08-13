@@ -1,5 +1,4 @@
-import * as capitationRepository from '../../repositories/capitation';
-import { CapitationRow, CapitationUploadRow } from '../../lib/supabase/database.types';
+import * as capitationRepository from '../../repositories/capitation/capitationRepository';
 import {
   CapitationAction,
   CapitationBreakdownPoint,
@@ -8,7 +7,6 @@ import {
   CapitationRecordStatus,
   CapitationSummary,
   CapitationTrendPoint,
-  PaymentBatch,
 } from '../../types/capitation';
 
 export type CapitationCalculationOptions = {
@@ -112,59 +110,24 @@ export async function fetchCapitationRecord(id: string): Promise<CapitationRecor
   return capitationRepository.fetchCapitationRecord(id);
 }
 
-export async function transitionCapitation(id: string, action: CapitationAction, comment?: string): Promise<CapitationRecord> {
+export async function transitionCapitation(id: string, action: CapitationAction, comment?: string): Promise<any> {
   const record = await fetchCapitationRecord(id);
   validateTransition(record, action, comment);
-  if (action === 'calculate') {
-    const calculation = calculateCapitation(record);
-    return capitationRepository.saveCapitationRecord(id, { ...calculation, approvalStatus: 'calculated' });
-  }
   return capitationRepository.transitionCapitationRecord(id, action, comment);
 }
 
-export function buildPaymentBatch(records: CapitationRecord[]): PaymentBatch {
-  if (!records.length) throw new Error('Select at least one capitation record.');
-  if (records.some(record => record.approvalStatus !== 'approved')) throw new Error('Only approved records can be added to a payment batch.');
-  const period = records[0].period;
-  if (records.some(record => record.period !== period)) throw new Error('Payment batches must contain a single capitation period.');
-  return {
-    batchNumber: `CAP-${period.replace('-', '')}-${String(Date.now()).slice(-3)}`,
-    period,
-    recordIds: records.map(record => record.id),
-    providerCount: new Set(records.map(record => record.providerId)).size,
-    beneficiaryCount: records.reduce((sum, record) => sum + record.eligibleBeneficiaryCount, 0),
-    grossAmount: records.reduce((sum, record) => sum + record.grossAmount, 0),
-    deductions: records.reduce((sum, record) => sum + record.deductions.reduce((total, deduction) => total + deduction.amount, 0), 0),
-    netAmount: records.reduce((sum, record) => sum + record.netPayable, 0),
-    approvalStatus: 'approved',
-    paymentStatus: 'pending',
-    paymentDate: null,
-    paymentReference: null,
-  };
-}
-
 export function exportCapitationsCsv(records: CapitationRecord[]): string {
-  const headers = ['Provider Code', 'Facility Name', 'Facility Type', 'Ownership', 'State', 'LGA', 'Period', 'Beneficiaries', 'Eligible Beneficiaries', 'Rate', 'Gross Amount', 'Adjustments', 'Deductions', 'Net Payable', 'Payment Status', 'Reconciliation Status', 'Payment Date', 'Payment Reference'];
-  const lines = records.map(record => {
-    const adjustmentTotal = record.adjustments.reduce((sum, adjustment) => sum + adjustment.amount, 0);
-    const deductionTotal = record.deductions.reduce((sum, deduction) => sum + deduction.amount, 0);
-    return [record.providerCode, record.facilityName, record.facilityType, record.ownership, record.state, record.lga, record.period, record.beneficiaryCount, record.eligibleBeneficiaryCount, record.capitationRate, record.grossAmount, adjustmentTotal, deductionTotal, record.netPayable, record.paymentStatus, record.reconciliationStatus, record.paymentDate ?? '', record.paymentReference ?? ''].map(value => `"${String(value).replace(/"/g, '""')}"`).join(',');
-  });
-  return [headers.join(','), ...lines].join('\\n');
-}
-
-export async function fetchCapitations(): Promise<CapitationRow[]> {
-  return capitationRepository.getCapitations();
-}
-
-export async function fetchCapitationById(id: string): Promise<CapitationRow> {
-  return capitationRepository.getCapitationById(id);
-}
-
-export async function createCapitation(payload: Partial<CapitationRow>): Promise<CapitationRow> {
-  return capitationRepository.createCapitation(payload);
-}
-
-export async function uploadCapitationFile(payload: Partial<CapitationUploadRow>): Promise<CapitationUploadRow> {
-  return capitationRepository.uploadCapitationFile(payload);
+  const headers = ['Provider', 'Code', 'Period', 'Denominator', 'Rate', 'Gross', 'Net', 'Status', 'Payment'];
+  const rows = records.map(r => [
+    r.facilityName,
+    r.providerCode,
+    r.period,
+    r.eligibleBeneficiaryCount,
+    r.capitationRate,
+    r.grossAmount,
+    r.netPayable,
+    r.approvalStatus,
+    r.paymentStatus
+  ]);
+  return [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
 }

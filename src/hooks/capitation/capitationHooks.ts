@@ -23,9 +23,9 @@ export function useCapitationTransition() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, action, comment }: { id: string; action: CapitationAction; comment?: string }) => transitionCapitation(id, action, comment),
-    onSuccess: (record) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['capitation', 'records'] });
-      queryClient.invalidateQueries({ queryKey: ['capitation', 'record', record.id] });
+      queryClient.invalidateQueries({ queryKey: ['capitation', 'record', variables.id] });
     },
   });
 }
