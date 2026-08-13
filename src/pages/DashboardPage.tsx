@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const { data: intelligence } = useFinancialIntelligence({ period: '2026-08' });
   const { data: notifications = [] } = useNotifications();
 
-  const activeProviders = providers.filter(p => p.status === 'active').length;
+  const activeProviders = (providers as any).activeCount ?? providers.filter(p => p.status === 'active').length;
   const pendingInspections = inspections.filter(i => i.status === 'scheduled').length;
   const pendingApprovals = notifications.length;
   const totalExpenditure = intelligence?.totalExpenditure || 0;

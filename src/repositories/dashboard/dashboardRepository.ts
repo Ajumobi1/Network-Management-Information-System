@@ -28,20 +28,10 @@ import {
 } from '../../types/dashboard/dashboardTypes';
 
 export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
-  if (useMockData) {
-    const summary = await dashboardMocks.getExecutiveSummary();
-    const providers = await getProviderDirectory();
-    const activeCount = providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
-    return {
-      ...summary,
-      todayFocus: `${activeCount} providers are currently active in the network. ${summary.todayFocus}`,
-    };
-  }
-
-  // Fallback to mock for complex summary text, but with real counts
   const summary = await dashboardMocks.getExecutiveSummary();
-  const providers = await getProviderDirectory();
-  const activeCount = providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
+  const providers = await getProviderDirectory({ pageSize: -1 });
+  const activeCount = (providers as any).activeCount ?? providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
+  
   return {
     ...summary,
     todayFocus: `${activeCount} providers are currently active in the network. ${summary.todayFocus}`,
@@ -67,13 +57,13 @@ export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
   }
 
   const [providers, financialRecords, population] = await Promise.all([
-    getProviderDirectory(),
+    getProviderDirectory({ pageSize: -1 }),
     fetchFinancialRecords(),
     fetchEnrolmentAnalyticsWithFinance(),
   ]);
 
-  const totalProviders = providers.length;
-  const activeProviders = providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
+  const totalProviders = (providers as any).totalCount ?? providers.length;
+  const activeProviders = (providers as any).activeCount ?? providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
   const totalExpenditure = financialRecords.reduce((sum, r) => sum + (r.netAmountPaid ?? r.amountPaid ?? r.amount ?? r.netAmount ?? 0), 0);
   const baseMetrics = await dashboardMocks.getKpiMetrics();
   const baseById = new Map(baseMetrics.map(metric => [metric.id, metric]));
@@ -151,7 +141,7 @@ export async function fetchPopulationSnapshot(): Promise<EnrolmentAnalytics> {
 
 export async function fetchProviderDistribution(): Promise<DistributionPoint[]> {
   if (!useMockData) return (await fetchDashboardIntelligence()).provider.byLga.map(item => ({ category: item.name, value: item.value }));
-  const providers = await getProviderDirectory();
+  const providers = await getProviderDirectory({ pageSize: -1 });
   const distribution = providers.reduce((acc, p) => {
     const region = p.state || 'Other';
     acc[region] = (acc[region] || 0) + 1;
@@ -163,7 +153,7 @@ export async function fetchProviderDistribution(): Promise<DistributionPoint[]> 
 
 export async function fetchProviderCategories(): Promise<DistributionPoint[]> {
   if (!useMockData) return (await fetchDashboardIntelligence()).provider.byFacilityType.map(item => ({ category: item.name, value: item.value }));
-  const providers = await getProviderDirectory();
+  const providers = await getProviderDirectory({ pageSize: -1 });
   const categories = providers.reduce((acc, p) => {
     const cat = p.category || 'Other';
     acc[cat] = (acc[cat] || 0) + 1;
@@ -404,7 +394,7 @@ export async function fetchDashboardIntelligence(filters: DashboardFilters = {})
     }
   }
 
-  const providerDirectory = await getProviderDirectory();
+  const providerDirectory = await getProviderDirectory({ pageSize: -1 });
   const shouldScopeToDirectory = Boolean(normalizeValue(filters.state) || normalizeValue(filters.lga) || normalizeValue(filters.facilityType) || normalizeValue(filters.ownership));
   const providerKeys = scopedProviderKeys(providerDirectory, filters);
   const enrolmentFilters: EnrolmentFilters = {
