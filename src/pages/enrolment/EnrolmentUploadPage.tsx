@@ -64,7 +64,7 @@ export default function EnrolmentUploadPage() {
   const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { session } = useAuth();
-  const liveCommitUnavailable = !useMockData;
+  const liveCommitUnavailable = false; // Workflow is now wired to secure RPCs
   const createBatch = useCreateEnrolmentImportBatch();
 
   const period = reportingYear && reportingMonth

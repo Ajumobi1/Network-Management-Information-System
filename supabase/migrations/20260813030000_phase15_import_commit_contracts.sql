@@ -255,10 +255,10 @@ BEGIN
           sector, category, state, lga, provider_id, provider_name,
           reporting_year, reporting_month, period, import_batch_id
         ) VALUES (
-          v_record->>'policyNumber',
-          v_record->>'firstName',
-          v_record->>'lastName',
-          v_record->>'gender',
+          upper(replace(v_record->>'policyNumber', ' ', '')),
+          trim(v_record->>'firstName'),
+          trim(v_record->>'lastName'),
+          lower(trim(v_record->>'gender')),
           (v_record->>'dateOfBirth')::date,
           v_record->>'sector',
           v_record->>'category',

@@ -123,7 +123,17 @@ export async function insertEnrolleeRecords(records: EnrolleeRecord[], _actor?: 
 }
 
 export async function checkDuplicateEnrolmentBatch(period: string, providerNames: string[]): Promise<{ isDuplicate: boolean; batches: ImportBatch[] }> {
-  if (!useMockData) throw importWorkflowUnavailable();
+  if (!useMockData) {
+    try {
+      const result = await invokeSecureRpc<ImportBatch | null>('nmis_check_duplicate_batch', {
+        p_period: period,
+        p_data_type: 'enrolment',
+      });
+      return { isDuplicate: !!result, batches: result ? [result] : [] };
+    } catch (error) {
+      return { isDuplicate: false, batches: [] };
+    }
+  }
   const normalized = new Set(providerNames.map(name => name.trim().toLowerCase()).filter(Boolean));
   const batches = mockImportBatches.filter(batch => batch.dataType === 'enrolment' && batch.periodCovered === period && (() => {
     const providers = Array.isArray(batch.metadata?.providerNames) ? batch.metadata.providerNames as string[] : [];
@@ -135,11 +145,22 @@ export async function checkDuplicateEnrolmentBatch(period: string, providerNames
 export async function createEnrolmentImportBatch(
   batch: Omit<ImportBatch, 'id' | 'uploadedAt'>,
   records: EnrolleeRecord[],
-  actor?: { id: string; email: string },
+  _actor?: { id: string; email: string },
 ): Promise<ImportBatch> {
-  if (!useMockData) throw importWorkflowUnavailable();
+  if (!useMockData) {
+    // Route through the secure commit RPC for live mode
+    const result = await invokeSecureRpc<ImportBatch>('nmis_commit_import_batch', {
+      p_file_name: batch.fileName,
+      p_data_type: 'enrolment',
+      p_period_covered: batch.periodCovered || null,
+      p_total_rows: batch.totalRows,
+      p_records: records || [],
+      p_metadata: batch.metadata || {},
+    });
+    return result;
+  }
   const batchId = `mock-enrolment-${Date.now()}`;
-  const inserted = await insertEnrolleeRecords(records.map(record => ({ ...record, importBatchId: batchId })), actor, batchId);
+  const inserted = await insertEnrolleeRecords(records.map(record => ({ ...record, importBatchId: batchId })), _actor, batchId);
   const created: ImportBatch = {
     ...batch,
     id: batchId,
