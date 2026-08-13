@@ -11,6 +11,7 @@ import ProviderOperationalEditor from './ProviderOperationalEditor';
 
 import AuditLogTab from '../AuditLogTab';
 import CapitationTab from '../CapitationTab';
+import CommunicationTab from '../CommunicationTab/CommunicationTab';
 import ComplaintsTab from '../ComplaintsTab';
 import ContactsTab from '../ContactsTab';
 import ContractsTab from '../ContractsTab';
@@ -36,6 +37,7 @@ const tabs = [
   'Performance',
   'Financials',
   'Enrolment / Population',
+  'Communication',
   'Documents',
   'Audit Log',
   'Timeline',
@@ -62,6 +64,7 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
     Performance: <PerformanceTab provider={provider} />,
     Financials: <FinancialTab provider={provider} />,
     'Enrolment / Population': <EnrolmentTab provider={provider} />,
+    Communication: <CommunicationTab provider={provider} />,
     Documents: <DocumentsTab provider={provider} />,
     'Audit Log': <AuditLogTab provider={provider} />,
     Timeline: <TimelineTab provider={provider} />,
