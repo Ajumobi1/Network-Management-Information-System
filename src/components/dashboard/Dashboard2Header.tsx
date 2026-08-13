@@ -60,7 +60,7 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
             <h1 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Network Management Information System</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">A single operating view of provider coverage, population protection, processed expenditure, and the issues requiring management attention.</p>
           </div>
-          <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-slate-200"><RefreshCw className="h-4 w-4 text-emerald-300" /><span>Last updated</span><span className="font-semibold text-white">{formatTimestamp(lastUpdatedAt)}</span></div>
+          <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-slate-200"><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /><span className="font-semibold text-white">Data source: Supabase staging (Live)</span></div>
         </div>
       </div>
 
