@@ -50,6 +50,7 @@ export default function EnrolmentUploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [sourceSheet, setSourceSheet] = useState('');
+  const [headerRowIndex, setHeaderRowIndex] = useState(0);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<RawRow[]>([]);
   const [mappings, setMappings] = useState<EnrolmentColumnMapping[]>([]);
@@ -83,19 +84,19 @@ export default function EnrolmentUploadPage() {
   const recordsRequiringReview = normalizedRecords.filter(record => record.recordStatus === 'match-review-required');
   const readyToImport = validRecords.length;
 
-  const readSheet = (workbook: XLSX.WorkBook, sheetName: string) => {
+  const readSheet = (workbook: XLSX.WorkBook, sheetName: string, hIndex: number) => {
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) throw new Error('The selected worksheet could not be read.');
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-    const detectedHeaders = (matrix[0] || []).map(value => String(value).trim()).filter(Boolean);
-    const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { defval: '', raw: false })
+    const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
+    const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
       .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
-    if (detectedHeaders.length === 0 || rows.length === 0) throw new Error('The selected worksheet has no readable header row and data rows.');
+    if (detectedHeaders.length === 0 || rows.length === 0) throw new Error('The selected header row has no readable columns.');
     setSourceSheet(sheetName);
+    setHeaderRowIndex(hIndex);
     setHeaders(detectedHeaders);
     setRawRows(rows);
     setMappings(enrolmentService.suggestEnrolmentMappings(detectedHeaders));
-    setStep('inspect');
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -110,7 +111,8 @@ export default function EnrolmentUploadPage() {
       if (workbook.SheetNames.length === 0) throw new Error('The workbook does not contain a readable worksheet.');
       workbookRef.current = workbook;
       setSheetNames(workbook.SheetNames);
-      readSheet(workbook, workbook.SheetNames[0]);
+      readSheet(workbook, workbook.SheetNames[0], 0);
+      setStep('inspect');
     } catch (error) {
       setFile(null);
       setErrorMessage(error instanceof Error ? error.message : 'The workbook could not be inspected.');
@@ -302,7 +304,67 @@ export default function EnrolmentUploadPage() {
 
       {!isAnalyzing && step === 'upload' && <section className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue"><Upload className="h-7 w-7" /></div><h2 className="mt-5 text-xl font-bold text-slate-900">Upload a monthly capitation or enrollee workbook</h2><p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Supports XLSX, XLS, and CSV files with flexible column order, naming, and worksheet selection.</p><label className="mt-7 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy"><Upload className="h-4 w-4" /> Select workbook<input className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} /></label></section>}
 
-      {!isAnalyzing && step === 'inspect' && file && <Panel title="Inspect workbook" description="Confirm the worksheet and source structure before identifying the reporting period."><div className="grid gap-4 md:grid-cols-3"><Info label="File" value={file.name} /><Info label="Worksheets" value={String(sheetNames.length)} /><Info label="Rows in selected sheet" value={rawRows.length.toLocaleString()} /></div><label className="mt-6 block text-sm font-semibold text-slate-700">Source worksheet<select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={sourceSheet} onChange={event => workbookRef.current && readSheet(workbookRef.current, event.target.value)}>{sheetNames.map(name => <option key={name} value={name}>{name}</option>)}</select></label><div className="mt-6 rounded-2xl bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Detected headers</p><div className="mt-3 flex flex-wrap gap-2">{headers.map(header => <Badge key={header} variant="info">{header}</Badge>)}</div></div><Actions onNext={continueToPeriod} /></Panel>}
+      {!isAnalyzing && step === 'inspect' && file && (
+        <div className="space-y-6">
+          <Panel title="Inspect workbook" description="Confirm the worksheet and source structure before identifying the reporting period.">
+            <div className="grid gap-4 md:grid-cols-3">
+              <Info label="File" value={file.name} />
+              <Info label="Worksheets" value={String(sheetNames.length)} />
+              <Info label="Rows in sheet" value={rawRows.length.toLocaleString()} />
+            </div>
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+              <label className="block text-sm font-semibold text-slate-700">Source worksheet
+                <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={sourceSheet} onChange={event => workbookRef.current && readSheet(workbookRef.current, event.target.value, 0)}>
+                  {sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">Header row index
+                <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={headerRowIndex} onChange={event => workbookRef.current && readSheet(workbookRef.current, sourceSheet, Number(event.target.value))}>
+                  {Array.from({ length: 10 }).map((_, i) => <option key={i} value={i}>Row {i + 1}</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="mt-6 rounded-2xl bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Detected headers</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {headers.map(header => <Badge key={header} variant="info">{header}</Badge>)}
+              </div>
+            </div>
+            <Actions onNext={continueToPeriod} />
+          </Panel>
+
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+              <h3 className="text-sm font-bold text-slate-900">Workbook preview (First 10 rows)</h3>
+              <p className="text-xs text-slate-500">Select the row that contains your column headers.</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-400">
+                    <th className="px-6 py-3 font-bold">Index</th>
+                    {Array.from({ length: 10 }).map((_, i) => <th key={i} className="px-4 py-3">Col {i + 1}</th>)}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(() => {
+                    if (!workbookRef.current || !sourceSheet) return [];
+                    const sheet = workbookRef.current.Sheets[sourceSheet];
+                    return XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 0, defval: '' }).slice(0, 10);
+                  })().map((row, rowIndex) => (
+                    <tr key={rowIndex} className={rowIndex === headerRowIndex ? 'bg-blue-50 font-bold text-blue-700' : ''}>
+                      <td className="px-6 py-3 font-mono text-slate-400 whitespace-nowrap">Row {rowIndex + 1} {rowIndex === headerRowIndex && '(Headers)'}</td>
+                      {Array.from({ length: 10 }).map((_, colIndex) => (
+                        <td key={colIndex} className="px-4 py-3 truncate max-w-[150px]">{String(row[colIndex] ?? '')}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!isAnalyzing && step === 'identify' && <Panel title="Identify reporting period" description="Use the workbook values where available, then confirm the month that this list represents."><div className="grid gap-4 md:grid-cols-2"><label className="text-sm font-semibold text-slate-700">Reporting year<input className="mt-2 w-full rounded-xl border-slate-200" inputMode="numeric" value={reportingYear} onChange={event => setReportingYear(event.target.value.replace(/[^0-9]/g, '').slice(0, 4))} placeholder="2026" /></label><label className="text-sm font-semibold text-slate-700">Reporting month<select className="mt-2 w-full rounded-xl border-slate-200" value={reportingMonth} onChange={event => setReportingMonth(event.target.value)}><option value="">Select month</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={String(index + 1)}>{new Date(2020, index, 1).toLocaleString('en', { month: 'long' })}</option>)}</select></label></div><div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">The reporting period is independent from CATEGORY and SECTOR. CATEGORY is preserved from the source, while SECTOR is derived only from <strong>/C/</strong> or <strong>/D/</strong> in the policy number.</div><Actions onBack={() => setStep('inspect')} onNext={continueToMap} /></Panel>}
 

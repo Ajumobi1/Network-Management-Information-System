@@ -64,8 +64,10 @@ export default function DataUploadCentrePage() {
   const initialType = searchParams.get('type') as FinancialDataType;
   const [step, setStep] = useState<UploadStep>('upload');
   const [file, setFile] = useState<File | null>(null);
+  const [workbook, setWorkbook] = useState<XLSX.WorkBook | null>(null);
   const [sourceSheet, setSourceSheet] = useState('');
   const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [headerRowIndex, setHeaderRowIndex] = useState(0);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<RawRow[]>([]);
   const [dataType, setDataType] = useState<FinancialDataType>(initialType || 'claims');
@@ -94,6 +96,33 @@ export default function DataUploadCentrePage() {
     unmatched: matches.filter(match => !match.matchedProviderId).length,
   }), [matches]);
 
+  const readSheet = (wb: XLSX.WorkBook, sheetName: string, hIndex: number) => {
+    const sheet = wb.Sheets[sheetName];
+    if (!sheet) return;
+    
+    // Read matrix to detect headers at specific row
+    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+    const detectedHeaders = (matrix[hIndex] ?? []).map(value => String(value).trim()).filter(Boolean);
+    
+    // Read data rows starting AFTER the header row
+    const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { 
+      range: hIndex, 
+      defval: '', 
+      raw: false 
+    });
+
+    if (detectedHeaders.length === 0 || rows.length === 0) {
+      throw new Error('The selected header row or worksheet has no readable data.');
+    }
+
+    setSourceSheet(sheetName);
+    setHeaderRowIndex(hIndex);
+    setHeaders(detectedHeaders);
+    setRawRows(rows);
+    setDataType(financialDataService.detectDataType(detectedHeaders));
+    setMappings(financialDataService.suggestMappings(detectedHeaders));
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (!selectedFile) return;
@@ -103,22 +132,10 @@ export default function DataUploadCentrePage() {
     setIsAnalyzing(true);
 
     try {
-      const workbook = XLSX.read(await selectedFile.arrayBuffer(), { type: 'array', cellDates: true });
-      const names = workbook.SheetNames;
-      const firstSheet = names[0];
-      if (!firstSheet) throw new Error('The workbook does not contain a readable worksheet.');
-      const sheet = workbook.Sheets[firstSheet];
-      const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-      const detectedHeaders = (matrix[0] ?? []).map(value => String(value).trim()).filter(Boolean);
-      const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { defval: '', raw: false });
-      if (detectedHeaders.length === 0 || rows.length === 0) throw new Error('The selected worksheet has no readable header row and data rows.');
-
-      setSheetNames(names);
-      setSourceSheet(firstSheet);
-      setHeaders(detectedHeaders);
-      setRawRows(rows);
-      setDataType(financialDataService.detectDataType(detectedHeaders));
-      setMappings(financialDataService.suggestMappings(detectedHeaders));
+      const wb = XLSX.read(await selectedFile.arrayBuffer(), { type: 'array', cellDates: true });
+      setWorkbook(wb);
+      setSheetNames(wb.SheetNames);
+      readSheet(wb, wb.SheetNames[0], 0);
       setStep('inspect');
     } catch (error) {
       setFile(null);
@@ -174,7 +191,11 @@ export default function DataUploadCentrePage() {
     const records = rawRecords.map(record => {
       const match = matchByName.get(record.providerName?.toLowerCase().trim());
       const resolvedRecord = { ...record };
-      if (match?.status === 'confirmed' && match.matchedProviderId) {
+      
+      // For provider-network imports, we don't REQUIRE a match against existing providers
+      if (dataType === 'provider-network') {
+        resolvedRecord.recordStatus = 'valid';
+      } else if (match?.status === 'confirmed' && match.matchedProviderId) {
         resolvedRecord.providerId = match.matchedProviderId;
         resolvedRecord.providerName = match.matchedProviderName || resolvedRecord.providerName;
         resolvedRecord.providerCode = match.matchedProviderCode || resolvedRecord.providerCode;
@@ -182,6 +203,7 @@ export default function DataUploadCentrePage() {
         resolvedRecord.recordStatus = 'match-review-required';
         errors.push(`Source row ${record.sourceRow ?? '?'} requires provider matching review before import.`);
       }
+
       if (!record.providerName?.trim()) errors.push(`Source row ${record.sourceRow ?? '?'} is missing a provider/facility name.`);
       if (dataType === 'claims' && !Number.isFinite(record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? record.amountClaimed ?? record.amountSubmitted ?? 0)) errors.push(`Source row ${record.sourceRow ?? '?'} has no valid claims amount.`);
       return resolvedRecord;
@@ -244,7 +266,7 @@ export default function DataUploadCentrePage() {
       {isAnalyzing && <div className="nmis-panel flex flex-col items-center justify-center py-24 text-center"><div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-brand-blue" /><h3 className="mt-6 text-lg font-semibold text-slate-900">Processing workbook...</h3><p className="mt-2 text-slate-500">Reading workbook structure and preparing the next workflow stage.</p></div>}
 
       {!isAnalyzing && step === 'upload' && <UploadPanel onFileUpload={handleFileUpload} />}
-      {!isAnalyzing && step === 'inspect' && file && <InspectPanel file={file} sheetNames={sheetNames} sourceSheet={sourceSheet} headers={headers} rowCount={rawRows.length} dataType={dataType} onSheetChange={setSourceSheet} onDataTypeChange={value => setDataType(value)} onContinue={() => setStep('map')} />}
+      {!isAnalyzing && step === 'inspect' && file && <InspectPanel file={file} workbook={workbook} sheetNames={sheetNames} sourceSheet={sourceSheet} headerRowIndex={headerRowIndex} headers={headers} rowCount={rawRows.length} dataType={dataType} onSheetChange={sheet => readSheet(workbook!, sheet, 0)} onHeaderRowChange={index => readSheet(workbook!, sourceSheet, index)} onDataTypeChange={value => setDataType(value)} onContinue={() => setStep('map')} />}
       {!isAnalyzing && step === 'map' && <MappingPanel mappings={mappings} lowConfidenceCount={lowConfidenceMappings.length} onUpdate={updateMapping} onBack={() => setStep('inspect')} onContinue={startMatching} />}
       {!isAnalyzing && step === 'match' && <MatchingPanel matches={matches} summary={matchSummary} onResolveMatch={async (index, candidateId) => {
         const match = matches[index];
@@ -265,8 +287,88 @@ function UploadPanel({ onFileUpload }: { onFileUpload: (event: React.ChangeEvent
   return <Card className="border-2 border-dashed border-brand-border p-12 text-center transition hover:border-brand-blue/50 sm:p-16"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-50 text-brand-blue"><Upload size={32} /></div><h3 className="mt-6 text-xl font-bold text-slate-900">Upload a processed financial workbook</h3><p className="mx-auto mt-2 max-w-xl text-slate-500">Supported formats: XLSX, XLS, and CSV. The first worksheet is inspected by default and can be changed during the inspection step.</p><label className="mt-8 inline-flex cursor-pointer items-center justify-center rounded-3xl bg-brand-blue px-8 py-3 text-sm font-semibold text-white hover:bg-brand-navy"><input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={onFileUpload} />Select File</label></Card>;
 }
 
-function InspectPanel({ file, sheetNames, sourceSheet, headers, rowCount, dataType, onSheetChange, onDataTypeChange, onContinue }: { file: File; sheetNames: string[]; sourceSheet: string; headers: string[]; rowCount: number; dataType: FinancialDataType; onSheetChange: (value: string) => void; onDataTypeChange: (value: FinancialDataType) => void; onContinue: () => void }) {
-  return <div className="grid gap-6 lg:grid-cols-3"><div className="rounded-3xl border border-slate-200 bg-white p-8 lg:col-span-2"><h3 className="flex items-center gap-2 text-lg font-bold text-slate-900"><FileSpreadsheet className="h-5 w-5 text-emerald-600" />Workbook inspection</h3><div className="mt-8 grid gap-8 sm:grid-cols-2"><div className="space-y-4"><InfoRow label="Filename" value={file.name} /><InfoRow label="Size" value={`${(file.size / 1024).toFixed(1)} KB`} /><InfoRow label="Rows detected" value={rowCount.toLocaleString()} /><InfoRow label="Columns found" value={headers.length.toLocaleString()} /><InfoRow label="Detected headers" value={headers.join(', ')} /></div><div className="space-y-4"><label className="block text-sm font-bold text-slate-900">Worksheet<select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={sourceSheet} onChange={event => onSheetChange(event.target.value)}>{sheetNames.map(sheet => <option key={sheet}>{sheet}</option>)}</select></label><label className="block text-sm font-bold text-slate-900">Data type<select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={dataType} onChange={event => onDataTypeChange(event.target.value as FinancialDataType)}><option value="claims">Claims Data</option><option value="capitation">Capitation Data</option><option value="ffs">Fee-for-Service (FFS)</option><option value="enrolment">Enrolment Data</option><option value="provider-network">Provider Directory</option></select></label><p className="text-xs italic text-slate-500">The suggested type is based on the detected headers and can be corrected before mapping.</p></div></div></div><div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50 p-8"><div><h4 className="font-bold text-slate-900">Next action</h4><p className="mt-2 text-sm text-slate-500">Review and adjust the suggested mappings before provider matching.</p></div><Button variant="primary" className="w-full py-4" onClick={onContinue}>Continue to mapping</Button></div></div>;
+function InspectPanel({ file, workbook, sheetNames, sourceSheet, headerRowIndex, headers, rowCount, dataType, onSheetChange, onHeaderRowChange, onDataTypeChange, onContinue }: { file: File; workbook: XLSX.WorkBook | null; sheetNames: string[]; sourceSheet: string; headerRowIndex: number; headers: string[]; rowCount: number; dataType: FinancialDataType; onSheetChange: (value: string) => void; onHeaderRowChange: (index: number) => void; onDataTypeChange: (value: FinancialDataType) => void; onContinue: () => void }) {
+  const previewRows = useMemo(() => {
+    if (!workbook || !sourceSheet) return [];
+    const sheet = workbook.Sheets[sourceSheet];
+    return XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 0, defval: '' }).slice(0, 10);
+  }, [workbook, sourceSheet]);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="rounded-3xl border border-slate-200 bg-white p-8 lg:col-span-2">
+          <h3 className="flex items-center gap-2 text-lg font-bold text-slate-900"><FileSpreadsheet className="h-5 w-5 text-emerald-600" />Workbook inspection</h3>
+          <div className="mt-8 grid gap-8 sm:grid-cols-2">
+            <div className="space-y-4">
+              <InfoRow label="Filename" value={file.name} />
+              <InfoRow label="Rows detected" value={rowCount.toLocaleString()} />
+              <InfoRow label="Columns found" value={headers.length.toLocaleString()} />
+              <div className="rounded-xl bg-slate-50 p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Detected headers</p>
+                <p className="mt-1 text-xs text-slate-600 line-clamp-2">{headers.join(', ')}</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <label className="block text-sm font-bold text-slate-900">Worksheet
+                <select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={sourceSheet} onChange={event => onSheetChange(event.target.value)}>
+                  {sheetNames.map(sheet => <option key={sheet}>{sheet}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-bold text-slate-900">Header row index
+                <select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={headerRowIndex} onChange={event => onHeaderRowChange(Number(event.target.value))}>
+                  {Array.from({ length: 10 }).map((_, i) => <option key={i} value={i}>Row {i + 1}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-bold text-slate-900">Data type
+                <select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={dataType} onChange={event => onDataTypeChange(event.target.value as FinancialDataType)}>
+                  <option value="claims">Claims Data</option>
+                  <option value="capitation">Capitation Data</option>
+                  <option value="ffs">Fee-for-Service (FFS)</option>
+                  <option value="enrolment">Enrolment Data</option>
+                  <option value="provider-network">Provider Directory</option>
+                </select>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50 p-8">
+          <div>
+            <h4 className="font-bold text-slate-900">Next action</h4>
+            <p className="mt-2 text-sm text-slate-500">Ensure the correct header row is selected. Data import will begin from the row immediately following the headers.</p>
+          </div>
+          <Button variant="primary" className="w-full py-4" onClick={onContinue}>Continue to mapping</Button>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
+        <div className="border-b border-slate-100 bg-slate-50/50 px-8 py-4">
+          <h3 className="text-sm font-bold text-slate-900">Workbook preview (First 10 rows)</h3>
+          <p className="text-xs text-slate-500">Use this to identify the row containing your column headers.</p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="bg-slate-50 text-slate-400">
+                <th className="px-6 py-3 font-bold">Index</th>
+                {Array.from({ length: 10 }).map((_, i) => <th key={i} className="px-4 py-3">Col {i + 1}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {previewRows.map((row, rowIndex) => (
+                <tr key={rowIndex} className={rowIndex === headerRowIndex ? 'bg-blue-50 font-bold text-blue-700' : ''}>
+                  <td className="px-6 py-3 font-mono text-slate-400">Row {rowIndex + 1} {rowIndex === headerRowIndex && '(Headers)'}</td>
+                  {Array.from({ length: 10 }).map((_, colIndex) => (
+                    <td key={colIndex} className="px-4 py-3 truncate max-w-[150px]">{String(row[colIndex] ?? '')}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function MappingPanel({ mappings, lowConfidenceCount, onUpdate, onBack, onContinue }: { mappings: ColumnMapping[]; lowConfidenceCount: number; onUpdate: (index: number, value: keyof FinancialRecord | 'ignored') => void; onBack: () => void; onContinue: () => void }) {
