@@ -72,20 +72,21 @@ export const financialDataService = {
     const mappings: ColumnMapping[] = [];
 
     const knownMappings: Array<{ field: keyof FinancialRecord | 'ignored', keywords: string[], weight: number, context?: FinancialDataType[] }> = [
-      { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id'], weight: 1.0 },
-      { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'name', 'outlet', 'health facility'], weight: 1.0 },
+      { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id', 'account number', 'bank', 'number of enrollees', 'number of formal enrollees', 'number of informal enrollees', 'number of enrollees on capitation list'], weight: 1.0 },
+      { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'name', 'outlet', 'health facility', 'account name as it appears'], weight: 1.0 },
       { field: 'providerCode', keywords: ['code', 'provider code', 'facility code', 'hcp code'], weight: 0.9 },
       { field: 'ownership', keywords: ['category', 'ownership', 'type of facility', 'sector'], weight: 0.8, context: ['provider-network'] },
       { field: 'facilityType', keywords: ['category', 'facility type', 'type'], weight: 0.8, context: ['provider-network'] },
-      { field: 'amountPaid', keywords: ['paid', 'net paid', 'amount paid', 'payment', 'total paid', 'net amount'], weight: 1.0 },
+      { field: 'amountPaid', keywords: ['paid', 'net paid', 'amount paid', 'payment', 'total paid', 'net amount', 'amount'], weight: 1.0 },
       { field: 'amountClaimed', keywords: ['claimed', 'gross claimed', 'amount claimed', 'submission'], weight: 0.9 },
       { field: 'amountApproved', keywords: ['approved', 'vetted', 'vetting', 'amount approved'], weight: 0.9 },
+      { field: 'amount', keywords: ['amount', 'capitation fee'], weight: 0.8 },
       { field: 'claimsCategory', keywords: ['claims category', 'service type', 'benefit'], weight: 0.8 },
       { field: 'state', keywords: ['state', 'region', 'location'], weight: 0.7 },
       { field: 'lga', keywords: ['lga', 'local government', 'area'], weight: 0.7 },
       { field: 'reportingMonth', keywords: ['month', 'period', 'reporting month'], weight: 0.8 },
       { field: 'reportingYear', keywords: ['year', 'reporting year'], weight: 0.8 },
-      { field: 'eligibleLives', keywords: ['enrollee', 'lives', 'count', 'total enrollees', 'population'], weight: 0.8 },
+      { field: 'eligibleLives', keywords: ['enrollee', 'lives', 'count', 'total enrollees', 'population', 'number of enrollees'], weight: 0.8 },
     ];
 
     headers.forEach(header => {

@@ -20,7 +20,7 @@ import {
 const normalizeText = (value: unknown) => String(value ?? '').trim();
 
 const mappingRules: Array<{ field: EnrolmentField | 'ignored'; keywords: string[]; weight: number }> = [
-  { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id'], weight: 1.0 },
+  { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id', 'account number', 'bank', 'amount', 'capitation fee'], weight: 1.0 },
   { field: 'policyNumber', keywords: ['policy number', 'policy no', 'policy', 'membership number', 'member id', 'enrollee id'], weight: 1.0 },
   { field: 'category', keywords: ['category', 'beneficiary category', 'member category', 'principal/dependant'], weight: 1.0 },
   { field: 'firstName', keywords: ['first name', 'firstname', 'given name', 'other names'], weight: 0.9 },
@@ -28,7 +28,7 @@ const mappingRules: Array<{ field: EnrolmentField | 'ignored'; keywords: string[
   { field: 'gender', keywords: ['gender', 'sex'], weight: 0.8 },
   { field: 'phoneNumber', keywords: ['phone', 'telephone', 'mobile', 'phone number'], weight: 0.8 },
   { field: 'providerCode', keywords: ['provider code', 'facility code', 'facility id', 'provider id', 'hcp code'], weight: 0.9 },
-  { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'health facility', 'facility name', 'name of facility'], weight: 1.0 },
+  { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'health facility', 'facility name', 'name of facility', 'account name as it appears'], weight: 1.0 },
   { field: 'lga', keywords: ['lga', 'local government', 'local govt', 'area'], weight: 0.7 },
   { field: 'state', keywords: ['state', 'region', 'location'], weight: 0.7 },
   { field: 'senatorialDistrict', keywords: ['senatorial', 'senate district', 'district'], weight: 0.7 },
