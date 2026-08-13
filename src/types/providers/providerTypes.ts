@@ -73,6 +73,7 @@ export type ProviderProfile = ProviderDirectoryItem & {
   timeline: ProviderTimelineItem[];
   performance: ProviderPerformance;
   communicationHistory: ProviderTimelineItem[];
+  registerPosition?: number;
 };
 
 export type ProviderDirectoryFilters = {

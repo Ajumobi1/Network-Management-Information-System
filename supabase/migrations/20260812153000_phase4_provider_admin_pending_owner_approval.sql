@@ -43,15 +43,14 @@ BEGIN
       OR EXISTS (
         SELECT 1
         FROM jsonb_object_keys(p_payload) AS k(key)
-        WHERE k.key NOT IN ('provider_code', 'provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga')
+        WHERE k.key NOT IN ('provider_code', 'provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga', 'address', 'contact_person', 'phone', 'email', 'bank_name', 'account_name', 'account_number')
       )
-      OR NOT (p_payload ?& ARRAY['provider_code', 'provider_name', 'category', 'ownership', 'state', 'lga'])
+      OR NOT (p_payload ?& ARRAY['provider_name', 'category', 'ownership', 'state', 'lga'])
     THEN
       RAISE EXCEPTION 'VALIDATION_ERROR: unapproved provider registration payload' USING ERRCODE = 'P0001';
     END IF;
 
-    IF length(trim(p_payload->>'provider_code')) NOT BETWEEN 3 AND 64
-      OR trim(p_payload->>'provider_code') !~ '^[A-Za-z0-9][A-Za-z0-9/_-]{2,63}$'
+    IF (p_payload ? 'provider_code' AND (length(trim(p_payload->>'provider_code')) NOT BETWEEN 3 AND 64 OR trim(p_payload->>'provider_code') !~ '^[A-Za-z0-9][A-Za-z0-9/_-]{2,63}$'))
       OR length(trim(p_payload->>'provider_name')) NOT BETWEEN 1 AND 160
       OR length(trim(p_payload->>'state')) NOT BETWEEN 1 AND 120
       OR length(trim(p_payload->>'lga')) NOT BETWEEN 1 AND 120
@@ -62,23 +61,28 @@ BEGIN
       OR p_payload->>'ownership' NOT IN (
         'Government', 'Private'
       )
-      OR (p_payload ? 'subcategory' AND jsonb_typeof(p_payload->'subcategory') NOT IN ('string', 'null'))
-      OR (p_payload ? 'subcategory' AND length(coalesce(trim(p_payload->>'subcategory'), '')) > 160)
     THEN
       RAISE EXCEPTION 'VALIDATION_ERROR: invalid provider registration values' USING ERRCODE = 'P0001';
     END IF;
 
     BEGIN
       INSERT INTO public.providers (
-        provider_code, provider_name, category, subcategory, ownership, state, lga
+        provider_code, provider_name, category, subcategory, ownership, state, lga, address, contact_person, phone, email, bank_name, account_name, account_number
       ) VALUES (
-        upper(trim(p_payload->>'provider_code')),
+        coalesce(upper(trim(p_payload->>'provider_code')), 'NMIS-FAC-' || upper(substring(gen_random_uuid()::text from 1 for 8))),
         trim(p_payload->>'provider_name'),
         p_payload->>'category',
         nullif(trim(p_payload->>'subcategory'), ''),
         p_payload->>'ownership',
         trim(p_payload->>'state'),
-        trim(p_payload->>'lga')
+        trim(p_payload->>'lga'),
+        nullif(trim(p_payload->>'address'), ''),
+        nullif(trim(p_payload->>'contact_person'), ''),
+        nullif(trim(p_payload->>'phone'), ''),
+        nullif(trim(p_payload->>'email'), ''),
+        nullif(trim(p_payload->>'bank_name'), ''),
+        nullif(trim(p_payload->>'account_name'), ''),
+        nullif(trim(p_payload->>'account_number'), '')
       )
       RETURNING * INTO v_provider;
     EXCEPTION WHEN unique_violation THEN
@@ -91,22 +95,30 @@ BEGIN
       OR EXISTS (
         SELECT 1
         FROM jsonb_object_keys(p_payload) AS k(key)
-        WHERE k.key NOT IN ('subcategory', 'state', 'lga')
+        WHERE k.key NOT IN ('provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga', 'address', 'contact_person', 'phone', 'email', 'bank_name', 'account_name', 'account_number')
       )
-      OR NOT (p_payload ? 'subcategory' OR p_payload ? 'state' OR p_payload ? 'lga')
-      OR (p_payload ? 'subcategory' AND jsonb_typeof(p_payload->'subcategory') NOT IN ('string', 'null'))
-      OR (p_payload ? 'state' AND (jsonb_typeof(p_payload->'state') <> 'string' OR length(trim(p_payload->>'state')) NOT BETWEEN 1 AND 120))
-      OR (p_payload ? 'lga' AND (jsonb_typeof(p_payload->'lga') <> 'string' OR length(trim(p_payload->>'lga')) NOT BETWEEN 1 AND 120))
-      OR (p_payload ? 'subcategory' AND length(coalesce(trim(p_payload->>'subcategory'), '')) > 160)
+      OR (p_payload ? 'provider_name' AND length(trim(p_payload->>'provider_name')) NOT BETWEEN 1 AND 160)
+      OR (p_payload ? 'category' AND p_payload->>'category' NOT IN ('Hospital', 'Primary Health Centre (PHC)', 'Pharmacy', 'Laboratory', 'Specialist Centre', 'Diagnostic & Imaging Centre', 'Referral Centre'))
+      OR (p_payload ? 'ownership' AND p_payload->>'ownership' NOT IN ('Government', 'Private'))
     THEN
-      RAISE EXCEPTION 'VALIDATION_ERROR: unapproved operational update payload' USING ERRCODE = 'P0001';
+      RAISE EXCEPTION 'VALIDATION_ERROR: unapproved provider update payload' USING ERRCODE = 'P0001';
     END IF;
 
     UPDATE public.providers
     SET
+      provider_name = CASE WHEN p_payload ? 'provider_name' THEN trim(p_payload->>'provider_name') ELSE provider_name END,
+      category = CASE WHEN p_payload ? 'category' THEN p_payload->>'category' ELSE category END,
       subcategory = CASE WHEN p_payload ? 'subcategory' THEN nullif(trim(p_payload->>'subcategory'), '') ELSE subcategory END,
+      ownership = CASE WHEN p_payload ? 'ownership' THEN p_payload->>'ownership' ELSE ownership END,
       state = CASE WHEN p_payload ? 'state' THEN trim(p_payload->>'state') ELSE state END,
       lga = CASE WHEN p_payload ? 'lga' THEN trim(p_payload->>'lga') ELSE lga END,
+      address = CASE WHEN p_payload ? 'address' THEN nullif(trim(p_payload->>'address'), '') ELSE address END,
+      contact_person = CASE WHEN p_payload ? 'contact_person' THEN nullif(trim(p_payload->>'contact_person'), '') ELSE contact_person END,
+      phone = CASE WHEN p_payload ? 'phone' THEN nullif(trim(p_payload->>'phone'), '') ELSE phone END,
+      email = CASE WHEN p_payload ? 'email' THEN nullif(trim(p_payload->>'email'), '') ELSE email END,
+      bank_name = CASE WHEN p_payload ? 'bank_name' THEN nullif(trim(p_payload->>'bank_name'), '') ELSE bank_name END,
+      account_name = CASE WHEN p_payload ? 'account_name' THEN nullif(trim(p_payload->>'account_name'), '') ELSE account_name END,
+      account_number = CASE WHEN p_payload ? 'account_number' THEN nullif(trim(p_payload->>'account_number'), '') ELSE account_number END,
       updated_at = now()
     WHERE id = p_provider_id
     RETURNING * INTO v_provider;

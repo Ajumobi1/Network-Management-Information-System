@@ -19,12 +19,15 @@ import { ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile } from 
 import type { ProvidersRow } from '../../lib/supabase/database.types';
 import { ProviderMatch } from '../../types/financial-data';
 
-export type ProviderRegistrationCommand = Pick<
-  ProviderDirectoryItem,
-  'providerCode' | 'providerName' | 'category' | 'subcategory' | 'ownership' | 'lga'
->;
+export type ProviderRegistrationCommand = Omit<ProviderDirectoryItem, 'id' | 'providerCode' | 'status' | 'contractStatus' | 'credentialStatus' | 'inspectionStatus' | 'capitationStatus' | 'inspectionRating' | 'lastInspectionDate'> & {
+  address?: string | null;
+};
 
-export type ProviderOperationalUpdate = Partial<Pick<ProviderDirectoryItem, 'subcategory' | 'lga'>>;
+export type ProviderOperationalUpdate = Partial<ProviderDirectoryItem> & {
+  bankName?: string | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
+};
 
 type ProviderDirectoryRpcRow = {
   id: string;
@@ -49,6 +52,7 @@ type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
   departments?: string[] | null;
   staff_strength?: number | null;
   equipment?: string[] | null;
+  register_position?: number | null;
 };
 
 type ProviderDirectoryRpcResult = ProviderDirectoryRpcRow[] | { items: ProviderDirectoryRpcRow[] };
@@ -120,6 +124,7 @@ function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
     timeline: [],
     performance: { inspectionRating: 0, complaintScore: 0, utilization: 0, claimsTrend: 'unavailable', capitationTrend: 'unavailable', compliance: 0 },
     communicationHistory: [],
+    registerPosition: row.register_position ?? undefined,
   };
 }
 
@@ -208,10 +213,11 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
   if (useMockData) {
     return addProviderMock({
       ...payload,
-      state: 'Ondo',
-      contactPerson: '',
-      phone: '',
-      email: '',
+      providerCode: 'NMIS-MOCK-' + Math.floor(Math.random() * 1000),
+      state: payload.state || 'Ondo',
+      contactPerson: payload.contactPerson || '',
+      phone: payload.phone || '',
+      email: payload.email || '',
       status: ProviderLifecycleStatus.Pending,
       contractStatus: 'pending' as ProviderDirectoryItem['contractStatus'],
       credentialStatus: 'pending' as ProviderDirectoryItem['credentialStatus'],
@@ -224,13 +230,16 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
   return invokeProviderAdmin({
     command: 'register',
     payload: {
-      provider_code: payload.providerCode,
       provider_name: payload.providerName,
       category: payload.category,
       subcategory: payload.subcategory || null,
       ownership: payload.ownership,
-      state: 'Ondo',
+      state: payload.state || 'Ondo',
       lga: payload.lga,
+      address: payload.address || null,
+      contact_person: payload.contactPerson || null,
+      phone: payload.phone || null,
+      email: payload.email || null,
     },
   });
 }
@@ -238,8 +247,21 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
 export async function updateDirectoryProvider(id: string, payload: ProviderOperationalUpdate): Promise<ProviderDirectoryItem> {
   if (useMockData) return updateProviderMock(id, payload);
   const safePayload: Record<string, unknown> = {};
+  
+  if (payload.providerName !== undefined) safePayload.provider_name = payload.providerName;
+  if (payload.category !== undefined) safePayload.category = payload.category;
   if (payload.subcategory !== undefined) safePayload.subcategory = payload.subcategory || null;
+  if (payload.ownership !== undefined) safePayload.ownership = payload.ownership;
+  if (payload.state !== undefined) safePayload.state = payload.state;
   if (payload.lga !== undefined) safePayload.lga = payload.lga;
+  if ((payload as any).address !== undefined) safePayload.address = (payload as any).address || null;
+  if (payload.contactPerson !== undefined) safePayload.contact_person = payload.contactPerson || null;
+  if (payload.phone !== undefined) safePayload.phone = payload.phone || null;
+  if (payload.email !== undefined) safePayload.email = payload.email || null;
+  if (payload.bankName !== undefined) safePayload.bank_name = payload.bankName || null;
+  if (payload.accountName !== undefined) safePayload.account_name = payload.accountName || null;
+  if (payload.accountNumber !== undefined) safePayload.account_number = payload.accountNumber || null;
+
   return invokeProviderAdmin({ command: 'edit_operational', providerId: id, payload: safePayload });
 }
 

@@ -10,20 +10,20 @@ const steps = ['Basic information', 'Facility and location', 'Ownership', 'Revie
 
 type RegistrationFormState = {
   providerName: string;
-  providerCode: string;
   category: ProviderCategory;
   subcategory: string;
   ownership: ProviderOwnership;
   lga: string;
+  state: string;
 };
 
 const initialFormState: RegistrationFormState = {
   providerName: '',
-  providerCode: '',
   category: ProviderCategory.Hospital,
   subcategory: '',
   ownership: ProviderOwnership.Private,
   lga: '',
+  state: 'Ondo',
 };
 
 function safeWorkflowMessage(error: unknown): string {
@@ -40,8 +40,7 @@ export default function ProviderRegistrationWizard() {
   const progress = Math.round(((activeStep + 1) / steps.length) * 100);
 
   const formComplete = Boolean(
-    formState.providerCode.trim()
-      && formState.providerName.trim()
+    formState.providerName.trim()
       && formState.category
       && formState.ownership
       && formState.lga.trim(),
@@ -58,12 +57,15 @@ export default function ProviderRegistrationWizard() {
     setSuccessMessage(null);
     registerProvider.mutate(
       {
-        providerCode: formState.providerCode,
         providerName: formState.providerName,
         category: formState.category,
         subcategory: formState.subcategory,
         ownership: formState.ownership,
         lga: formState.lga,
+        state: formState.state,
+        email: '',
+        contactPerson: '',
+        phone: '',
       },
       {
         onSuccess: provider => {
@@ -114,11 +116,7 @@ export default function ProviderRegistrationWizard() {
       <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
         {activeStep === 0 && (
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="space-y-2 text-sm font-medium text-slate-700">
-              Provider code
-              <input value={formState.providerCode} onChange={event => updateField('providerCode', event.target.value)} placeholder="e.g. NMIS-OND-001" maxLength={64} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-slate-700">
+            <label className="space-y-2 text-sm font-medium text-slate-700 md:col-span-2">
               Provider name
               <input value={formState.providerName} onChange={event => updateField('providerName', event.target.value)} placeholder="Facility legal name" maxLength={160} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
             </label>
@@ -156,7 +154,6 @@ export default function ProviderRegistrationWizard() {
         {activeStep === 3 && (
           <dl className="grid gap-4 text-sm md:grid-cols-2">
             <div><dt className="text-slate-500">Provider</dt><dd className="font-semibold text-slate-900">{formState.providerName || 'Not provided'}</dd></div>
-            <div><dt className="text-slate-500">Provider code</dt><dd className="font-semibold text-slate-900">{formState.providerCode || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Category</dt><dd className="font-semibold text-slate-900">{formState.category}</dd></div>
             <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{formState.lga || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Ownership</dt><dd className="font-semibold text-slate-900">{formState.ownership}</dd></div>

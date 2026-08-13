@@ -81,7 +81,9 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-muted">
-                <span>{provider.providerCode}</span>
+                <span className="font-mono text-brand-blue bg-brand-blue/5 px-2 py-0.5 rounded-md">
+                  {provider.registerPosition ? String(provider.registerPosition).padStart(3, '0') : provider.providerCode}
+                </span>
                 <span className="opacity-30">|</span>
                 <span>{provider.category}</span>
               </div>

@@ -82,6 +82,7 @@ export default function DataUploadCentrePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
+  const [committedBatch, setCommittedBatch] = useState<any>(null);
   const { session } = useAuth();
   const liveCommitUnavailable = false; // Workflow is now wired to secure RPCs
 
@@ -248,7 +249,8 @@ export default function DataUploadCentrePage() {
         records: validRecords,
         actor: session?.user ? { id: session.user.id, email: session.user.email } : undefined,
       });
-      setCommitMessage(`Import committed successfully as ${batch.id}. ${readyToImport.toLocaleString()} records are now available in the ${dataType} register.`);
+      setCommittedBatch(batch);
+      setCommitMessage(`Import committed successfully. ${batch.importedRows.toLocaleString()} records were imported, ${batch.duplicateRows.toLocaleString()} were skipped as duplicates.`);
       setStep('commit');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'The dataset could not be committed.');
@@ -279,13 +281,61 @@ export default function DataUploadCentrePage() {
         }
       }} onBack={() => setStep('map')} onContinue={generatePreview} />}
       {!isAnalyzing && step === 'preview' && <PreviewPanel records={normalizedRecords} rawRowCount={rawRows.length} validCount={validRecords.length} invalidCount={normalizedRecords.length - validRecords.length} duplicateCount={duplicateRecordCount} matchSummary={matchSummary} readyCount={readyToImport} duplicateBatch={duplicateBatch} validationErrors={validationErrors} onBack={() => setStep('match')} onCommit={handleCommit} isCommitting={createBatch.isPending} liveCommitUnavailable={liveCommitUnavailable} />}
-      {!isAnalyzing && step === 'commit' && <CommitPanel onReset={() => { setStep('upload'); setFile(null); setRawRows([]); setNormalizedRecords([]); setMatches([]); setCommitMessage(''); }} />}
+      {!isAnalyzing && step === 'commit' && <CommitPanel batch={committedBatch} onReset={() => { setStep('upload'); setFile(null); setRawRows([]); setNormalizedRecords([]); setMatches([]); setCommitMessage(''); setCommittedBatch(null); }} />}
     </div>
   );
 }
 
 function UploadPanel({ onFileUpload }: { onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void }) {
   return <Card className="border-2 border-dashed border-brand-border p-12 text-center transition hover:border-brand-blue/50 sm:p-16"><div className="mx-auto flex h-20 w-20 items-center justify-center rounded-3xl bg-blue-50 text-brand-blue"><Upload size={32} /></div><h3 className="mt-6 text-xl font-bold text-slate-900">Upload a processed financial workbook</h3><p className="mx-auto mt-2 max-w-xl text-slate-500">Supported formats: XLSX, XLS, and CSV. The first worksheet is inspected by default and can be changed during the inspection step.</p><label className="mt-8 inline-flex cursor-pointer items-center justify-center rounded-3xl bg-brand-blue px-8 py-3 text-sm font-semibold text-white hover:bg-brand-navy"><input type="file" className="hidden" accept=".xlsx,.xls,.csv" onChange={onFileUpload} />Select File</label></Card>;
+}
+
+function CommitPanel({ batch, onReset }: { batch: any; onReset: () => void }) {
+  const rejectedRows = batch?.metadata?.rejectedRows || [];
+  
+  return (
+    <div className="space-y-6">
+      <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-12 text-center">
+        <CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" />
+        <h2 className="mt-5 text-2xl font-black text-emerald-900">Import complete</h2>
+        <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase text-emerald-700">Imported</p><p className="mt-1 text-2xl font-black text-emerald-900">{batch?.importedRows || 0}</p></div>
+          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase text-amber-700">Duplicates</p><p className="mt-1 text-2xl font-black text-amber-900">{batch?.duplicateRows || 0}</p></div>
+          <div className="rounded-2xl bg-white/50 p-4"><p className="text-xs font-bold uppercase text-rose-700">Errors</p><p className="mt-1 text-2xl font-black text-rose-900">{batch?.errorRows || 0}</p></div>
+        </div>
+        <Button variant="primary" className="mt-8" onClick={onReset}>Upload another dataset</Button>
+      </div>
+
+      {rejectedRows.length > 0 && (
+        <div className="rounded-3xl border border-slate-200 bg-white overflow-hidden">
+          <div className="border-b border-slate-100 bg-slate-50/50 px-8 py-5">
+            <h3 className="font-bold text-slate-900 text-lg">Rejected records & reasons</h3>
+            <p className="text-sm text-slate-500">The following records were not imported into the authoritative register.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th className="px-8 py-4">Source Row</th>
+                  <th className="px-8 py-4">Facility Name</th>
+                  <th className="px-8 py-4">Reason for rejection</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {rejectedRows.map((rejected: any, idx: number) => (
+                  <tr key={idx}>
+                    <td className="px-8 py-4 font-mono text-slate-500">Row {rejected.row}</td>
+                    <td className="px-8 py-4 font-semibold text-slate-900">{rejected.name}</td>
+                    <td className="px-8 py-4 text-rose-600 font-medium">{rejected.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function InspectPanel({ file, workbook, sheetNames, sourceSheet, headerRowIndex, headers, rowCount, dataType, onSheetChange, onHeaderRowChange, onDataTypeChange, onContinue }: { file: File; workbook: XLSX.WorkBook | null; sheetNames: string[]; sourceSheet: string; headerRowIndex: number; headers: string[]; rowCount: number; dataType: FinancialDataType; onSheetChange: (value: string) => void; onHeaderRowChange: (index: number) => void; onDataTypeChange: (value: FinancialDataType) => void; onContinue: () => void }) {
@@ -384,7 +434,7 @@ function PreviewPanel({ records, rawRowCount, validCount, invalidCount, duplicat
   return <div className="space-y-6"><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7"><PreviewStat label="Total rows" value={rawRowCount} /><PreviewStat label="Valid" value={validCount} color="text-emerald-600" /><PreviewStat label="Invalid" value={invalidCount} color="text-rose-600" /><PreviewStat label="Duplicates" value={duplicateCount} color="text-amber-600" /><PreviewStat label="Matched" value={matchSummary.matched} color="text-emerald-600" /><PreviewStat label="Ambiguous / unmatched" value={matchSummary.ambiguous + matchSummary.unmatched} color="text-amber-600" /><PreviewStat label="Ready to import" value={readyCount} color="text-brand-blue" /></div>{duplicateBatch && <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800"><AlertCircle className="h-5 w-5 shrink-0" /><div><p className="font-bold">This dataset appears to have already been imported.</p><p className="mt-1 text-sm">Existing batch: {duplicateBatch.fileName} ({duplicateBatch.periodCovered || 'period unavailable'}). Do not silently overwrite historical financial records.</p></div></div>}{validationErrors.length > 0 && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-700"><p className="font-bold">Validation exceptions</p><ul className="mt-2 list-disc space-y-1 pl-5 text-sm">{validationErrors.slice(0, 8).map(error => <li key={error}>{error}</li>)}</ul></div>}<div className="overflow-hidden rounded-3xl border border-slate-200 bg-white"><div className="border-b border-slate-100 bg-slate-50/50 px-8 py-5"><h3 className="font-bold text-slate-900">Normalized record preview</h3><p className="text-sm text-slate-500">Showing the first {Math.min(records.length, 10)} normalized records with source traceability.</p></div><div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-6 py-4">Provider</th>{records[0]?.dataType === 'provider-network' ? <><th className="px-6 py-4">Ownership</th><th className="px-6 py-4">State / LGA</th></> : <><th className="px-6 py-4">Period</th><th className="px-6 py-4">Category</th></>}{records[0]?.dataType === 'provider-network' ? <><th className="px-6 py-4">Subcategory</th><th className="px-6 py-4">Code</th></> : <><th className="px-6 py-4 text-right">Claim count</th><th className="px-6 py-4 text-right">Net paid</th></>}<th className="px-6 py-4">Source row</th></tr></thead><tbody className="divide-y divide-slate-100">{records.slice(0, 10).map(record => <tr key={record.id}><td className="px-6 py-4 font-semibold">{record.providerName || 'Unmatched provider'}</td>{record.dataType === 'provider-network' ? <><td className="px-6 py-4">{record.ownership || '-'}</td><td className="px-6 py-4">{record.state} / {record.lga}</td></> : <><td className="px-6 py-4">{record.period}</td><td className="px-6 py-4">{record.claimsCategory || record.dataType}</td></>}{record.dataType === 'provider-network' ? <><td className="px-6 py-4">{record.subcategory || '-'}</td><td className="px-6 py-4">{record.providerCode || 'Auto-gen'}</td></> : <><td className="px-6 py-4 text-right">{record.claimCount ?? record.encounterCount ?? '-'}</td><td className="px-6 py-4 text-right font-bold">{formatNaira(record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? record.amount ?? 0)}</td></>}<td className="px-6 py-4 text-slate-500">{record.sourceRow ?? '-'}</td></tr>)}</tbody></table></div></div><div className="flex justify-end gap-3"><Button variant="secondary" className="px-8" onClick={onBack}>Back</Button><Button variant="primary" className="px-10 py-4" disabled={liveCommitUnavailable || isCommitting || readyCount <= 0 || validationErrors.length > 0 || Boolean(duplicateBatch)} onClick={onCommit}>{liveCommitUnavailable ? 'Secure workflow required' : isCommitting ? 'Committing...' : duplicateBatch ? 'Duplicate import blocked' : 'Commit approved dataset'}</Button></div></div>;
 }
 
-function CommitPanel({ onReset }: { onReset: () => void }) { return <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-12 text-center"><CheckCircle2 className="mx-auto h-16 w-16 text-emerald-600" /><h2 className="mt-5 text-2xl font-black text-emerald-900">Dataset committed</h2><p className="mx-auto mt-2 max-w-xl text-emerald-800">The normalized records are available to the relevant Financial Data register and analytics queries. The original file and import batch remain traceable.</p><Button variant="primary" className="mt-8" onClick={onReset}>Upload another dataset</Button></div>; }
+
 function StepIndicator({ active, current, number, label }: { active: boolean; current: boolean; number: string; label: string }) { return <div className={`flex shrink-0 items-center gap-2 rounded-control px-2 py-1.5 text-xs font-bold ${current ? 'bg-brand-blue text-white shadow-sm' : active ? 'text-brand-blue' : 'text-brand-muted'}`}><span className={`flex h-7 w-7 items-center justify-center rounded-full ${current ? 'bg-white/20' : active ? 'bg-brand-blue/10' : 'bg-brand-surface'}`}>{number}</span><span>{label}</span></div>; }
 function InfoRow({ label, value }: { label: string; value: string }) { return <div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-1 break-words text-sm font-semibold text-slate-700">{value}</p></div>; }
 function PreviewStat({ label, value, color = 'text-slate-900' }: { label: string; value: number | string; color?: string }) { return <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><p className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{label}</p><p className={`mt-2 text-2xl font-black ${color}`}>{value}</p></div>; }

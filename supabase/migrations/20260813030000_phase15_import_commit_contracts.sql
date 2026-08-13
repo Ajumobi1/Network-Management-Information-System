@@ -147,6 +147,7 @@ DECLARE
   v_error_count integer := 0;
   v_unmatched_count integer := 0;
   v_provider_id uuid;
+  v_rejected_rows jsonb := '[]'::jsonb;
 BEGIN
   -- 1. Authorization
   IF NOT public.nmis_has_any_role(ARRAY['super-admin', 'head-of-network', 'network-officer', 'finance']) THEN
@@ -194,27 +195,37 @@ BEGIN
           
           IF v_provider_id IS NOT NULL THEN
             v_duplicate_count := v_duplicate_count + 1;
-          ELSE
-            -- Generate sequential code (1, 2, 3...)
-            SELECT coalesce(max(NULLIF(regexp_replace(provider_code, '\D', '', 'g'), '')::integer), 0) + 1 
-            INTO v_next_code 
-            FROM public.providers;
-
-            INSERT INTO public.providers (
-              provider_code, provider_name, category, subcategory, ownership, state, lga, address, status
-            ) VALUES (
-              v_next_code::text,
-              trim(v_record->>'providerName'),
-              v_category,
-              v_record->>'subcategory',
-              v_ownership,
-              'Ondo',
-              coalesce(v_record->>'lga', 'Unknown'),
-              v_record->>'address',
-              'Active'
+            v_rejected_rows := v_rejected_rows || jsonb_build_object(
+              'row', v_record->>'sourceRow',
+              'name', v_record->>'providerName',
+              'reason', 'Duplicate facility name'
             );
-            
-            v_imported_count := v_imported_count + 1;
+          ELSE
+            -- Generate stable internal code if not provided
+            DECLARE
+              v_stable_code text;
+            BEGIN
+              v_stable_code := coalesce(
+                upper(trim(v_record->>'providerCode')), 
+                'NMIS-FAC-' || upper(substring(gen_random_uuid()::text from 1 for 8))
+              );
+
+              INSERT INTO public.providers (
+                provider_code, provider_name, category, subcategory, ownership, state, lga, address, status
+              ) VALUES (
+                v_stable_code,
+                trim(v_record->>'providerName'),
+                v_category,
+                v_record->>'subcategory',
+                v_ownership,
+                'Ondo',
+                coalesce(v_record->>'lga', 'Unknown'),
+                v_record->>'address',
+                'Active'
+              );
+              
+              v_imported_count := v_imported_count + 1;
+            END;
           END IF;
         END;
 
@@ -290,6 +301,11 @@ BEGIN
 
     EXCEPTION WHEN OTHERS THEN
       v_error_count := v_error_count + 1;
+      v_rejected_rows := v_rejected_rows || jsonb_build_object(
+        'row', v_record->>'sourceRow',
+        'name', v_record->>'providerName',
+        'reason', SQLERRM
+      );
     END;
   END LOOP;
 
@@ -300,7 +316,10 @@ BEGIN
       duplicate_rows = v_duplicate_count,
       error_rows = v_error_count,
       unmatched_providers = v_unmatched_count,
-      uploaded_at = now()
+      metadata = metadata || jsonb_build_object(
+        'importedAt', now(),
+        'rejectedRows', v_rejected_rows
+      )
   WHERE id = v_batch_id;
 
   -- 5. Audit Trail

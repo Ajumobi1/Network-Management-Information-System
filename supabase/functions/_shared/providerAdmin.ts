@@ -50,19 +50,36 @@ export class ProviderAdminError extends Error {
 }
 
 export type RegisterProviderPayload = {
-  provider_code: string;
+  provider_code?: string | null;
   provider_name: string;
   category: string;
   subcategory: string | null;
   ownership: string;
   state: string;
   lga: string;
+  address?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  bank_name?: string | null;
+  account_name?: string | null;
+  account_number?: string | null;
 };
 
-export type EditOperationalPayload = {
+export type EditProviderPayload = {
+  provider_name?: string;
+  category?: string;
   subcategory?: string | null;
+  ownership?: string;
   state?: string;
   lga?: string;
+  address?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  bank_name?: string | null;
+  account_name?: string | null;
+  account_number?: string | null;
 };
 
 export type LifecyclePayload = {
@@ -71,7 +88,7 @@ export type LifecyclePayload = {
 
 export type ValidatedProviderAdminCommand =
   | { command: 'register'; providerId: null; payload: RegisterProviderPayload }
-  | { command: 'edit_operational'; providerId: string; payload: EditOperationalPayload }
+  | { command: 'edit_operational'; providerId: string; payload: EditProviderPayload }
   | { command: 'change_lifecycle'; providerId: string; payload: LifecyclePayload };
 
 const categories = new Set([
@@ -152,34 +169,68 @@ export function validateProviderAdminCommand(input: unknown): ValidatedProviderA
 
   if (action === 'register') {
     if (input.providerId !== undefined && input.providerId !== null) validationError('providerId is not allowed for provider registration.');
-    assertExactKeys(input.payload, ['provider_code', 'provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga']);
+    assertExactKeys(input.payload, ['provider_code', 'provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga', 'address', 'contact_person', 'phone', 'email', 'bank_name', 'account_name', 'account_number']);
 
-    const provider_code = requiredString(input.payload.provider_code, 'provider_code', 64).toUpperCase();
-    if (!providerCodePattern.test(provider_code)) validationError('The provider_code format is invalid.');
+    const provider_code = optionalString(input.payload.provider_code, 'provider_code', 64)?.toUpperCase();
+    if (provider_code && !providerCodePattern.test(provider_code)) validationError('The provider_code format is invalid.');
     const provider_name = requiredString(input.payload.provider_name, 'provider_name', 160);
     const category = requiredString(input.payload.category, 'category', 120);
     const ownership = requiredString(input.payload.ownership, 'ownership', 120);
     const state = requiredString(input.payload.state, 'state', 120);
     const lga = requiredString(input.payload.lga, 'lga', 120);
     const subcategory = optionalString(input.payload.subcategory, 'subcategory', 160) ?? null;
+    const address = optionalString(input.payload.address, 'address', 255);
+    const contact_person = optionalString(input.payload.contact_person, 'contact_person', 160);
+    const phone = optionalString(input.payload.phone, 'phone', 32);
+    const email = optionalString(input.payload.email, 'email', 160);
+    const bank_name = optionalString(input.payload.bank_name, 'bank_name', 160);
+    const account_name = optionalString(input.payload.account_name, 'account_name', 160);
+    const account_number = optionalString(input.payload.account_number, 'account_number', 32);
 
     if (!categories.has(category)) validationError('The provider category is invalid.');
     if (!ownerships.has(ownership)) validationError('The provider ownership is invalid.');
 
-    return { command: 'register', providerId: null, payload: { provider_code, provider_name, category, subcategory, ownership, state, lga } };
+    return { command: 'register', providerId: null, payload: { provider_code, provider_name, category, subcategory, ownership, state, lga, address, contact_person, phone, email, bank_name, account_name, account_number } };
   }
 
   const id = providerId(input.providerId);
   if (action === 'edit_operational') {
-    assertExactKeys(input.payload, ['subcategory', 'state', 'lga']);
-    const payload: EditOperationalPayload = {};
+    assertExactKeys(input.payload, ['provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga', 'address', 'contact_person', 'phone', 'email', 'bank_name', 'account_name', 'account_number']);
+    const payload: EditProviderPayload = {};
+    
+    if ('provider_name' in input.payload) payload.provider_name = requiredString(input.payload.provider_name, 'provider_name', 160);
+    if ('category' in input.payload) {
+      payload.category = requiredString(input.payload.category, 'category', 120);
+      if (!categories.has(payload.category)) validationError('The provider category is invalid.');
+    }
+    if ('ownership' in input.payload) {
+      payload.ownership = requiredString(input.payload.ownership, 'ownership', 120);
+      if (!ownerships.has(payload.ownership)) validationError('The provider ownership is invalid.');
+    }
+    
     const subcategory = optionalString(input.payload.subcategory, 'subcategory', 160);
     const state = optionalString(input.payload.state, 'state', 120);
     const lga = optionalString(input.payload.lga, 'lga', 120);
+    const address = optionalString(input.payload.address, 'address', 255);
+    const contact_person = optionalString(input.payload.contact_person, 'contact_person', 160);
+    const phone = optionalString(input.payload.phone, 'phone', 32);
+    const email = optionalString(input.payload.email, 'email', 160);
+    const bank_name = optionalString(input.payload.bank_name, 'bank_name', 160);
+    const account_name = optionalString(input.payload.account_name, 'account_name', 160);
+    const account_number = optionalString(input.payload.account_number, 'account_number', 32);
+
     if (subcategory !== undefined) payload.subcategory = subcategory;
     if (state !== undefined) payload.state = state ?? undefined;
     if (lga !== undefined) payload.lga = lga ?? undefined;
-    if (Object.keys(payload).length === 0) validationError('At least one approved operational field is required.');
+    if (address !== undefined) payload.address = address;
+    if (contact_person !== undefined) payload.contact_person = contact_person;
+    if (phone !== undefined) payload.phone = phone;
+    if (email !== undefined) payload.email = email;
+    if (bank_name !== undefined) payload.bank_name = bank_name;
+    if (account_name !== undefined) payload.account_name = account_name;
+    if (account_number !== undefined) payload.account_number = account_number;
+
+    if (Object.keys(payload).length === 0) validationError('At least one approved provider field is required.');
     return { command: 'edit_operational', providerId: id, payload };
   }
 
