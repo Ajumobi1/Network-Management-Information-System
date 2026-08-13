@@ -211,14 +211,15 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
     return items;
   }
 
-  const [result, countResult] = await Promise.all([
+  const [result, countResult, summaryResult] = await Promise.all([
     invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
       ...rpcFilters,
       p_offset: offset,
       p_page_size: pageSize,
       p_sort: 'provider_name',
     }),
-    invokeSecureRpc<number>('nmis_count_provider_directory', rpcFilters)
+    invokeSecureRpc<number>('nmis_count_provider_directory', rpcFilters),
+    invokeSecureRpc<any[]>('nmis_provider_directory_summary', rpcFilters)
   ]);
 
   const rawList = directoryRows(result).map(mapDirectoryRow);
@@ -226,9 +227,21 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
   const items = sorted.map((item, index) => ({
     ...item,
     providerCode: String(offset + index + 1).padStart(3, '0'),
-  })) as ProviderDirectoryItem[] & { totalCount: number };
+  })) as ProviderDirectoryItem[] & { totalCount?: number; activeCount?: number; pendingCount?: number; riskCount?: number };
+
   const totalCount = typeof countResult === 'number' ? countResult : items.length;
   items.totalCount = totalCount;
+
+  const summary = Array.isArray(summaryResult) && summaryResult.length > 0 ? summaryResult[0] : null;
+  if (summary) {
+    items.activeCount = Number(summary.active_providers ?? totalCount);
+    items.pendingCount = Number(summary.pending_providers ?? 0);
+    items.riskCount = Number(summary.risk_providers ?? 0);
+  } else {
+    items.activeCount = totalCount;
+    items.pendingCount = 0;
+    items.riskCount = 0;
+  }
 
   return items;
 }

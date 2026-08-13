@@ -50,9 +50,9 @@ export default function ProviderPage() {
 
   const stats = useMemo(() => ({
     total: totalCount,
-    active: providers.filter(p => p.status === 'active').length,
-    pending: providers.filter(p => p.status === 'pending').length,
-    risk: providers.filter(p => ['suspended', 'blacklisted', 'expired'].includes(p.status)).length,
+    active: (providers as any).activeCount ?? totalCount,
+    pending: (providers as any).pendingCount ?? 0,
+    risk: (providers as any).riskCount ?? 0,
   }), [totalCount, providers]);
 
   if (isError) {
