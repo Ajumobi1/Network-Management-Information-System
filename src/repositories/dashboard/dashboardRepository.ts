@@ -1,5 +1,6 @@
 import { useMockData } from '../common';
 import { invokeSecureRpc } from '../contracts/secureRpcRepository';
+import { SecureContractError } from '../../lib/security/secureContracts';
 import * as dashboardMocks from '../../mocks/dashboardMocks';
 import { getProviderDirectory } from '../providers/providersRepository';
 import { ProviderLifecycleStatus } from '../../constants/providerNetwork';
@@ -362,17 +363,42 @@ function buildAttentionItems(
   return items.slice(0, 6);
 }
 
+function getEmptyIntelligence(filters: DashboardFilters): Dashboard2Intelligence {
+  return {
+    reportingPeriod: filters.year && filters.month ? `${filters.year}-${String(filters.month).padStart(2, '0')}` : filters.year ? String(filters.year) : 'All periods',
+    lastUpdatedAt: new Date().toISOString(),
+    provider: { total: 0, active: 0, inactive: 0, byLga: [], byFacilityType: [], byOwnership: [], byLifecycle: [] },
+    population: { total: 0, formal: 0, informal: 0, principal: 0, dependant: 0, bySector: [], byCategory: [], byLga: [], topFacilities: [], monthlyTrend: [] },
+    financial: { totalExpenditure: 0, claims: 0, capitation: 0, ffs: 0, byFundingType: [], monthlyTrend: [], topLgas: [], topProviders: [] },
+    efficiency: { networkPepm: 0, bySector: [], byLga: [], byProvider: [], trend: [] },
+    managementAttention: [],
+    recentActivity: [],
+    filterOptions: { years: [], months: [], states: [], lgas: [], facilityTypes: [], ownerships: [] },
+    matchedFinancialRecords: 0,
+    unmatchedProviderCount: 0,
+  };
+}
+
 export async function fetchDashboardIntelligence(filters: DashboardFilters = {}): Promise<Dashboard2Intelligence> {
   if (!useMockData) {
-    return invokeSecureRpc<Dashboard2Intelligence>('nmis_dashboard_intelligence', {
-      p_year: filters.year ?? null,
-      p_month: filters.month ?? null,
-      p_sector: normalizeValue(filters.sector),
-      p_state: normalizeValue(filters.state),
-      p_lga: normalizeValue(filters.lga),
-      p_facility_type: normalizeValue(filters.facilityType),
-      p_ownership: normalizeValue(filters.ownership),
-    });
+    try {
+      return await invokeSecureRpc<Dashboard2Intelligence>('nmis_dashboard_intelligence', {
+        p_year: filters.year ?? null,
+        p_month: filters.month ?? null,
+        p_sector: normalizeValue(filters.sector),
+        p_state: normalizeValue(filters.state),
+        p_lga: normalizeValue(filters.lga),
+        p_facility_type: normalizeValue(filters.facilityType),
+        p_ownership: normalizeValue(filters.ownership),
+      });
+    } catch (error) {
+      // Fallback to empty state if secure contract is unavailable or restricted
+      // This allows the dashboard to render with zeros in a clean-slate state
+      if (error instanceof SecureContractError && (error.code === 'SECURE_CONTRACT_UNAVAILABLE' || error.code === 'ACCESS_RESTRICTED')) {
+        return getEmptyIntelligence(filters);
+      }
+      throw error;
+    }
   }
 
   const providerDirectory = await getProviderDirectory();

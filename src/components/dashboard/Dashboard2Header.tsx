@@ -14,9 +14,9 @@ function humanizePeriod(period?: string): string {
 }
 
 function formatTimestamp(timestamp?: string): string {
-  if (!timestamp) return 'Source timestamp unavailable';
+  if (!timestamp) return 'Never';
   const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return 'Source timestamp unavailable';
+  if (Number.isNaN(date.getTime())) return 'Never';
   return new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
