@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS financial_records (
     amount_approved DECIMAL(18, 2),
     amount_paid DECIMAL(18, 2),
     net_amount_paid DECIMAL(18, 2),
+    claims_category TEXT,
     
     -- Volume fields
     claim_count INTEGER,
@@ -183,6 +184,7 @@ CREATE TABLE IF NOT EXISTS enrollees (
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     gender TEXT NOT NULL,
+    date_of_birth DATE,
     phone_number TEXT,
 
     -- Provider Directory association; source facility values remain in metadata

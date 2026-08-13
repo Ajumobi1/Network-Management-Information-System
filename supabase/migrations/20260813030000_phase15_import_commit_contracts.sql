@@ -191,7 +191,12 @@ BEGIN
           END IF;
 
           -- Check if provider already exists by name or ID
-          v_provider_id := (v_record->>'id')::uuid;
+          BEGIN
+            v_provider_id := (v_record->>'id')::uuid;
+          EXCEPTION WHEN OTHERS THEN
+            v_provider_id := NULL;
+          END;
+
           IF v_provider_id IS NULL THEN
             SELECT id INTO v_provider_id FROM public.providers WHERE lower(trim(provider_name)) = lower(trim(v_record->>'providerName'));
           END IF;
@@ -240,7 +245,11 @@ BEGIN
 
       -- Handle Financial Records (Claims, Capitation, FFS)
       ELSIF p_data_type IN ('claims', 'capitation', 'ffs') THEN
-        v_provider_id := (v_record->>'providerId')::uuid;
+        BEGIN
+          v_provider_id := (v_record->>'providerId')::uuid;
+        EXCEPTION WHEN OTHERS THEN
+          v_provider_id := NULL;
+        END;
         
         IF v_provider_id IS NULL THEN
           v_unmatched_count := v_unmatched_count + 1;
@@ -251,7 +260,7 @@ BEGIN
           provider_id, provider_code, provider_name, facility_type, ownership, state, lga,
           reporting_year, reporting_month, period, data_type,
           amount_submitted, amount_approved, amount_paid, net_amount_paid,
-          claims_category, claim_count, source_file, import_batch_id
+          claims_category, claim_count, source_file, import_batch_id, fingerprint
         ) VALUES (
           v_provider_id,
           v_record->>'providerCode',
@@ -271,18 +280,28 @@ BEGIN
           v_record->>'claimsCategory',
           (v_record->>'claimCount')::integer,
           p_file_name,
-          v_batch_id
-        );
-        v_imported_count := v_imported_count + 1;
+          v_batch_id,
+          v_record->>'fingerprint'
+        ) ON CONFLICT (fingerprint) DO NOTHING;
+
+        IF FOUND THEN
+          v_imported_count := v_imported_count + 1;
+        ELSE
+          v_duplicate_count := v_duplicate_count + 1;
+        END IF;
 
       -- Handle Enrolment Data
       ELSIF p_data_type = 'enrolment' THEN
-        v_provider_id := (v_record->>'providerId')::uuid;
+        BEGIN
+          v_provider_id := (v_record->>'providerId')::uuid;
+        EXCEPTION WHEN OTHERS THEN
+          v_provider_id := NULL;
+        END;
         
         INSERT INTO public.enrollees (
           policy_number, first_name, last_name, gender, date_of_birth,
           sector, category, state, lga, provider_id, provider_name,
-          reporting_year, reporting_month, period, import_batch_id
+          reporting_year, reporting_month, period, import_batch_id, fingerprint
         ) VALUES (
           upper(replace(v_record->>'policyNumber', ' ', '')),
           trim(v_record->>'firstName'),
@@ -298,9 +317,10 @@ BEGIN
           (v_record->>'reportingYear')::integer,
           (v_record->>'reportingMonth')::integer,
           v_record->>'period',
-          v_batch_id
-        ) ON CONFLICT (policy_number, period) DO NOTHING;
-        
+          v_batch_id,
+          v_record->>'fingerprint'
+        ) ON CONFLICT (fingerprint) DO NOTHING;
+
         IF FOUND THEN
           v_imported_count := v_imported_count + 1;
         ELSE
