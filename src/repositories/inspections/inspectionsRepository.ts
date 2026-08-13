@@ -3,6 +3,7 @@ import { SecureContractError } from '../../lib/security/secureContracts';
 import { useMockData } from '../common';
 import { apiMocks } from '../../mocks';
 import { InspectionsRow } from '../../lib/supabase/database.types';
+import { InspectionChecklistItem } from '../../types/inspections/inspectionsTypes';
 
 export interface InspectionRecord {
   id: string;
@@ -82,9 +83,9 @@ export async function getInspectionById(id: string): Promise<InspectionRecord | 
   return list.find(i => i.id === id) || null;
 }
 
-export async function getInspectionChecklist(inspectionId: string) {
+export async function getInspectionChecklist(inspectionId: string): Promise<InspectionChecklistItem[]> {
   if (useMockData) {
-    return apiMocks.getInspectionChecklist(inspectionId);
+    return apiMocks.getInspectionChecklist(inspectionId) as any;
   }
   return [];
 }

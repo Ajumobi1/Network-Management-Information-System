@@ -21,11 +21,7 @@ type ManagedUser = {
   isActive: boolean;
 };
 
-const initialUsers: ManagedUser[] = [
-  { id: '1', name: 'Daphne Harrison', email: 'daphne@nmis.org', role: 'network-officer', isActive: true },
-  { id: '2', name: 'Peter Miles', email: 'peter@nmis.org', role: 'claims', isActive: true },
-  { id: '3', name: 'Aisha Quinn', email: 'aisha@nmis.org', role: 'inspector', isActive: false },
-];
+const initialUsers: ManagedUser[] = [];
 
 export default function ManageUsersPage() {
   const [users, setUsers] = useState<ManagedUser[]>(initialUsers);
@@ -148,40 +144,46 @@ export default function ManageUsersPage() {
         </div>
 
         <div className="overflow-hidden rounded-3xl border border-slate-200">
-          <table className="w-full border-separate border-spacing-0 text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
-              <tr>
-                <th className="px-6 py-4">Name</th>
-                <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white">
-              {users.map(user => (
-                <tr key={user.id} className="border-t border-slate-200">
-                  <td className="px-6 py-4 text-slate-900">{user.name}</td>
-                  <td className="px-6 py-4 text-slate-600">{user.email}</td>
-                  <td className="px-6 py-4 text-slate-600">{user.role.replace('-', ' ')}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {user.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      type="button"
-                      onClick={() => toggleUserActive(user.id)}
-                      className="rounded-2xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                    >
-                      {user.isActive ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </td>
+          {users.length === 0 ? (
+            <div className="p-12 text-center text-slate-500 font-medium bg-slate-50">
+              No active users found.
+            </div>
+          ) : (
+            <table className="w-full border-separate border-spacing-0 text-left text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="px-6 py-4">Name</th>
+                  <th className="px-6 py-4">Email</th>
+                  <th className="px-6 py-4">Role</th>
+                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white">
+                {users.map(user => (
+                  <tr key={user.id} className="border-t border-slate-200">
+                    <td className="px-6 py-4 text-slate-900">{user.name}</td>
+                    <td className="px-6 py-4 text-slate-600">{user.email}</td>
+                    <td className="px-6 py-4 text-slate-600">{user.role.replace('-', ' ')}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                        {user.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        type="button"
+                        onClick={() => toggleUserActive(user.id)}
+                        className="rounded-2xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                      >
+                        {user.isActive ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </section>
     </div>

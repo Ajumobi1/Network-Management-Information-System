@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, FileText, LayoutGrid, PieChart, Users, Calendar, CheckCircle2, Clock, Settings } from 'lucide-react';
+import { Download, FileText, PieChart, Users, Calendar, CheckCircle2, Clock, Settings } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -44,12 +44,7 @@ export default function ReportsPage() {
     },
   ];
 
-  const templates = [
-    { name: 'Monthly compliance summary', status: 'Active', lastUsed: '2 days ago' },
-    { name: 'Inspection completion chart', status: 'Active', lastUsed: '1 week ago' },
-    { name: 'Provider onboarding trend', status: 'Draft', lastUsed: 'Never' },
-    { name: 'Credentialing status overview', status: 'Active', lastUsed: '3 days ago' },
-  ];
+  const templates: any[] = [];
 
   return (
     <main className="nmis-page">
@@ -98,26 +93,34 @@ export default function ReportsPage() {
             <Button variant="secondary" size="sm" disabled>New Template (Soon)</Button>
           </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            {templates.map(item => (
-              <div key={item.name} className="flex items-center justify-between p-4 rounded-control border border-brand-divider bg-brand-surface hover:border-brand-blue/30 transition-colors group">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 rounded-lg bg-brand-soft text-brand-blue">
-                    <FileText size={18} />
-                  </div>
-                  <div>
-                    <p className="font-bold text-brand-foreground group-hover:text-brand-blue transition-colors">{item.name}</p>
-                    <div className="mt-1 flex items-center gap-3">
-                      <span className="text-[10px] font-bold uppercase text-brand-muted flex items-center gap-1">
-                        <Clock size={10} /> {item.lastUsed}
-                      </span>
-                      <Badge variant={item.status === 'Active' ? 'success' : 'default'} size="sm">{item.status}</Badge>
-                    </div>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm" disabled><Settings size={14} /></Button>
+          <div className="mt-6">
+            {templates.length === 0 ? (
+              <div className="p-12 text-center text-slate-500 font-medium bg-brand-surface rounded-control border border-dashed border-brand-divider">
+                No saved templates found.
               </div>
-            ))}
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                {templates.map(item => (
+                  <div key={item.name} className="flex items-center justify-between p-4 rounded-control border border-brand-divider bg-brand-surface hover:border-brand-blue/30 transition-colors group">
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded-lg bg-brand-soft text-brand-blue">
+                        <FileText size={18} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-brand-foreground group-hover:text-brand-blue transition-colors">{item.name}</p>
+                        <div className="mt-1 flex items-center gap-3">
+                          <span className="text-[10px] font-bold uppercase text-brand-muted flex items-center gap-1">
+                            <Clock size={10} /> {item.lastUsed}
+                          </span>
+                          <Badge variant={item.status === 'Active' ? 'success' : 'default'} size="sm">{item.status}</Badge>
+                        </div>
+                      </div>
+                    </div>
+                    <button className="text-brand-muted hover:text-brand-blue transition-colors"><Settings size={14} /></button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </Card>
 

@@ -1,35 +1,44 @@
-import { fetchTable, fetchSingle, insertRow, updateRow, useMockData } from '../common';
+import { useMockData } from '../common';
 import { apiMocks } from '../../mocks';
-import { ContractsRow } from '../../lib/supabase/database.types';
+import { ProviderContract, ContractSummary } from '../../types/contracts/contractTypes';
+import { supabase } from '../../lib/supabase/supabaseClient';
+import { SecureContractError } from '../../lib/security/secureContracts';
 
-export async function getContracts() {
+export async function getContracts(): Promise<ProviderContract[]> {
   if (useMockData) {
-    return apiMocks.getContracts();
+    const mockList = await apiMocks.getContracts();
+    return (mockList || []).map((c: any) => ({
+      id: c.id,
+      providerId: c.provider_id,
+      providerName: 'Provider Facility',
+      providerCode: 'NMIS-FAC',
+      category: 'hospital' as any,
+      ownership: 'Private' as any,
+      contractType: 'Full Service',
+      startDate: c.start_date,
+      endDate: c.end_date,
+      status: 'Active' as any,
+    }));
   }
 
-  return fetchTable<ContractsRow>('contracts');
+  const { data, error } = await supabase.rpc('nmis_list_contracts');
+
+  if (error) {
+    const code = error.code === 'P0001' && error.message.includes('ACCESS_RESTRICTED')
+      ? 'ACCESS_RESTRICTED'
+      : 'SECURE_CONTRACT_UNAVAILABLE';
+    throw new SecureContractError(code, error.message || 'Failed to list contracts');
+  }
+
+  return (data || []) as ProviderContract[];
 }
 
-export async function getContractById(id: string) {
-  if (useMockData) {
-    return apiMocks.getContractById(id);
-  }
-
-  return fetchSingle<ContractsRow>('contracts', 'id', id);
-}
-
-export async function createContract(payload: Partial<ContractsRow>) {
-  if (useMockData) {
-    return apiMocks.createContract(payload);
-  }
-
-  return insertRow<ContractsRow>('contracts', payload);
-}
-
-export async function updateContract(id: string, payload: Partial<ContractsRow>) {
-  if (useMockData) {
-    return apiMocks.updateContract(id, payload);
-  }
-
-  return updateRow<ContractsRow>('contracts', id, payload);
+export async function getContractSummary(): Promise<ContractSummary> {
+  const contracts = await getContracts();
+  return {
+    totalCount: contracts.length,
+    activeCount: contracts.filter(c => c.status === 'Active').length,
+    renewalCount: contracts.filter(c => c.status === 'Renewal').length,
+    expiredCount: contracts.filter(c => c.status === 'Expired').length,
+  };
 }

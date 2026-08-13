@@ -18,10 +18,7 @@ export const providerDocumentsRepository = {
   async listDocuments(providerId: string): Promise<ProviderDocumentRecord[]> {
     if (useMockData) {
       const provider = providerDirectory.find((p: { id: string }) => p.id === providerId);
-      return ((provider as any)?.documents || [
-        { id: 'doc-1', type: 'Operating License', version: '2026', status: 'Approved', expiryDate: '2027-01-01' },
-        { id: 'doc-2', type: 'Malpractice Insurance', version: '1.2', status: 'Approved', expiryDate: '2026-11-30' },
-      ]).map((doc: { id?: string; type: string; expiryDate?: string; version?: string; status?: string }, idx: number) => ({
+      return ((provider as any)?.documents || []).map((doc: { id?: string; type: string; expiryDate?: string; version?: string; status?: string }, idx: number) => ({
         id: doc.id || `doc-${idx}`,
         provider_id: providerId,
         type: doc.type,

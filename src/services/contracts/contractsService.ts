@@ -1,18 +1,11 @@
 import * as contractsRepository from '../../repositories/contracts';
-import { ContractsRow } from '../../lib/supabase/database.types';
+import { ProviderContract } from '../../types/contracts/contractTypes';
 
-export async function fetchContracts(): Promise<ContractsRow[]> {
+export async function fetchContracts(): Promise<ProviderContract[]> {
   return contractsRepository.getContracts();
 }
 
-export async function fetchContractById(id: string): Promise<ContractsRow> {
-  return contractsRepository.getContractById(id);
-}
-
-export async function createContract(payload: Partial<ContractsRow>): Promise<ContractsRow> {
-  return contractsRepository.createContract(payload);
-}
-
-export async function updateContract(id: string, payload: Partial<ContractsRow>): Promise<ContractsRow> {
-  return contractsRepository.updateContract(id, payload);
+export async function fetchContractById(id: string): Promise<ProviderContract | null> {
+  const contracts = await contractsRepository.getContracts();
+  return contracts.find(c => c.id === id) || null;
 }
