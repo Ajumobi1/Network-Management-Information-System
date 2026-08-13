@@ -6,6 +6,9 @@ const developmentBuild = process.env.NODE_ENV !== 'production';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    allowedHosts: true,
+  },
   resolve: {
     alias: {
       '@nmis/mock-auth': path.resolve(
