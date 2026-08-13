@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { CalendarDays, ChevronDown, Filter, RefreshCw } from 'lucide-react';
+import { CalendarDays, ChevronDown, Filter } from 'lucide-react';
 import ActiveFilterChips from '../ui/ActiveFilterChips';
 import Select from '../ui/Select';
-import { DashboardFilterOptions, DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTypes';
+import { DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTypes';
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -13,23 +13,16 @@ function humanizePeriod(period?: string): string {
   return `${monthNames[Number(month) - 1] || month} ${year}`;
 }
 
-function formatTimestamp(timestamp?: string): string {
-  if (!timestamp) return 'Never';
-  const date = new Date(timestamp);
-  if (Number.isNaN(date.getTime())) return 'Never';
-  return new Intl.DateTimeFormat('en-NG', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-}
-
 type Dashboard2HeaderProps = {
   filters: DashboardFilters;
-  options: DashboardFilterOptions;
+  options: { years: number[]; months: number[]; states: string[]; lgas: string[]; facilityTypes: string[]; ownerships: string[] };
   reportingPeriod: string;
   lastUpdatedAt?: string;
   onChange: <K extends keyof DashboardFilters>(key: K, value: DashboardFilters[K]) => void;
   onClear: () => void;
 };
 
-export default function Dashboard2Header({ filters, options, reportingPeriod, lastUpdatedAt, onChange, onClear }: Dashboard2HeaderProps) {
+export default function Dashboard2Header({ filters, options, reportingPeriod, onChange, onClear }: Dashboard2HeaderProps) {
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const activeFilterChips = [
     filters.year ? { id: 'year', label: 'Year', value: String(filters.year) } : null,
@@ -60,7 +53,6 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
             <h1 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Network Management Information System</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">A single operating view of provider coverage, population protection, processed expenditure, and the issues requiring management attention.</p>
           </div>
-          <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-slate-200"><span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" /><span className="font-semibold text-white">Data source: Supabase staging (Live)</span></div>
         </div>
       </div>
 
@@ -95,5 +87,3 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
     </section>
   );
 }
-
-
