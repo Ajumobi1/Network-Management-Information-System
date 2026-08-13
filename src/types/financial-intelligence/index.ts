@@ -20,6 +20,16 @@ export interface FinancialIntelligenceBreakdown {
   secondaryValue?: number;
 }
 
+export interface FinancialException {
+  id: string;
+  type: 'variance' | 'missing-data' | 'anomalous-pepm' | 'data-quality';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  providerName: string;
+  providerCode: string;
+  description: string;
+  detectedAt: string;
+}
+
 export interface FinancialIntelligenceSummary {
   totalExpenditure: number;
   claimsExpenditure: number;
@@ -31,8 +41,26 @@ export interface FinancialIntelligenceSummary {
   pepm: number;
   providerCount: number;
   financialRecordCount: number;
+  
+  // Rankings & Trends
   providerRanking: FinancialIntelligenceBreakdown[];
   lgaRanking: FinancialIntelligenceBreakdown[];
   monthlyTrend: FinancialIntelligenceBreakdown[];
   expenditureMix: FinancialIntelligenceBreakdown[];
+  
+  // Phase 12 Distributions
+  byFacilityType: FinancialIntelligenceBreakdown[];
+  byOwnership: FinancialIntelligenceBreakdown[];
+  byState: FinancialIntelligenceBreakdown[];
+  
+  // Phase 12 Exceptions
+  exceptions: FinancialException[];
+  
+  // Period Comparison (Current vs Previous)
+  comparison?: {
+    amountChange: number;
+    percentageChange: number;
+    pepmChange: number;
+    enrolmentChange: number;
+  };
 }
