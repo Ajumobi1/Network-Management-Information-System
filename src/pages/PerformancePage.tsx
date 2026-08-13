@@ -1,171 +1,229 @@
-import React, { useMemo } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart } from 'recharts';
-import { Award, Building2, ChevronRight, Target, TrendingDown, TrendingUp, ShieldCheck, Activity } from 'lucide-react';
-import Badge from '../components/ui/Badge';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
-import KpiCard from '../components/ui/KpiCard';
-import PageHeader from '../components/ui/PageHeader';
-import { usePerformanceStats, useProviderRankings } from '../hooks/performance/performanceHooks';
-import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
-import { ChartCard, SectionHeader } from '../components/ui/LayoutComponents';
+import { useState } from 'react';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Award, Building2, ShieldAlert, Target, TrendingUp, AlertTriangle } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
+import { useProviderPerformanceRecords, useProviderPerformanceSummary } from '../hooks/performance/providerPerformanceHooks';
+import { PerformanceFilters, PerformanceRating } from '../types/performance/providerPerformanceTypes';
+import { ProviderCategory, ProviderOwnership } from '../types/providers/providerTypes';
 
-const chartColors = ['#0b3d91', '#0f9d8a', '#d97706', '#7c3aed', '#be123c'];
+const ratingColors: Record<PerformanceRating, string> = {
+  'Excellent': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+  'Good': 'bg-blue-100 text-blue-800 border-blue-200',
+  'Satisfactory': 'bg-slate-100 text-slate-800 border-slate-200',
+  'Needs Improvement': 'bg-amber-100 text-amber-800 border-amber-200',
+  'Critical': 'bg-rose-100 text-rose-800 border-rose-200',
+};
 
 export default function PerformancePage() {
-  const { data: stats, isLoading: isStatsLoading, isError: isStatsError } = usePerformanceStats();
-  const { data: rankings = [], isLoading: isRankingsLoading, isError: isRankingsError } = useProviderRankings();
+  const [filters, setFilters] = useState<PerformanceFilters>({
+    search: '',
+    period: '2026-Q3',
+    rating: 'all',
+    category: 'all',
+    ownership: 'all',
+    state: 'all',
+    attentionOnly: false,
+  });
 
-  const complianceTrend = [
-    { name: 'Mar', score: 84 },
-    { name: 'Apr', score: 86 },
-    { name: 'May', score: 85 },
-    { name: 'Jun', score: 89 },
-    { name: 'Jul', score: 91 },
-    { name: 'Aug', score: 92 },
-  ];
+  const { data: summary, isLoading: isSummaryLoading } = useProviderPerformanceSummary();
+  const { data: records = [], isLoading: isRecordsLoading } = useProviderPerformanceRecords(filters);
 
-  if (isStatsLoading || isRankingsLoading) return <main className="nmis-page"><LoadingState title="Calculating network performance..." /></main>;
-  if (isStatsError || isRankingsError) return <main className="nmis-page"><ErrorState title="Performance data unavailable" /></main>;
+  const distributionData = summary ? [
+    { rating: 'Excellent', count: summary.ratingDistribution['Excellent'] },
+    { rating: 'Good', count: summary.ratingDistribution['Good'] },
+    { rating: 'Satisfactory', count: summary.ratingDistribution['Satisfactory'] },
+    { rating: 'Needs Improvement', count: summary.ratingDistribution['Needs Improvement'] },
+    { rating: 'Critical', count: summary.ratingDistribution['Critical'] },
+  ] : [];
 
   return (
-    <main className="nmis-page">
-      <div className="space-y-6">
+    <main className="min-h-screen bg-slate-50 px-4 py-8">
+      <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
-          eyebrow="Quality & Compliance"
-          title="Network Performance"
-          subtitle="Monitor provider performance metrics, quality scores, and compliance trends across the network."
-          actions={<Button variant="secondary" disabled>View Analytics (Soon)</Button>}
+          title="Provider performance management"
+          description="Consolidated quality scores, inspection ratings, compliance records, and management attention tracking."
+          actions={[{ label: 'Export Performance Report', onClick: () => alert('Exporting performance register CSV...') }]}
         />
 
-        <section className="grid gap-4 md:grid-cols-4">
-          <KpiCard title="Network Quality Score" value={`${stats?.averageScore}%`} subtitle="Avg inspection score" tone="primary" icon={<Award size={20} />} />
-          <KpiCard title="Above Target" value={`${stats?.aboveTargetCount}`} subtitle="Meeting 85% threshold" tone="success" icon={<Target size={20} />} />
-          <KpiCard title="Underperforming" value={`${stats?.underperformingCount}`} subtitle="Below 70% threshold" tone="warning" icon={<TrendingDown size={20} />} />
-          <KpiCard title="Facilities Monitored" value={`${stats?.totalMonitored}`} subtitle="Total active providers" tone="info" icon={<Building2 size={20} />} />
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-2">
-          <ChartCard title="Quality score trend" subtitle="Network-wide average over the last 6 months.">
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={complianceTrend}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="score" stroke="#0b3d91" strokeWidth={3} dot={{ r: 4, fill: '#0b3d91' }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
+        {/* Summary KPIs */}
+        <div className="grid gap-6 lg:grid-cols-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">Evaluated Providers</p>
+              <Building2 className="text-indigo-600" size={20} />
             </div>
-          </ChartCard>
+            <p className="mt-4 text-3xl font-semibold text-slate-900">{isSummaryLoading ? '...' : summary?.totalEvaluated}</p>
+            <p className="mt-1 text-xs text-slate-500">Active network facilities</p>
+          </div>
 
-          <ChartCard title="Performance distribution" subtitle="Count of providers by score range.">
-            <div className="h-[300px]">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">Average Composite Score</p>
+              <Award className="text-emerald-600" size={20} />
+            </div>
+            <p className="mt-4 text-3xl font-semibold text-slate-900">{isSummaryLoading ? '...' : `${summary?.averageScore}%`}</p>
+            <p className="mt-1 text-xs text-slate-500">Weighted network quality</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">Management Attention</p>
+              <AlertTriangle className="text-rose-600" size={20} />
+            </div>
+            <p className="mt-4 text-3xl font-semibold text-rose-600">{isSummaryLoading ? '...' : summary?.attentionCount}</p>
+            <p className="mt-1 text-xs text-slate-500">Facilities requiring intervention</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">Inspection Compliance</p>
+              <Target className="text-blue-600" size={20} />
+            </div>
+            <p className="mt-4 text-3xl font-semibold text-slate-900">{isSummaryLoading ? '...' : `${summary?.inspectionComplianceRate}%`}</p>
+            <p className="mt-1 text-xs text-slate-500">Meeting regulatory benchmark</p>
+          </div>
+        </div>
+
+        {/* Rating Distribution Chart */}
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft lg:col-span-2">
+            <h2 className="text-lg font-semibold text-slate-900">Performance Rating Distribution</h2>
+            <p className="text-sm text-slate-500 mt-1">Breakdown of facilities across standard rating tiers.</p>
+            <div className="mt-6 h-[260px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[
-                  { range: '90-100', count: 4 },
-                  { range: '80-89', count: 8 },
-                  { range: '70-79', count: 3 },
-                  { range: '<70', count: 2 },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
-                  <XAxis dataKey="range" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <BarChart data={distributionData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="rating" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#0f9d8a" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" fill="#4f46e5" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </ChartCard>
-        </section>
+          </div>
 
-        <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <SectionHeader title="Top Provider Performers" subtitle="Facilities with the highest quality scores and compliance ratings." />
-            <div className="mt-6 overflow-x-auto">
-              <table className="nmis-table">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft flex flex-col justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Scoring Model</h2>
+              <p className="text-sm text-slate-500 mt-1">Composite score weighting methodology.</p>
+              <div className="mt-6 space-y-4 text-sm">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-slate-600">Inspection Audit</span>
+                  <span className="font-semibold text-slate-900">35%</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-slate-600">Credentialing & Licensing</span>
+                  <span className="font-semibold text-slate-900">25%</span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-slate-600">Complaint Resolution</span>
+                  <span className="font-semibold text-slate-900">20%</span>
+                </div>
+                <div className="flex justify-between items-center pb-2">
+                  <span className="text-slate-600">Financial / Capitation</span>
+                  <span className="font-semibold text-slate-900">20%</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 rounded-2xl bg-amber-50 p-4 border border-amber-200">
+              <p className="text-xs font-semibold text-amber-800">Intervention Policy</p>
+              <p className="mt-1 text-xs text-amber-700">Facilities scoring below 70% or flagged with critical inspection failures enter mandatory review.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters & Register */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-soft space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <input
+              type="text"
+              placeholder="Search provider name, code, LGA..."
+              value={filters.search}
+              onChange={e => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none min-w-[280px]"
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                value={filters.rating}
+                onChange={e => setFilters(prev => ({ ...prev, rating: e.target.value as any }))}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="all">All Ratings</option>
+                <option value="Excellent">Excellent</option>
+                <option value="Good">Good</option>
+                <option value="Satisfactory">Satisfactory</option>
+                <option value="Needs Improvement">Needs Improvement</option>
+                <option value="Critical">Critical</option>
+              </select>
+
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer bg-slate-50 px-3 py-2 rounded-xl border border-slate-200">
+                <input
+                  type="checkbox"
+                  checked={filters.attentionOnly}
+                  onChange={e => setFilters(prev => ({ ...prev, attentionOnly: e.target.checked }))}
+                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                Attention Required Only
+              </label>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            {isRecordsLoading ? (
+              <div className="p-8 text-center text-slate-500">Loading performance register...</div>
+            ) : records.length === 0 ? (
+              <div className="p-8 text-center text-slate-500">No facilities found matching performance criteria.</div>
+            ) : (
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr>
-                    <th>Provider</th>
-                    <th className="text-center">Quality Score</th>
-                    <th className="text-center">Compliance</th>
-                    <th>Rating</th>
-                    <th className="text-right">Trend</th>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="px-6 py-3">Facility</th>
+                    <th className="px-6 py-3">Rating</th>
+                    <th className="px-6 py-3 text-center">Composite Score</th>
+                    <th className="px-6 py-3 text-center">Inspection</th>
+                    <th className="px-6 py-3 text-center">Credentialing</th>
+                    <th className="px-6 py-3 text-center">Complaints</th>
+                    <th className="px-6 py-3">Attention / Reason</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {rankings.map((item, index) => (
-                    <tr key={item.providerId}>
-                      <td>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs font-bold text-brand-muted">{index + 1}.</span>
-                          <div>
-                            <p className="font-bold text-brand-foreground">{item.providerName}</p>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">{item.providerCode}</p>
-                          </div>
-                        </div>
+                <tbody className="divide-y divide-slate-200 text-sm">
+                  {records.map(r => (
+                    <tr key={r.providerId} className="hover:bg-slate-50/50">
+                      <td className="px-6 py-4">
+                        <p className="font-semibold text-slate-900">{r.providerName}</p>
+                        <p className="text-xs text-slate-500">{r.providerCode} • {r.lga}, {r.state}</p>
                       </td>
-                      <td className="text-center">
-                        <span className="text-sm font-black text-brand-blue">{item.score}%</span>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${ratingColors[r.rating]}`}>
+                          {r.rating}
+                        </span>
                       </td>
-                      <td className="text-center">
-                        <span className="text-sm font-bold text-brand-secondary">{item.compliance}%</span>
+                      <td className="px-6 py-4 text-center font-bold text-slate-900">
+                        {r.compositeScore}%
                       </td>
-                      <td>
-                        <Badge variant="info" className="uppercase">{item.rating}</Badge>
+                      <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                        {r.inspectionScore}%
                       </td>
-                      <td className="text-right">
-                        {item.trend === 'up' ? (
-                          <TrendingUp size={16} className="text-status-success inline" />
-                        ) : item.trend === 'down' ? (
-                          <TrendingDown size={16} className="text-status-error inline" />
+                      <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                        {r.credentialingScore}%
+                      </td>
+                      <td className="px-6 py-4 text-center text-slate-600 font-medium">
+                        {r.complaintScore}%
+                      </td>
+                      <td className="px-6 py-4">
+                        {r.attentionFlag ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-700">
+                            <ShieldAlert size={14} /> {r.attentionReason || 'Requires Review'}
+                          </span>
                         ) : (
-                          <Activity size={16} className="text-brand-muted inline" />
+                          <span className="text-xs text-slate-400">Normal</span>
                         )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
-
-          <div className="space-y-6">
-            <Card className="bg-brand-soft border-brand-blue/20">
-              <div className="flex items-center gap-3 text-brand-blue mb-4">
-                <ShieldCheck size={24} />
-                <h3 className="text-lg font-black uppercase tracking-widest">Network Threshold</h3>
-              </div>
-              <p className="text-sm leading-relaxed text-brand-secondary">
-                The network quality target is set at <strong>85%</strong>. Facilities falling below <strong>70%</strong> are automatically flagged for management intervention and corrective action plans.
-              </p>
-              <div className="mt-6 pt-6 border-t border-brand-blue/10">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="font-bold text-brand-secondary">Current Compliance</span>
-                  <span className="font-black text-brand-blue">92%</span>
-                </div>
-                <div className="h-2 w-full bg-brand-surface rounded-pill overflow-hidden">
-                  <div className="h-full bg-brand-blue rounded-pill" style={{ width: '92%' }} />
-                </div>
-              </div>
-            </Card>
-
-            <Card>
-              <SectionHeader title="Operational Risks" />
-              <div className="mt-4 space-y-4">
-                <div className="p-3 rounded-control bg-status-errorSoft border border-status-error/10">
-                  <p className="text-xs font-black text-status-error uppercase tracking-wider">Critical</p>
-                  <p className="mt-1 text-sm font-bold text-brand-foreground">2 Facilities Suspended</p>
-                  <p className="text-xs text-brand-secondary">Due to persistent licensing non-compliance.</p>
-                </div>
-                <div className="p-3 rounded-control bg-status-warningSoft border border-status-warning/10">
-                  <p className="text-xs font-black text-status-warning uppercase tracking-wider">Warning</p>
-                  <p className="mt-1 text-sm font-bold text-brand-foreground">5 Inspections Overdue</p>
-                  <p className="text-xs text-brand-secondary">Scheduled rounds delayed by field logistics.</p>
-                </div>
-              </div>
-            </Card>
+            )}
           </div>
         </div>
       </div>
