@@ -38,6 +38,7 @@ export default function ProviderPage() {
 
   const categories = useMemo(() => ['all', ...new Set(providers.map(p => p.category))].sort(), [providers]);
   const ownerships = useMemo(() => ['all', ...new Set(providers.map(p => p.ownership))].sort(), [providers]);
+  const lgas = useMemo(() => ['all', ...new Set(providers.map(p => p.lga).filter(Boolean))].sort(), [providers]);
 
   const stats = useMemo(() => ({
     total: providers.length,
@@ -91,6 +92,7 @@ export default function ProviderPage() {
               filters={filters}
               categories={categories}
               ownerships={ownerships}
+              lgas={lgas}
               onChange={setFilters}
             />
           </div>

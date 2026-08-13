@@ -7,10 +7,11 @@ type ProviderFiltersProps = {
   filters: ProviderDirectoryFilters;
   categories: string[];
   ownerships: string[];
+  lgas: string[];
   onChange: (filters: ProviderDirectoryFilters) => void;
 };
 
-export default function ProviderFilters({ filters, categories, ownerships, onChange }: ProviderFiltersProps) {
+export default function ProviderFilters({ filters, categories, ownerships, lgas, onChange }: ProviderFiltersProps) {
   const handleReset = () => {
     onChange({
       search: '',
@@ -40,6 +41,13 @@ export default function ProviderFilters({ filters, categories, ownerships, onCha
             value={filters.category}
             options={categories.map(c => ({ label: c === 'all' ? 'All types' : c, value: c }))}
             onChange={event => onChange({ ...filters, category: event.target.value })}
+          />
+
+          <Select
+            label="LGA"
+            value={filters.lga}
+            options={lgas.map(l => ({ label: l === 'all' ? 'All LGAs' : l, value: l }))}
+            onChange={event => onChange({ ...filters, lga: event.target.value })}
           />
 
           <Select
