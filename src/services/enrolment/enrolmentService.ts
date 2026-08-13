@@ -118,6 +118,18 @@ export function buildEnrolleeFingerprint(policyNumber: string, period: string): 
   return `${policyNumber.replace(/\s+/g, '').toLowerCase()}|${period.trim()}`;
 }
 
+const isSummaryRow = (providerName: string): boolean => {
+  const normalized = providerName.trim().toUpperCase();
+  return (
+    normalized === 'TOTAL' ||
+    normalized === 'GRAND TOTAL' ||
+    normalized === 'SUBTOTAL' ||
+    normalized.startsWith('TOTAL ') ||
+    normalized.startsWith('GRAND TOTAL ') ||
+    normalized.startsWith('SUBTOTAL ')
+  );
+};
+
 /**
  * Smart normalization for enrolment values (standardizing ownership and categories)
  */
@@ -159,7 +171,10 @@ export function normalizeEnrolmentRows(
   const matchByName = new Map(matches.map(match => [match.excelName.trim().toLowerCase(), match]));
   const [periodYear, periodMonth] = period.split('-').map(Number);
 
-  const normalized = rows.map((row, index) => {
+  const normalized = rows.filter(row => {
+    const sourceProviderName = normalizeText(readMappedValue(row, mappings, 'providerName'));
+    return sourceProviderName && !isSummaryRow(sourceProviderName);
+  }).map((row, index) => {
     const policyNumber = normalizeText(readMappedValue(row, mappings, 'policyNumber')).toUpperCase().replace(/\s+/g, '');
     const category = normalizeEnrolmentCategory(readMappedValue(row, mappings, 'category'));
     const sector = deriveSectorFromPolicy(policyNumber);

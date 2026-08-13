@@ -32,6 +32,18 @@ const buildFingerprint = (record: FinancialRecord) => [
   record.amountPaid ?? record.netAmountPaid ?? record.amount ?? '',
 ].map(value => normalizeText(value)).join('|');
 
+const isSummaryRow = (providerName: string): boolean => {
+  const normalized = providerName.trim().toUpperCase();
+  return (
+    normalized === 'TOTAL' ||
+    normalized === 'GRAND TOTAL' ||
+    normalized === 'SUBTOTAL' ||
+    normalized.startsWith('TOTAL ') ||
+    normalized.startsWith('GRAND TOTAL ') ||
+    normalized.startsWith('SUBTOTAL ')
+  );
+};
+
 /**
  * Service to handle business logic for financial data hub
  */
@@ -320,6 +332,14 @@ export const financialDataService = {
     });
 
     rows.forEach((row, index) => {
+      // Check if this is a summary row based on provider name
+      const providerMapping = mappings.find(m => m.nmisField === 'providerName');
+      const rawProviderName = providerMapping ? String(row[providerMapping.excelField] || '').trim() : '';
+      
+      if (!rawProviderName || isSummaryRow(rawProviderName)) {
+        return; // Skip empty or summary rows
+      }
+
       const baseData: Partial<FinancialRecord> = {
         id: `rec-${batchId}-${index}`,
         importBatchId: batchId,
