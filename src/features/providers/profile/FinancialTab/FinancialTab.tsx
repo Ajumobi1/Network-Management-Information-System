@@ -71,7 +71,7 @@ export default function FinancialTab({ provider }: ProviderTabProps) {
             <h3 className="text-sm font-black uppercase tracking-widest">Financial Compliance Notice</h3>
           </div>
           <p className="text-xs leading-relaxed text-brand-secondary">
-            This provider is currently within the expected expenditure variance threshold. PEPM is consistent with facility category averages for {provider.state}.
+            This provider is currently within the expected expenditure variance threshold. PEPM is consistent with facility category averages across the network.
           </p>
           <div className="mt-6 pt-6 border-t border-brand-divider">
             <p className="text-[10px] font-bold text-brand-muted uppercase tracking-tighter">

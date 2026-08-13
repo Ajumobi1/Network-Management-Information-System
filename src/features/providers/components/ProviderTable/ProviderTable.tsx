@@ -1,33 +1,20 @@
 import { useMemo, useState } from 'react';
 import { ArrowDownUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from '../../../../components/ui/Button';
+import Badge from '../../../../components/ui/Badge';
 import { ProviderDirectoryItem } from '../../types';
 import ProviderQuickActions from '../ProviderQuickActions';
 import ProviderStatusBadge, { formatProviderLabel } from '../ProviderStatusBadge';
 import ProviderToolbar from '../ProviderToolbar';
 import { PROVIDER_IMPORT_EXPORT_COLUMNS } from '../../../../constants/providerNetwork';
 
-const visibleColumns = PROVIDER_IMPORT_EXPORT_COLUMNS.filter(column => !['Contact Person', 'Phone', 'Email'].includes(column));
-
-const columnMap: Record<string, keyof ProviderDirectoryItem> = {
-  'Provider Code': 'providerCode',
-  'Provider Name': 'providerName',
-  'Provider Category': 'category',
-  'Provider Subcategory': 'subcategory',
-  Ownership: 'ownership',
-  LGA: 'lga',
-  State: 'state',
-  'Contact Person': 'contactPerson',
-  Phone: 'phone',
-  Email: 'email',
-  Status: 'status',
-  'Contract Status': 'contractStatus',
-  'Credential Status': 'credentialStatus',
-  'Inspection Status': 'inspectionStatus',
-  'Capitation Status': 'capitationStatus',
-  'Inspection Rating': 'inspectionRating',
-  'Last Inspection Date': 'lastInspectionDate',
-};
+const listColumns = [
+  { key: 'providerCode', label: 'S/N' },
+  { key: 'providerName', label: 'Provider Name' },
+  { key: 'category', label: 'Category' },
+  { key: 'lga', label: 'LGA' },
+  { key: 'status', label: 'Status' },
+];
 
 export default function ProviderTable({ providers, onSelect }: { providers: ProviderDirectoryItem[]; onSelect: (providerId: string) => void }) {
   const [sortKey, setSortKey] = useState<keyof ProviderDirectoryItem>('providerName');
@@ -36,12 +23,12 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
 
   return (
     <div className="nmis-table-wrap">
-      <ProviderToolbar selectedCount={selected.length} visibleColumnCount={visibleColumns.length} />
+      <ProviderToolbar selectedCount={selected.length} visibleColumnCount={listColumns.length} />
       <div className="overflow-x-auto">
-        <table className="nmis-table min-w-[1800px]">
+        <table className="nmis-table w-full">
           <thead>
             <tr>
-              <th className="w-12 px-4">
+              <th className="w-12 px-6 py-4">
                 <input
                   aria-label="Select all providers"
                   type="checkbox"
@@ -49,24 +36,24 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
                   onChange={event => setSelected(event.target.checked ? providers.map(provider => provider.id) : [])}
                 />
               </th>
-              {visibleColumns.map(column => (
-                <th key={column}>
+              {listColumns.map(column => (
+                <th key={column.key} className="px-6 py-4">
                   <button
                     className="flex items-center gap-2 hover:text-brand-foreground transition-colors"
-                    onClick={() => setSortKey(columnMap[column])}
+                    onClick={() => setSortKey(column.key as keyof ProviderDirectoryItem)}
                   >
-                    {column}
+                    {column.label}
                     <ArrowDownUp className="h-3 w-3 opacity-50" />
                   </button>
                 </th>
               ))}
-              <th className="sticky right-0 bg-brand-card-muted px-4 text-center">Actions</th>
+              <th className="px-6 py-4 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {sortedProviders.map(provider => (
-              <tr key={provider.id}>
-                <td className="px-4">
+              <tr key={provider.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => onSelect(provider.id)}>
+                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                   <input
                     aria-label={`Select ${provider.providerName}`}
                     type="checkbox"
@@ -75,21 +62,21 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
                     onChange={() => setSelected(current => current.includes(provider.id) ? current.filter(id => id !== provider.id) : [...current, provider.id])}
                   />
                 </td>
-                <td className="font-semibold text-brand-foreground">{provider.providerCode}</td>
-                <td className="font-semibold text-brand-foreground">{provider.providerName}</td>
-                <td>{provider.category}</td>
-                <td>{provider.subcategory}</td>
-                <td>{formatProviderLabel(provider.ownership)}</td>
-                <td>{provider.lga}</td>
-                <td>{provider.state}</td>
-                <td><ProviderStatusBadge status={provider.status} /></td>
-                <td><ProviderStatusBadge status={provider.contractStatus} /></td>
-                <td><ProviderStatusBadge status={provider.credentialStatus} /></td>
-                <td><ProviderStatusBadge status={provider.inspectionStatus} /></td>
-                <td><ProviderStatusBadge status={provider.capitationStatus} /></td>
-                <td>{provider.inspectionRating}</td>
-                <td>{provider.lastInspectionDate}</td>
-                <td className="sticky right-0 bg-brand-card-muted/50 backdrop-blur-sm px-4 text-center">
+                <td className="px-6 py-4 font-mono text-xs font-bold text-brand-blue bg-brand-blue/5 rounded-lg text-center w-20">
+                  {provider.providerCode}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-black text-slate-900">{provider.providerName}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">{provider.subcategory}</div>
+                </td>
+                <td className="px-6 py-4">
+                  <Badge variant="info" className="text-[10px] uppercase tracking-wider">{provider.category}</Badge>
+                </td>
+                <td className="px-6 py-4 text-slate-600 font-medium">{provider.lga}</td>
+                <td className="px-6 py-4">
+                  <ProviderStatusBadge status={provider.status} />
+                </td>
+                <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                   <ProviderQuickActions providerId={provider.id} status={provider.status} onSelect={onSelect} />
                 </td>
               </tr>

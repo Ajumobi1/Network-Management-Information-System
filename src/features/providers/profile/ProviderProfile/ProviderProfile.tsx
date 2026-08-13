@@ -90,7 +90,7 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
               </h2>
               <p className="mt-2 flex items-center gap-2 text-sm font-medium text-brand-secondary">
                 <MapPin className="h-4 w-4 text-brand-subtle" />
-                {provider.lga}, {provider.state}
+                {provider.lga}
               </p>
             </div>
           </div>

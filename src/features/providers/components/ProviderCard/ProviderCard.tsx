@@ -50,7 +50,7 @@ export default function ProviderCard({ provider, onSelect }: ProviderCardProps) 
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
               <MapPin size={16} />
             </div>
-            <span className="truncate">{provider.lga}, {provider.state}</span>
+            <span className="truncate">{provider.lga}</span>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-600">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400">

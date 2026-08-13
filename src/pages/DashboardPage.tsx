@@ -31,7 +31,6 @@ export default function DashboardPage() {
     credentialStatus: 'all',
     inspectionStatus: 'all',
     capitationStatus: 'all',
-    state: 'all',
     lga: 'all',
     category: 'all',
     subcategory: 'all',

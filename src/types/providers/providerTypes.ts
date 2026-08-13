@@ -82,7 +82,6 @@ export type ProviderDirectoryFilters = {
   credentialStatus: 'all' | ProviderWorkflowStatus;
   inspectionStatus: 'all' | ProviderWorkflowStatus;
   capitationStatus: 'all' | ProviderWorkflowStatus;
-  state: 'all' | string;
   lga: 'all' | string;
   category: 'all' | string;
   subcategory: 'all' | string;

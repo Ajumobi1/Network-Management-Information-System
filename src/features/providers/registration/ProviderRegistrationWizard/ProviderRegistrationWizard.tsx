@@ -14,7 +14,6 @@ type RegistrationFormState = {
   category: ProviderCategory;
   subcategory: string;
   ownership: ProviderOwnership;
-  state: string;
   lga: string;
 };
 
@@ -24,7 +23,6 @@ const initialFormState: RegistrationFormState = {
   category: ProviderCategory.Hospital,
   subcategory: '',
   ownership: ProviderOwnership.Private,
-  state: 'Ondo',
   lga: '',
 };
 
@@ -46,7 +44,6 @@ export default function ProviderRegistrationWizard() {
       && formState.providerName.trim()
       && formState.category
       && formState.ownership
-      && formState.state.trim()
       && formState.lga.trim(),
   );
 
@@ -67,7 +64,6 @@ export default function ProviderRegistrationWizard() {
         subcategory: formState.subcategory,
         ownership: formState.ownership,
         lga: formState.lga,
-        state: formState.state,
       },
       {
         onSuccess: provider => {
@@ -142,10 +138,6 @@ export default function ProviderRegistrationWizard() {
               <input value={formState.subcategory} onChange={event => updateField('subcategory', event.target.value)} maxLength={160} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
             </label>
             <label className="space-y-2 text-sm font-medium text-slate-700">
-              State
-              <input value={formState.state} onChange={event => updateField('state', event.target.value)} maxLength={120} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-slate-700">
               Local government area
               <input value={formState.lga} onChange={event => updateField('lga', event.target.value)} maxLength={120} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
             </label>
@@ -166,7 +158,7 @@ export default function ProviderRegistrationWizard() {
             <div><dt className="text-slate-500">Provider</dt><dd className="font-semibold text-slate-900">{formState.providerName || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Provider code</dt><dd className="font-semibold text-slate-900">{formState.providerCode || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Category</dt><dd className="font-semibold text-slate-900">{formState.category}</dd></div>
-            <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{formState.lga || 'Not provided'}, {formState.state}</dd></div>
+            <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{formState.lga || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Ownership</dt><dd className="font-semibold text-slate-900">{formState.ownership}</dd></div>
             <div><dt className="text-slate-500">Excluded from this workflow</dt><dd className="font-semibold text-slate-900">Contacts, bank data, documents, metadata</dd></div>
           </dl>

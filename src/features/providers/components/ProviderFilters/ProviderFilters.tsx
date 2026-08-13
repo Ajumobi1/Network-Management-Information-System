@@ -5,13 +5,12 @@ import ProviderSearch from '../ProviderSearch';
 
 type ProviderFiltersProps = {
   filters: ProviderDirectoryFilters;
-  states: string[];
   categories: string[];
   ownerships: string[];
   onChange: (filters: ProviderDirectoryFilters) => void;
 };
 
-export default function ProviderFilters({ filters, states, categories, ownerships, onChange }: ProviderFiltersProps) {
+export default function ProviderFilters({ filters, categories, ownerships, onChange }: ProviderFiltersProps) {
   const handleReset = () => {
     onChange({
       search: '',
@@ -20,7 +19,6 @@ export default function ProviderFilters({ filters, states, categories, ownership
       credentialStatus: 'all',
       inspectionStatus: 'all',
       capitationStatus: 'all',
-      state: 'all',
       lga: 'all',
       category: 'all',
       subcategory: 'all',
@@ -36,13 +34,6 @@ export default function ProviderFilters({ filters, states, categories, ownership
             <p className="nmis-label">Search directory</p>
             <ProviderSearch value={filters.search} onChange={search => onChange({ ...filters, search })} />
           </div>
-
-          <Select
-            label="State"
-            value={filters.state}
-            options={states.map(s => ({ label: s === 'all' ? 'All states' : s, value: s }))}
-            onChange={event => onChange({ ...filters, state: event.target.value })}
-          />
 
           <Select
             label="Facility type"

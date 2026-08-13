@@ -21,10 +21,10 @@ import { ProviderMatch } from '../../types/financial-data';
 
 export type ProviderRegistrationCommand = Pick<
   ProviderDirectoryItem,
-  'providerCode' | 'providerName' | 'category' | 'subcategory' | 'ownership' | 'state' | 'lga'
+  'providerCode' | 'providerName' | 'category' | 'subcategory' | 'ownership' | 'lga'
 >;
 
-export type ProviderOperationalUpdate = Partial<Pick<ProviderDirectoryItem, 'subcategory' | 'state' | 'lga'>>;
+export type ProviderOperationalUpdate = Partial<Pick<ProviderDirectoryItem, 'subcategory' | 'lga'>>;
 
 type ProviderDirectoryRpcRow = {
   id: string;
@@ -180,7 +180,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
   if (useMockData) return providerDirectory;
   const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
     p_search: filters.search || null,
-    p_state: filters.state === 'all' ? null : filters.state,
+    p_state: null, // State is permanently Ondo
     p_lga: filters.lga === 'all' ? null : filters.lga,
     p_category: filters.category === 'all' ? null : filters.category,
     p_ownership: filters.ownership === 'all' ? null : filters.ownership,
@@ -197,6 +197,7 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
   if (useMockData) {
     return addProviderMock({
       ...payload,
+      state: 'Ondo',
       contactPerson: '',
       phone: '',
       email: '',
@@ -217,7 +218,7 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
       category: payload.category,
       subcategory: payload.subcategory || null,
       ownership: payload.ownership,
-      state: payload.state,
+      state: 'Ondo',
       lga: payload.lga,
     },
   });
@@ -227,7 +228,6 @@ export async function updateDirectoryProvider(id: string, payload: ProviderOpera
   if (useMockData) return updateProviderMock(id, payload);
   const safePayload: Record<string, unknown> = {};
   if (payload.subcategory !== undefined) safePayload.subcategory = payload.subcategory || null;
-  if (payload.state !== undefined) safePayload.state = payload.state;
   if (payload.lga !== undefined) safePayload.lga = payload.lga;
   return invokeProviderAdmin({ command: 'edit_operational', providerId: id, payload: safePayload });
 }
@@ -243,7 +243,7 @@ export async function findSafeProviderMatchCandidates(query: string, limit = 10)
   if (useMockData) {
     const needle = normalizedQuery.toLowerCase();
     return providerDirectory
-      .filter(provider => [provider.providerCode, provider.providerName, provider.lga, provider.state].join(' ').toLowerCase().includes(needle))
+      .filter(provider => [provider.providerCode, provider.providerName, provider.lga].join(' ').toLowerCase().includes(needle))
       .slice(0, Math.min(Math.max(limit, 1), 25));
   }
   const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {

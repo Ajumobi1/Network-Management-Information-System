@@ -27,7 +27,6 @@ export default function ProviderPage() {
     credentialStatus: 'all',
     inspectionStatus: 'all',
     capitationStatus: 'all',
-    state: 'all',
     lga: 'all',
     category: 'all',
     subcategory: 'all',
@@ -37,7 +36,6 @@ export default function ProviderPage() {
   const { data: providers = [], isLoading, isError, error, refetch } = useProviderDirectory(filters);
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
-  const states = useMemo(() => ['all', ...new Set(providers.map(p => p.state))].sort(), [providers]);
   const categories = useMemo(() => ['all', ...new Set(providers.map(p => p.category))].sort(), [providers]);
   const ownerships = useMemo(() => ['all', ...new Set(providers.map(p => p.ownership))].sort(), [providers]);
 
@@ -91,7 +89,6 @@ export default function ProviderPage() {
           <div className="flex-1">
             <ProviderFilters
               filters={filters}
-              states={states}
               categories={categories}
               ownerships={ownerships}
               onChange={setFilters}

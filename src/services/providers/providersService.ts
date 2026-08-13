@@ -52,7 +52,6 @@ export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters)
       credentialStatus: 'all',
       inspectionStatus: 'all',
       capitationStatus: 'all',
-      state: 'all',
       lga: 'all',
       category: 'all',
       subcategory: 'all',
@@ -68,7 +67,7 @@ export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters)
   return providers.filter(provider => {
     const matchesSearch =
       !searchTerm ||
-      [provider.providerCode, provider.providerName, provider.category, provider.subcategory, provider.ownership, provider.state, provider.lga]
+      [provider.providerCode, provider.providerName, provider.category, provider.subcategory, provider.ownership, provider.lga]
         .join(' ')
         .toLowerCase()
         .includes(searchTerm);
@@ -77,13 +76,12 @@ export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters)
     const matchesCredential = activeFilters.credentialStatus === 'all' || provider.credentialStatus === activeFilters.credentialStatus;
     const matchesInspection = activeFilters.inspectionStatus === 'all' || provider.inspectionStatus === activeFilters.inspectionStatus;
     const matchesCapitation = activeFilters.capitationStatus === 'all' || provider.capitationStatus === activeFilters.capitationStatus;
-    const matchesState = activeFilters.state === 'all' || provider.state === activeFilters.state;
     const matchesLga = activeFilters.lga === 'all' || provider.lga === activeFilters.lga;
     const matchesCategory = activeFilters.category === 'all' || provider.category === activeFilters.category;
     const matchesSubcategory = activeFilters.subcategory === 'all' || provider.subcategory === activeFilters.subcategory;
     const matchesOwnership = activeFilters.ownership === 'all' || provider.ownership === activeFilters.ownership;
 
-    return matchesSearch && matchesStatus && matchesContract && matchesCredential && matchesInspection && matchesCapitation && matchesState && matchesLga && matchesCategory && matchesSubcategory && matchesOwnership;
+    return matchesSearch && matchesStatus && matchesContract && matchesCredential && matchesInspection && matchesCapitation && matchesLga && matchesCategory && matchesSubcategory && matchesOwnership;
   });
 }
 
