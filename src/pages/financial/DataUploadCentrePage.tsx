@@ -81,7 +81,7 @@ export default function DataUploadCentrePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const { session } = useAuth();
-  const liveCommitUnavailable = !useMockData;
+  const liveCommitUnavailable = false; // Workflow is now wired to secure RPCs
 
   const createBatch = useCreateImportBatch();
   const detectedPeriod = normalizedRecords[0]?.period || '';

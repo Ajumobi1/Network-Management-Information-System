@@ -159,16 +159,29 @@ export async function fetchFinancialAnalytics(filters: FinancialFilters = {}): P
 
 export async function fetchImportBatches(): Promise<ImportBatch[]> {
   if (useMockData) return [...mockImportBatches];
-  throw importWorkflowUnavailable();
+  return invokeSecureRpc<ImportBatch[]>('nmis_list_import_batches');
 }
 
 export async function fetchImportBatchById(id: string): Promise<ImportBatch | null> {
   if (useMockData) return mockImportBatches.find(batch => batch.id === id) || null;
-  throw importWorkflowUnavailable();
+  return invokeSecureRpc<ImportBatch>('nmis_get_import_batch', { p_batch_id: id });
 }
 
 export async function createImportBatch(batch: Omit<ImportBatch, 'id' | 'uploadedAt'>, records?: FinancialRecord[], _actor?: { id: string; email: string }): Promise<ImportBatch> {
-  if (!useMockData) throw importWorkflowUnavailable();
+  if (!useMockData) {
+    // For live mode, we route through the secure commit RPC.
+    // The RPC handles batch creation, record insertion, and audit in a single transaction.
+    const result = await invokeSecureRpc<ImportBatch>('nmis_commit_import_batch', {
+      p_file_name: batch.fileName,
+      p_data_type: batch.dataType,
+      p_period_covered: batch.periodCovered || null,
+      p_total_rows: batch.totalRows,
+      p_records: records || [],
+      p_metadata: batch.metadata || {},
+    });
+    return result;
+  }
+
   const batchId = `batch-${Date.now()}`;
   const newBatch: ImportBatch = { ...batch, id: batchId, uploadedAt: new Date().toISOString() };
   if (records?.length) {
@@ -184,7 +197,17 @@ export async function createImportBatch(batch: Omit<ImportBatch, 'id' | 'uploade
 }
 
 export async function checkDuplicateBatch(period: string, dataType: FinancialDataType): Promise<ImportBatch | null> {
-  if (!useMockData) throw importWorkflowUnavailable();
+  if (!useMockData) {
+    try {
+      const result = await invokeSecureRpc<ImportBatch | null>('nmis_check_duplicate_batch', {
+        p_period: period,
+        p_data_type: dataType,
+      });
+      return result;
+    } catch (error) {
+      return null;
+    }
+  }
   return mockImportBatches.find(batch => batch.periodCovered === period && batch.dataType === dataType && ['imported', 'partially-imported'].includes(batch.status)) || null;
 }
 
