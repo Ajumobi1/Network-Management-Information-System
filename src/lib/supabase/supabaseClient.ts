@@ -9,7 +9,7 @@ const runtime = useMockData ? inertSupabaseRuntimeConfig : supabaseRuntimeConfig
 
 export const supabase: SupabaseClient = createClient(runtime.url || inertSupabaseRuntimeConfig.url, runtime.anonKey || inertSupabaseRuntimeConfig.anonKey, {
   auth: {
-    persistSession: false,
+    persistSession: true,
     detectSessionInUrl: true,
     autoRefreshToken: true,
   },
