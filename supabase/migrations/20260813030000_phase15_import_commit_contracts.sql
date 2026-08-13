@@ -181,7 +181,7 @@ BEGIN
             v_ownership := 'Private';
             v_category := 'Hospital';
           ELSIF v_raw_cat IN ('GOVERNMENT', 'PUBLIC') THEN
-            v_ownership := 'Public/Government';
+            v_ownership := 'Government';
             v_category := 'Hospital';
           ELSE
             v_ownership := coalesce(v_record->>'ownership', 'Private');

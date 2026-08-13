@@ -130,10 +130,8 @@ export default function CredentialingPage() {
               onChange={e => setFilters({ ...filters, ownership: e.target.value })}
               options={[
                 { label: 'All Ownerships', value: 'all' },
+                { label: 'Government', value: 'Government' },
                 { label: 'Private', value: 'Private' },
-                { label: 'Public', value: 'Public' },
-                { label: 'Corporate', value: 'Corporate' },
-                { label: 'Faith-Based', value: 'Faith-Based' },
               ]}
             />
           </div>

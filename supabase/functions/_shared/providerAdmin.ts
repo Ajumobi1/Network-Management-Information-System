@@ -85,11 +85,8 @@ const categories = new Set([
 ]);
 
 const ownerships = new Set([
+  'Government',
   'Private',
-  'Public/Government',
-  'Faith-Based',
-  'NGO/Non-Profit',
-  'Corporate',
 ]);
 
 const providerCodePattern = /^[A-Za-z0-9][A-Za-z0-9/_-]{2,63}$/;

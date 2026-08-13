@@ -53,7 +53,7 @@ function mapRecord(c: CapitationSummaryRecord): CapitationRecord {
     state: 'Ondo', 
     lga: 'Unknown',
     facilityType: ProviderCategory.Hospital,
-    ownership: ProviderOwnership.Public,
+    ownership: ProviderOwnership.Government,
     providerLifecycleStatus: ProviderLifecycleStatus.Active,
     credentialingStatus: ProviderWorkflowStatus.Complete,
   };

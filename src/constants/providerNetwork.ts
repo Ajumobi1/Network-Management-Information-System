@@ -9,11 +9,8 @@ export enum ProviderCategory {
 }
 
 export enum ProviderOwnership {
+  Government = 'Government',
   Private = 'Private',
-  Public = 'Public/Government',
-  FaithBased = 'Faith-Based',
-  Ngo = 'NGO/Non-Profit',
-  Corporate = 'Corporate',
 }
 
 export enum ProviderLifecycleStatus {

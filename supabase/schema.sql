@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS providers (
     provider_name TEXT NOT NULL,
     category TEXT NOT NULL,
     subcategory TEXT,
-    ownership TEXT NOT NULL,
+    ownership TEXT NOT NULL CHECK (ownership IN ('Government', 'Private')),
     lga TEXT NOT NULL,
     state TEXT NOT NULL,
     contact_person TEXT,

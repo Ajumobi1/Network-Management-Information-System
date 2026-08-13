@@ -60,7 +60,7 @@ BEGIN
         'Specialist Centre', 'Diagnostic & Imaging Centre', 'Referral Centre'
       )
       OR p_payload->>'ownership' NOT IN (
-        'Private', 'Public/Government', 'Faith-Based', 'NGO/Non-Profit', 'Corporate'
+        'Government', 'Private'
       )
       OR (p_payload ? 'subcategory' AND jsonb_typeof(p_payload->'subcategory') NOT IN ('string', 'null'))
       OR (p_payload ? 'subcategory' AND length(coalesce(trim(p_payload->>'subcategory'), '')) > 160)
