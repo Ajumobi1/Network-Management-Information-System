@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus, Upload, Filter, RotateCcw } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
@@ -15,6 +16,7 @@ import { SectionHeader } from '../components/ui/LayoutComponents';
 import { isSecureContractError } from '../lib/security/secureContracts';
 
 export default function ProviderPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<ProviderDirectoryFilters>({
     search: '',
     status: 'all',
@@ -65,7 +67,7 @@ export default function ProviderPage() {
           subtitle="The authoritative registry of healthcare facilities within the NMIS network. Manage onboarding, compliance, and operational status."
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" className="gap-2" onClick={() => window.alert('Provider Directory bulk import via Excel is being integrated with the secure Data Upload Centre.')}>
+              <Button variant="secondary" className="gap-2" onClick={() => navigate('/financial/upload?type=provider-network')}>
                 <Upload size={16} /> Import
               </Button>
               <Button to="/provider-registration" className="gap-2">

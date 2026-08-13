@@ -55,6 +55,12 @@ export interface FinancialRecord {
   // FFS specific
   ffsCategory?: string;
 
+  // Provider specific
+  subcategory?: string;
+  address?: string;
+  services?: string;
+  staffStrength?: number;
+
   // General
   amount?: number;
   paymentStatus?: 'pending' | 'processing' | 'paid' | 'failed';

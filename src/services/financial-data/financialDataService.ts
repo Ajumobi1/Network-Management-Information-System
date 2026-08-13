@@ -58,6 +58,10 @@ export const financialDataService = {
       return 'enrolment';
     }
 
+    if (headerStr.includes('provider') || headerStr.includes('facility') || headerStr.includes('ownership') || headerStr.includes('category')) {
+      return 'provider-network';
+    }
+
     return 'other';
   },
 

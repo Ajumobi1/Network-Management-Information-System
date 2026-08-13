@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
   AlertCircle,
@@ -52,16 +53,26 @@ const mappingOptions: MappingOption[] = [
   { value: 'amountPaid', label: 'Amount paid' },
   { value: 'netAmountPaid', label: 'Net amount paid' },
   { value: 'amount', label: 'Generic amount' },
+  { value: 'subcategory', label: 'Subcategory' },
+  { value: 'address', label: 'Address' },
+  { value: 'services', label: 'Services' },
+  { value: 'staffStrength', label: 'Staff strength' },
 ];
 
 export default function DataUploadCentrePage() {
+  const [searchParams] = useSearchParams();
+  const initialType = searchParams.get('type') as FinancialDataType;
   const [step, setStep] = useState<UploadStep>('upload');
   const [file, setFile] = useState<File | null>(null);
   const [sourceSheet, setSourceSheet] = useState('');
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<RawRow[]>([]);
-  const [dataType, setDataType] = useState<FinancialDataType>('claims');
+  const [dataType, setDataType] = useState<FinancialDataType>(initialType || 'claims');
+
+  useEffect(() => {
+    if (initialType) setDataType(initialType);
+  }, [initialType]);
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [matches, setMatches] = useState<ProviderMatch[]>([]);
   const [normalizedRecords, setNormalizedRecords] = useState<FinancialRecord[]>([]);
@@ -255,7 +266,7 @@ function UploadPanel({ onFileUpload }: { onFileUpload: (event: React.ChangeEvent
 }
 
 function InspectPanel({ file, sheetNames, sourceSheet, headers, rowCount, dataType, onSheetChange, onDataTypeChange, onContinue }: { file: File; sheetNames: string[]; sourceSheet: string; headers: string[]; rowCount: number; dataType: FinancialDataType; onSheetChange: (value: string) => void; onDataTypeChange: (value: FinancialDataType) => void; onContinue: () => void }) {
-  return <div className="grid gap-6 lg:grid-cols-3"><div className="rounded-3xl border border-slate-200 bg-white p-8 lg:col-span-2"><h3 className="flex items-center gap-2 text-lg font-bold text-slate-900"><FileSpreadsheet className="h-5 w-5 text-emerald-600" />Workbook inspection</h3><div className="mt-8 grid gap-8 sm:grid-cols-2"><div className="space-y-4"><InfoRow label="Filename" value={file.name} /><InfoRow label="Size" value={`${(file.size / 1024).toFixed(1)} KB`} /><InfoRow label="Rows detected" value={rowCount.toLocaleString()} /><InfoRow label="Columns found" value={headers.length.toLocaleString()} /><InfoRow label="Detected headers" value={headers.join(', ')} /></div><div className="space-y-4"><label className="block text-sm font-bold text-slate-900">Worksheet<select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={sourceSheet} onChange={event => onSheetChange(event.target.value)}>{sheetNames.map(sheet => <option key={sheet}>{sheet}</option>)}</select></label><label className="block text-sm font-bold text-slate-900">Financial data type<select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={dataType} onChange={event => onDataTypeChange(event.target.value as FinancialDataType)}><option value="claims">Claims Data</option><option value="capitation">Capitation Data</option><option value="ffs">Fee-for-Service (FFS)</option><option value="enrolment">Enrolment Data</option></select></label><p className="text-xs italic text-slate-500">The suggested type is based on the detected headers and can be corrected before mapping.</p></div></div></div><div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50 p-8"><div><h4 className="font-bold text-slate-900">Next action</h4><p className="mt-2 text-sm text-slate-500">Review and adjust the suggested mappings before provider matching.</p></div><Button variant="primary" className="w-full py-4" onClick={onContinue}>Continue to mapping</Button></div></div>;
+  return <div className="grid gap-6 lg:grid-cols-3"><div className="rounded-3xl border border-slate-200 bg-white p-8 lg:col-span-2"><h3 className="flex items-center gap-2 text-lg font-bold text-slate-900"><FileSpreadsheet className="h-5 w-5 text-emerald-600" />Workbook inspection</h3><div className="mt-8 grid gap-8 sm:grid-cols-2"><div className="space-y-4"><InfoRow label="Filename" value={file.name} /><InfoRow label="Size" value={`${(file.size / 1024).toFixed(1)} KB`} /><InfoRow label="Rows detected" value={rowCount.toLocaleString()} /><InfoRow label="Columns found" value={headers.length.toLocaleString()} /><InfoRow label="Detected headers" value={headers.join(', ')} /></div><div className="space-y-4"><label className="block text-sm font-bold text-slate-900">Worksheet<select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={sourceSheet} onChange={event => onSheetChange(event.target.value)}>{sheetNames.map(sheet => <option key={sheet}>{sheet}</option>)}</select></label><label className="block text-sm font-bold text-slate-900">Data type<select className="mt-2 w-full rounded-xl border-slate-200 py-3 text-sm font-normal" value={dataType} onChange={event => onDataTypeChange(event.target.value as FinancialDataType)}><option value="claims">Claims Data</option><option value="capitation">Capitation Data</option><option value="ffs">Fee-for-Service (FFS)</option><option value="enrolment">Enrolment Data</option><option value="provider-network">Provider Directory</option></select></label><p className="text-xs italic text-slate-500">The suggested type is based on the detected headers and can be corrected before mapping.</p></div></div></div><div className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-slate-50 p-8"><div><h4 className="font-bold text-slate-900">Next action</h4><p className="mt-2 text-sm text-slate-500">Review and adjust the suggested mappings before provider matching.</p></div><Button variant="primary" className="w-full py-4" onClick={onContinue}>Continue to mapping</Button></div></div>;
 }
 
 function MappingPanel({ mappings, lowConfidenceCount, onUpdate, onBack, onContinue }: { mappings: ColumnMapping[]; lowConfidenceCount: number; onUpdate: (index: number, value: keyof FinancialRecord | 'ignored') => void; onBack: () => void; onContinue: () => void }) {
