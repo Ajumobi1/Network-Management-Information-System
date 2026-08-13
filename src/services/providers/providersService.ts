@@ -44,7 +44,6 @@ export async function fetchProviderFacilities(providerId: string) {
 }
 
 export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters): Promise<ProviderDirectoryItem[]> {
-  const providers = await providersRepository.getProviderDirectory();
   const activeFilters =
     filters ?? {
       search: '',
@@ -59,6 +58,11 @@ export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters)
       subcategory: 'all',
       ownership: 'all',
     };
+  
+  // Pass filters to repository for server-side filtering in live mode
+  const providers = await providersRepository.getProviderDirectory(activeFilters);
+  
+  // Keep local filtering for mock mode or as a secondary safety layer
   const searchTerm = activeFilters.search.trim().toLowerCase();
 
   return providers.filter(provider => {

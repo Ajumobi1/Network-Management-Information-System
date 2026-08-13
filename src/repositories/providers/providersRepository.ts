@@ -176,9 +176,20 @@ export async function deleteProvider(id: string): Promise<boolean> {
   throw trustedOperationRequired('provider retention or correction');
 }
 
-export async function getProviderDirectory(): Promise<ProviderDirectoryItem[]> {
+export async function getProviderDirectory(filters: Record<string, any> = {}): Promise<ProviderDirectoryItem[]> {
   if (useMockData) return providerDirectory;
-  const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory');
+  const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
+    p_search: filters.search || null,
+    p_state: filters.state === 'all' ? null : filters.state,
+    p_lga: filters.lga === 'all' ? null : filters.lga,
+    p_category: filters.category === 'all' ? null : filters.category,
+    p_ownership: filters.ownership === 'all' ? null : filters.ownership,
+    p_status: filters.status === 'all' ? null : filters.status,
+    p_contract_status: filters.contractStatus === 'all' ? null : filters.contractStatus,
+    p_credential_status: filters.credentialStatus === 'all' ? null : filters.credentialStatus,
+    p_inspection_status: filters.inspectionStatus === 'all' ? null : filters.inspectionStatus,
+    p_capitation_status: filters.capitationStatus === 'all' ? null : filters.capitationStatus,
+  });
   return directoryRows(result).map(mapDirectoryRow);
 }
 

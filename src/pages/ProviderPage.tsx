@@ -65,8 +65,8 @@ export default function ProviderPage() {
           subtitle="The authoritative registry of healthcare facilities within the NMIS network. Manage onboarding, compliance, and operational status."
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" disabled className="gap-2">
-                <Upload size={16} /> Import (Soon)
+              <Button variant="secondary" className="gap-2" onClick={() => window.alert('Provider Directory bulk import via Excel is being integrated with the secure Data Upload Centre.')}>
+                <Upload size={16} /> Import
               </Button>
               <Button to="/provider-registration" className="gap-2">
                 <UserPlus size={16} /> Register Provider
