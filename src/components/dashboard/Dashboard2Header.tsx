@@ -6,11 +6,21 @@ import { DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTyp
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-function humanizePeriod(period?: string): string {
-  if (!period || period === 'All periods') return 'All reporting periods';
-  const [year, month] = period.split('-');
-  if (!month) return period;
-  return `${monthNames[Number(month) - 1] || month} ${year}`;
+function computeReportingPeriod(filters: DashboardFilters, rpcPeriod?: string): string {
+  if (filters.year && filters.month) {
+    return `${monthNames[filters.month - 1] || filters.month} ${filters.year}`;
+  }
+  if (filters.year) {
+    return `Full Year ${filters.year}`;
+  }
+  if (rpcPeriod && rpcPeriod !== 'All periods') {
+    const [year, month] = rpcPeriod.split('-');
+    if (month && !Number.isNaN(Number(month))) {
+      return `${monthNames[Number(month) - 1] || month} ${year}`;
+    }
+    return rpcPeriod;
+  }
+  return 'All reporting periods';
 }
 
 type Dashboard2HeaderProps = {
@@ -59,7 +69,7 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, on
       <div className="p-5 sm:p-6">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div><p className="text-xs font-semibold uppercase tracking-[0.25em] text-brand-blue">Reporting context</p><p className="mt-1 text-sm text-slate-500">Analytics below use the same Provider, Enrolment, and Financial filters.</p></div>
-          <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700"><CalendarDays className="h-4 w-4 text-brand-blue" /><span className="mr-1 hidden sm:inline">Reporting period:</span><span className="rounded-xl bg-slate-100 px-3 py-2 text-slate-900">{humanizePeriod(reportingPeriod)}</span></div>
+          <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700"><CalendarDays className="h-4 w-4 text-brand-blue" /><span className="mr-1 hidden sm:inline">Reporting period:</span><span className="rounded-xl bg-slate-100 px-3 py-2 text-slate-900">{computeReportingPeriod(filters, reportingPeriod)}</span></div>
         </div>
 
         <div className="mt-5 flex flex-wrap items-end gap-3">
