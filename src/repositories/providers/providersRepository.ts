@@ -177,7 +177,13 @@ export async function deleteProvider(id: string): Promise<boolean> {
 }
 
 export async function getProviderDirectory(filters: Record<string, any> = {}): Promise<ProviderDirectoryItem[]> {
-  if (useMockData) return providerDirectory;
+  if (useMockData) {
+    const sorted = [...providerDirectory].sort((a, b) => a.providerName.localeCompare(b.providerName));
+    return sorted.map((item, index) => ({
+      ...item,
+      providerCode: String(index + 1).padStart(3, '0'),
+    }));
+  }
   const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
     p_search: filters.search || null,
     p_state: null, // State is permanently Ondo
@@ -190,7 +196,12 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
     p_inspection_status: filters.inspectionStatus === 'all' ? null : filters.inspectionStatus,
     p_capitation_status: filters.capitationStatus === 'all' ? null : filters.capitationStatus,
   });
-  return directoryRows(result).map(mapDirectoryRow);
+  const rawList = directoryRows(result).map(mapDirectoryRow);
+  const sorted = rawList.sort((a, b) => a.providerName.localeCompare(b.providerName));
+  return sorted.map((item, index) => ({
+    ...item,
+    providerCode: String(index + 1).padStart(3, '0'),
+  }));
 }
 
 export async function createDirectoryProvider(payload: ProviderRegistrationCommand): Promise<ProviderDirectoryItem> {
