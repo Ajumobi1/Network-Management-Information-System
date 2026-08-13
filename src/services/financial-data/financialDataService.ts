@@ -5,6 +5,8 @@ import {
   ProviderMatch
 } from '../../types/financial-data';
 import { getProviderDirectory, getPersistedProviderMatches, saveProviderMatchResolution } from '../../repositories/providers/providersRepository';
+import { providerMatchingService } from '../reconciliation/providerMatchingService';
+import { useMockData } from '../../repositories/common';
 
 const normalizeText = (value: unknown) => String(value ?? '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 const numericFields = new Set<string>([
@@ -108,7 +110,57 @@ export const financialDataService = {
   /**
    * Attempt to match a provider name to the directory using priority rules
    */
-  async matchProvider(name: string, code?: string, lga?: string, state?: string): Promise<ProviderMatch> {
+  async matchProvider(name: string, code?: string, lga?: string, state?: string, importSessionId?: string): Promise<ProviderMatch> {
+    if (!useMockData) {
+      try {
+        const sessionId = importSessionId || 'default-session';
+        const result = await providerMatchingService.fetchMatchCandidates(sessionId, name, code, lga, state);
+        const candidates = result.candidates || [];
+        const top = candidates[0];
+
+        if (candidates.length === 1 && top && top.match_score >= 95) {
+          return {
+            excelName: name,
+            matchedProviderId: top.id,
+            matchedProviderName: top.provider_name,
+            matchedProviderCode: top.provider_code,
+            matchedProviderLga: top.lga,
+            matchedProviderState: top.state,
+            matchedProviderFacilityType: top.category as any,
+            matchedProviderOwnership: top.ownership as any,
+            confidence: top.match_score / 100,
+            matchType: 'exact',
+            status: 'confirmed',
+          };
+        }
+
+        return {
+          excelName: name,
+          matchedProviderId: candidates.length === 1 ? top.id : undefined,
+          matchedProviderName: candidates.length === 1 ? top.provider_name : undefined,
+          matchedProviderCode: candidates.length === 1 ? top.provider_code : undefined,
+          matchedProviderLga: candidates.length === 1 ? top.lga : undefined,
+          matchedProviderState: candidates.length === 1 ? top.state : undefined,
+          matchedProviderFacilityType: candidates.length === 1 ? (top.category as any) : undefined,
+          matchedProviderOwnership: candidates.length === 1 ? (top.ownership as any) : undefined,
+          candidates: candidates.map(c => ({
+            id: c.id,
+            name: c.provider_name,
+            code: c.provider_code,
+            lga: c.lga,
+            state: c.state,
+            facilityType: c.category as any,
+            ownership: c.ownership as any,
+          })),
+          confidence: top ? top.match_score / 100 : 0,
+          matchType: top?.match_reason.toLowerCase().includes('code') ? 'exact' : 'normalized',
+          status: candidates.length === 1 && top.match_score >= 85 ? 'confirmed' : 'pending',
+        };
+      } catch (err) {
+        // Fallback to local matching if live RPC fails or returns secure unavailable
+      }
+    }
+
     const providers = await getProviderDirectory();
     const persistedMatches = await getPersistedProviderMatches();
     const normalizedName = normalizeText(name);
@@ -188,7 +240,18 @@ export const financialDataService = {
   /**
    * Persist a manual provider match resolution
    */
-  async resolveMatch(match: ProviderMatch, resolvedBy?: string) {
+  async resolveMatch(match: ProviderMatch, resolvedBy?: string, importSessionId?: string, candidateProviderId?: string, matchToken?: string) {
+    if (!useMockData && importSessionId && candidateProviderId) {
+      try {
+        return await providerMatchingService.persistMatchResolution(
+          importSessionId,
+          candidateProviderId,
+          matchToken || 'manual-match-token'
+        );
+      } catch (err) {
+        // Fallback to repository save if live RPC fails
+      }
+    }
     return saveProviderMatchResolution(match, resolvedBy);
   },
 
