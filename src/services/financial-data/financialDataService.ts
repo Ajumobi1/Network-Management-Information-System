@@ -66,49 +66,85 @@ export const financialDataService = {
   },
 
   /**
-   * Suggest column mappings based on headers
+   * Suggest column mappings based on headers using fuzzy AI-like logic
    */
-  suggestMappings(headers: string[]): ColumnMapping[] {
+  suggestMappings(headers: string[], dataType?: FinancialDataType): ColumnMapping[] {
     const mappings: ColumnMapping[] = [];
 
-    const knownMappings: Record<string, { field: keyof FinancialRecord, keywords: string[] }> = {
-      'providerName': { field: 'providerName', keywords: ['provider', 'facility', 'outlet', 'hospital', 'name'] },
-      'providerCode': { field: 'providerCode', keywords: ['code', 'id', 'sn'] },
-      'amountPaid': { field: 'amountPaid', keywords: ['paid', 'amount', 'payment', 'total paid'] },
-      'amountClaimed': { field: 'amountClaimed', keywords: ['claimed', 'gross claimed'] },
-      'amountApproved': { field: 'amountApproved', keywords: ['approved', 'vetting'] },
-      'claimsCategory': { field: 'claimsCategory', keywords: ['category', 'service type', 'type'] },
-      'state': { field: 'state', keywords: ['state', 'region'] },
-      'lga': { field: 'lga', keywords: ['lga', 'area', 'local govt'] },
-      'reportingMonth': { field: 'reportingMonth', keywords: ['month', 'period'] },
-      'reportingYear': { field: 'reportingYear', keywords: ['year'] },
-      'eligibleLives': { field: 'eligibleLives', keywords: ['enrollee', 'lives', 'count', 'total enrollees'] },
-    };
+    const knownMappings: Array<{ field: keyof FinancialRecord | 'ignored', keywords: string[], weight: number, context?: FinancialDataType[] }> = [
+      { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id'], weight: 1.0 },
+      { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'name', 'outlet', 'health facility'], weight: 1.0 },
+      { field: 'providerCode', keywords: ['code', 'provider code', 'facility code', 'hcp code'], weight: 0.9 },
+      { field: 'ownership', keywords: ['category', 'ownership', 'type of facility', 'sector'], weight: 0.8, context: ['provider-network'] },
+      { field: 'facilityType', keywords: ['category', 'facility type', 'type'], weight: 0.8, context: ['provider-network'] },
+      { field: 'amountPaid', keywords: ['paid', 'net paid', 'amount paid', 'payment', 'total paid', 'net amount'], weight: 1.0 },
+      { field: 'amountClaimed', keywords: ['claimed', 'gross claimed', 'amount claimed', 'submission'], weight: 0.9 },
+      { field: 'amountApproved', keywords: ['approved', 'vetted', 'vetting', 'amount approved'], weight: 0.9 },
+      { field: 'claimsCategory', keywords: ['claims category', 'service type', 'benefit'], weight: 0.8 },
+      { field: 'state', keywords: ['state', 'region', 'location'], weight: 0.7 },
+      { field: 'lga', keywords: ['lga', 'local government', 'area'], weight: 0.7 },
+      { field: 'reportingMonth', keywords: ['month', 'period', 'reporting month'], weight: 0.8 },
+      { field: 'reportingYear', keywords: ['year', 'reporting year'], weight: 0.8 },
+      { field: 'eligibleLives', keywords: ['enrollee', 'lives', 'count', 'total enrollees', 'population'], weight: 0.8 },
+    ];
 
     headers.forEach(header => {
-      const normalizedHeader = header.toLowerCase().trim();
-      let matchedField: keyof FinancialRecord | 'ignored' = 'ignored';
-      let confidenceScore = 0;
+      const normalizedHeader = header.toLowerCase().trim().replace(/[^a-z0-9/ ]/g, '');
+      let bestMatch: keyof FinancialRecord | 'ignored' = 'ignored';
+      let maxScore = 0;
 
-      for (const [key, config] of Object.entries(knownMappings)) {
-        const keywordMatch = config.keywords.find(kw => normalizedHeader.includes(kw));
-        if (keywordMatch) {
-          matchedField = config.field;
-          // Exact match gets higher confidence
-          confidenceScore = config.keywords.includes(normalizedHeader) ? 0.95 : 0.75;
-          break;
+      for (const config of knownMappings) {
+        // Boost score if context matches
+        const contextBoost = (dataType && config.context && config.context.includes(dataType)) ? 1.2 : 1.0;
+
+        for (const kw of config.keywords) {
+          let score = 0;
+          if (normalizedHeader === kw) score = 1.0;
+          else if (normalizedHeader.startsWith(kw) || normalizedHeader.endsWith(kw)) score = 0.85;
+          else if (normalizedHeader.includes(kw)) score = 0.7;
+          
+          score *= config.weight * contextBoost;
+          if (score > maxScore) {
+            maxScore = score;
+            bestMatch = config.field;
+          }
         }
       }
 
       mappings.push({
         excelField: header,
-        nmisField: matchedField,
-        confidence: confidenceScore > 0.9 ? 'HIGH' : confidenceScore > 0.6 ? 'MEDIUM' : 'LOW',
-        confidenceScore
+        nmisField: bestMatch,
+        confidence: maxScore > 0.9 ? 'HIGH' : maxScore > 0.6 ? 'MEDIUM' : 'LOW',
+        confidenceScore: maxScore
       });
     });
 
     return mappings;
+  },
+
+  /**
+   * Smart normalization for values (standardizing typos like PRVATE)
+   */
+  smartNormalize(field: keyof FinancialRecord, value: unknown): any {
+    if (value === null || value === undefined) return value;
+    const text = String(value).trim();
+    const upper = text.toUpperCase();
+
+    if (field === 'ownership') {
+      if (upper.includes('PRVATE') || upper.includes('PRIVATE')) return 'Private';
+      if (upper.includes('GOV') || upper.includes('PUBLIC')) return 'Government';
+      return 'Private'; // Default fallback
+    }
+
+    if (field === 'facilityType') {
+      if (upper.includes('HOSPITAL')) return 'Hospital';
+      if (upper.includes('PHC') || upper.includes('PRIMARY')) return 'Primary Health Centre (PHC)';
+      return text;
+    }
+
+    if (numericFields.has(String(field))) return toNumber(value);
+    
+    return text;
   },
 
   /**
@@ -298,11 +334,9 @@ export const financialDataService = {
       // Map fixed columns
       mappings.forEach(mapping => {
         if (mapping.nmisField !== 'ignored' && !monthColumns.includes(mapping)) {
-          let value = row[mapping.excelField];
-
-          // Clean numeric values
-          if (numericFields.has(String(mapping.nmisField))) value = toNumber(value);
-          (baseData as any)[mapping.nmisField] = value;
+          const rawValue = row[mapping.excelField];
+          const normalizedValue = this.smartNormalize(mapping.nmisField as keyof FinancialRecord, rawValue);
+          (baseData as any)[mapping.nmisField] = normalizedValue;
         }
       });
 
@@ -342,19 +376,5 @@ export const financialDataService = {
    */
   generateFingerprint(record: FinancialRecord): string {
     return buildFingerprint(record);
-  },
-
-  /**
-   * Calculate summary metrics for a list of records
-   */
-  calculateSummary(records: FinancialRecord[]) {
-    return {
-      totalAmount: records.reduce((sum, r) => sum + (r.amountPaid || r.netAmountPaid || r.amount || 0), 0),
-      totalClaims: records.filter(r => r.dataType === 'claims').reduce((sum, r) => sum + (r.amountPaid || 0), 0),
-      totalCapitation: records.filter(r => r.dataType === 'capitation').reduce((sum, r) => sum + (r.netAmount || 0), 0),
-      totalFFS: records.filter(r => r.dataType === 'ffs').reduce((sum, r) => sum + (r.amount || 0), 0),
-      recordCount: records.length,
-      providerCount: new Set(records.map(r => r.providerId || r.providerName)).size
-    };
   }
 };

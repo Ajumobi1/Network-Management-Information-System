@@ -19,20 +19,21 @@ import {
 
 const normalizeText = (value: unknown) => String(value ?? '').trim();
 
-const mappingRules: Array<{ field: EnrolmentField; keywords: string[] }> = [
-  { field: 'policyNumber', keywords: ['policy number', 'policy no', 'policy', 'membership number', 'member id'] },
-  { field: 'category', keywords: ['category', 'beneficiary category', 'member category'] },
-  { field: 'firstName', keywords: ['first name', 'firstname', 'given name'] },
-  { field: 'lastName', keywords: ['last name', 'lastname', 'surname', 'family name'] },
-  { field: 'gender', keywords: ['gender', 'sex'] },
-  { field: 'phoneNumber', keywords: ['phone', 'telephone', 'mobile', 'phone number'] },
-  { field: 'providerCode', keywords: ['provider code', 'facility code', 'facility id', 'provider id'] },
-  { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'health facility', 'facility name'] },
-  { field: 'lga', keywords: ['lga', 'local government', 'local govt'] },
-  { field: 'state', keywords: ['state', 'region'] },
-  { field: 'senatorialDistrict', keywords: ['senatorial', 'senate district', 'district'] },
-  { field: 'reportingMonth', keywords: ['month', 'reporting month'] },
-  { field: 'reportingYear', keywords: ['year', 'reporting year'] },
+const mappingRules: Array<{ field: EnrolmentField | 'ignored'; keywords: string[]; weight: number }> = [
+  { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id'], weight: 1.0 },
+  { field: 'policyNumber', keywords: ['policy number', 'policy no', 'policy', 'membership number', 'member id', 'enrollee id'], weight: 1.0 },
+  { field: 'category', keywords: ['category', 'beneficiary category', 'member category', 'principal/dependant'], weight: 1.0 },
+  { field: 'firstName', keywords: ['first name', 'firstname', 'given name', 'other names'], weight: 0.9 },
+  { field: 'lastName', keywords: ['last name', 'lastname', 'surname', 'family name'], weight: 0.9 },
+  { field: 'gender', keywords: ['gender', 'sex'], weight: 0.8 },
+  { field: 'phoneNumber', keywords: ['phone', 'telephone', 'mobile', 'phone number'], weight: 0.8 },
+  { field: 'providerCode', keywords: ['provider code', 'facility code', 'facility id', 'provider id', 'hcp code'], weight: 0.9 },
+  { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'health facility', 'facility name', 'name of facility'], weight: 1.0 },
+  { field: 'lga', keywords: ['lga', 'local government', 'local govt', 'area'], weight: 0.7 },
+  { field: 'state', keywords: ['state', 'region', 'location'], weight: 0.7 },
+  { field: 'senatorialDistrict', keywords: ['senatorial', 'senate district', 'district'], weight: 0.7 },
+  { field: 'reportingMonth', keywords: ['month', 'reporting month', 'period'], weight: 0.8 },
+  { field: 'reportingYear', keywords: ['year', 'reporting year'], weight: 0.8 },
 ];
 
 function normalizeHeader(value: string): string {
@@ -72,16 +73,35 @@ export function normalizeEnrolmentCategory(value: unknown): EnrolmentCategory | 
   return undefined;
 }
 
+/**
+ * Suggest enrolment mappings using fuzzy AI-like logic
+ */
 export function suggestEnrolmentMappings(headers: string[]): EnrolmentColumnMapping[] {
-  return headers.map(excelField => {
-    const normalized = normalizeHeader(excelField);
-    const match = mappingRules.find(rule => rule.keywords.some(keyword => normalized === keyword || normalized.includes(keyword)));
-    const confidenceScore = match ? (match.keywords.some(keyword => normalized === keyword) ? 0.95 : 0.78) : 0;
+  return headers.map(header => {
+    const normalized = normalizeHeader(header).replace(/[^a-z0-9/ ]/g, '');
+    let bestMatch: EnrolmentField | 'ignored' = 'ignored';
+    let maxScore = 0;
+
+    for (const rule of mappingRules) {
+      for (const kw of rule.keywords) {
+        let score = 0;
+        if (normalized === kw) score = 1.0;
+        else if (normalized.startsWith(kw) || normalized.endsWith(kw)) score = 0.85;
+        else if (normalized.includes(kw)) score = 0.7;
+        
+        score *= rule.weight;
+        if (score > maxScore) {
+          maxScore = score;
+          bestMatch = rule.field as EnrolmentField | 'ignored';
+        }
+      }
+    }
+
     return {
-      excelField,
-      enrolmentField: match?.field || 'ignored',
-      confidence: confidenceScore > 0.9 ? 'HIGH' : confidenceScore > 0.6 ? 'MEDIUM' : 'LOW',
-      confidenceScore,
+      excelField: header,
+      enrolmentField: bestMatch,
+      confidence: maxScore > 0.9 ? 'HIGH' : maxScore > 0.6 ? 'MEDIUM' : 'LOW',
+      confidenceScore: maxScore,
     };
   });
 }
@@ -98,6 +118,35 @@ export function buildEnrolleeFingerprint(policyNumber: string, period: string): 
   return `${policyNumber.replace(/\s+/g, '').toLowerCase()}|${period.trim()}`;
 }
 
+/**
+ * Smart normalization for enrolment values (standardizing ownership and categories)
+ */
+export function smartNormalizeEnrolmentValue(field: EnrolmentField | 'ownership', value: unknown): any {
+  if (value === null || value === undefined) return value;
+  const text = String(value).trim();
+  const upper = text.toUpperCase();
+
+  if (field === 'category') {
+    if (upper.includes('PRINCIPAL') || upper === 'P' || upper === 'S') return 'principal';
+    if (upper.includes('DEPEND') || upper === 'D') return 'dependant';
+    return 'principal';
+  }
+
+  if (field === 'ownership') {
+    if (upper.includes('PRVATE') || upper.includes('PRIVATE')) return 'Private';
+    if (upper.includes('GOV') || upper.includes('PUBLIC')) return 'Government';
+    return 'Private'; // Default fallback
+  }
+
+  if (field === 'gender') {
+    if (['MALE', 'M', 'BOY', 'MAN'].includes(upper)) return 'male';
+    if (['FEMALE', 'F', 'GIRL', 'WOMAN'].includes(upper)) return 'female';
+    return 'other';
+  }
+
+  return text;
+}
+
 export function normalizeEnrolmentRows(
   rows: Array<Record<string, unknown>>,
   mappings: EnrolmentColumnMapping[],
@@ -111,7 +160,7 @@ export function normalizeEnrolmentRows(
   const [periodYear, periodMonth] = period.split('-').map(Number);
 
   const normalized = rows.map((row, index) => {
-    const policyNumber = normalizeText(readMappedValue(row, mappings, 'policyNumber'));
+    const policyNumber = normalizeText(readMappedValue(row, mappings, 'policyNumber')).toUpperCase().replace(/\s+/g, '');
     const category = normalizeEnrolmentCategory(readMappedValue(row, mappings, 'category'));
     const sector = deriveSectorFromPolicy(policyNumber);
     const firstName = normalizeText(readMappedValue(row, mappings, 'firstName'));
@@ -139,6 +188,11 @@ export function normalizeEnrolmentRows(
     const providerLga = match?.matchedProviderLga || sourceLga;
     const providerState = match?.matchedProviderState || sourceState;
     const providerSenatorialDistrict = match?.matchedProviderSenatorialDistrict || normalizeText(readMappedValue(row, mappings, 'senatorialDistrict')) || undefined;
+    
+    // Ownership normalization from match or source
+    const rawOwnership = match?.matchedProviderOwnership || (row['ownership'] || row['OWNERSHIP'] || row['Ownership']);
+    const ownership = smartNormalizeEnrolmentValue('ownership', rawOwnership);
+
     const recordStatus = errors.length > 0
       ? (match && match.status !== 'confirmed' ? 'match-review-required' : 'error')
       : 'valid';
@@ -155,7 +209,7 @@ export function normalizeEnrolmentRows(
       providerCode: providerCode || undefined,
       providerName,
       facilityType: match?.matchedProviderFacilityType,
-      ownership: match?.matchedProviderOwnership,
+      ownership: ownership as any,
       lga: providerLga,
       state: providerState,
       senatorialDistrict: providerSenatorialDistrict,
@@ -221,4 +275,5 @@ export const enrolmentService = {
   insertEnrolleeRecords,
   createEnrolmentImportBatch,
   checkDuplicateEnrolmentBatch,
+  smartNormalizeEnrolmentValue,
 };
