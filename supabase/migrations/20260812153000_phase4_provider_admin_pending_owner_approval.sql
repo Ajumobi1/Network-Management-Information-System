@@ -1,20 +1,13 @@
 -- Target: Supabase staging project tnklirwrnrdvbfjsdtel (NMIS-Frontend).
 --
--- This migration is intentionally non-executable. Its guard MUST remain until
--- the owner approves the exact Phase 3B/Phase 4 staging deployment sequence.
+-- Staging execution of this exact target-specific migration was explicitly authorized
+-- after Phase 3B was applied and verified on project tnklirwrnrdvbfjsdtel.
 --
 -- Prerequisite: Phase 3B deny-by-default table policies and provider read
 -- contracts must be approved and applied first. This migration does not grant
 -- any browser role direct access to public.providers or public.audit_logs.
 
 BEGIN;
-
-DO $$
-BEGIN
-  RAISE EXCEPTION
-    'PENDING OWNER APPROVAL: Phase 4 provider admin workflow migration is intentionally guarded and must not execute';
-END
-$$;
 
 -- The Edge Function is the only caller. It verifies the user JWT, the signed
 -- app_metadata.nmis_role claim, AAL2, command schema, and field allow-list

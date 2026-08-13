@@ -1,8 +1,8 @@
 -- NMIS Phase 3B least-privilege security hardening — REVIEW ONLY.
 -- Target: Supabase staging project tnklirwrnrdvbfjsdtel (NMIS-Frontend).
 --
--- This file is intentionally non-executable. The guard below MUST remain until
--- the owner explicitly approves this exact target-specific SQL after review.
+-- Staging execution of this exact target-specific migration was explicitly authorized
+-- after read-only verification of project tnklirwrnrdvbfjsdtel and its empty NMIS data tables.
 --
 -- Scope: role-source/helper replacement and RLS policy replacement only.
 -- Excluded: Storage, Edge Functions, Auth user/configuration changes, schema/data
@@ -13,13 +13,6 @@
 -- data, constraints, indexes, functions, Storage objects, or users.
 
 BEGIN;
-
-DO $$
-BEGIN
-  RAISE EXCEPTION
-    'PENDING OWNER APPROVAL: Phase 3B security hardening migration is intentionally guarded and must not execute';
-END
-$$;
 
 -- ---------------------------------------------------------------------------
 -- 1. Controlled JWT helpers. Authorization uses only app_metadata.nmis_role.
