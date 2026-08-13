@@ -87,6 +87,8 @@ export type ProviderDirectoryFilters = {
   category: 'all' | string;
   subcategory: 'all' | string;
   ownership: 'all' | ProviderOwnership;
+  page?: number;
+  pageSize?: number;
 };
 
 export type ProviderRegistrationDraft = {

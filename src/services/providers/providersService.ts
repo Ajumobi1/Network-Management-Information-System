@@ -43,7 +43,7 @@ export async function fetchProviderFacilities(providerId: string) {
   return providersRepository.getProviderFacilities(providerId);
 }
 
-export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters): Promise<ProviderDirectoryItem[]> {
+export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters & { page?: number; pageSize?: number }): Promise<ProviderDirectoryItem[] & { totalCount?: number }> {
   const activeFilters =
     filters ?? {
       search: '',
@@ -56,33 +56,11 @@ export async function fetchProviderDirectory(filters?: ProviderDirectoryFilters)
       category: 'all',
       subcategory: 'all',
       ownership: 'all',
+      page: 1,
+      pageSize: 50,
     };
   
-  // Pass filters to repository for server-side filtering in live mode
-  const providers = await providersRepository.getProviderDirectory(activeFilters);
-  
-  // Keep local filtering for mock mode or as a secondary safety layer
-  const searchTerm = activeFilters.search.trim().toLowerCase();
-
-  return providers.filter(provider => {
-    const matchesSearch =
-      !searchTerm ||
-      [provider.providerCode, provider.providerName, provider.category, provider.subcategory, provider.ownership, provider.lga]
-        .join(' ')
-        .toLowerCase()
-        .includes(searchTerm);
-    const matchesStatus = activeFilters.status === 'all' || provider.status === activeFilters.status;
-    const matchesContract = activeFilters.contractStatus === 'all' || provider.contractStatus === activeFilters.contractStatus;
-    const matchesCredential = activeFilters.credentialStatus === 'all' || provider.credentialStatus === activeFilters.credentialStatus;
-    const matchesInspection = activeFilters.inspectionStatus === 'all' || provider.inspectionStatus === activeFilters.inspectionStatus;
-    const matchesCapitation = activeFilters.capitationStatus === 'all' || provider.capitationStatus === activeFilters.capitationStatus;
-    const matchesLga = activeFilters.lga === 'all' || provider.lga === activeFilters.lga;
-    const matchesCategory = activeFilters.category === 'all' || provider.category === activeFilters.category;
-    const matchesSubcategory = activeFilters.subcategory === 'all' || provider.subcategory === activeFilters.subcategory;
-    const matchesOwnership = activeFilters.ownership === 'all' || provider.ownership === activeFilters.ownership;
-
-    return matchesSearch && matchesStatus && matchesContract && matchesCredential && matchesInspection && matchesCapitation && matchesLga && matchesCategory && matchesSubcategory && matchesOwnership;
-  });
+  return providersRepository.getProviderDirectory(activeFilters);
 }
 
 export async function findProviderMatchCandidates(query: string, limit?: number): Promise<ProviderDirectoryItem[]> {

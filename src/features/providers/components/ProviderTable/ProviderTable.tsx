@@ -16,11 +16,22 @@ const listColumns = [
   { key: 'status', label: 'Status' },
 ];
 
-export default function ProviderTable({ providers }: { providers: ProviderDirectoryItem[]; onSelect?: (providerId: string) => void }) {
+type ProviderTableProps = {
+  providers: ProviderDirectoryItem[];
+  page?: number;
+  pageSize?: number;
+  totalCount?: number;
+  onPageChange?: (page: number) => void;
+  onSelect?: (providerId: string) => void;
+};
+
+export default function ProviderTable({ providers, page = 1, pageSize = 50, totalCount = providers.length, onPageChange }: ProviderTableProps) {
   const navigate = useNavigate();
-  const [sortKey, setSortKey] = useState<keyof ProviderDirectoryItem>('providerName');
   const [selected, setSelected] = useState<string[]>([]);
-  const sortedProviders = useMemo(() => [...providers].sort((left, right) => String(left[sortKey]).localeCompare(String(right[sortKey]))), [providers, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const startItem = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endItem = Math.min(page * pageSize, totalCount);
 
   return (
     <div className="nmis-table-wrap">
@@ -39,20 +50,16 @@ export default function ProviderTable({ providers }: { providers: ProviderDirect
               </th>
               {listColumns.map(column => (
                 <th key={column.key} className="px-6 py-4">
-                  <button
-                    className="flex items-center gap-2 hover:text-brand-foreground transition-colors"
-                    onClick={() => setSortKey(column.key as keyof ProviderDirectoryItem)}
-                  >
+                  <div className="flex items-center gap-2 text-brand-foreground">
                     {column.label}
-                    <ArrowDownUp className="h-3 w-3 opacity-50" />
-                  </button>
+                  </div>
                 </th>
               ))}
               <th className="px-6 py-4 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {sortedProviders.map(provider => (
+            {providers.map(provider => (
               <tr
                 key={provider.id}
                 className="hover:bg-slate-50/50 transition-colors cursor-pointer"
@@ -101,16 +108,49 @@ export default function ProviderTable({ providers }: { providers: ProviderDirect
       </div>
       <div className="flex flex-col gap-4 border-t border-brand-divider p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs font-bold uppercase tracking-wider text-brand-muted">
-          Showing {sortedProviders.length} official network providers <span className="mx-2 opacity-30">|</span> Page 1 of 1
+          Showing {startItem}–{endItem} of {totalCount} providers <span className="mx-2 opacity-30">|</span> Page {page} of {totalPages}
         </p>
-        <div className="flex gap-2">
-          <Button variant="secondary" size="sm" className="gap-1">
-            <ChevronLeft size={16} /> Previous
-          </Button>
-          <Button variant="secondary" size="sm" className="gap-1">
-            Next <ChevronRight size={16} />
-          </Button>
-        </div>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1"
+              disabled={page <= 1}
+              onClick={() => onPageChange?.(page - 1)}
+            >
+              <ChevronLeft size={16} /> Previous
+            </Button>
+            <div className="flex items-center gap-1 px-2">
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const pageNum = idx + 1;
+                const isCurrent = pageNum === page;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => onPageChange?.(pageNum)}
+                    className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
+                      isCurrent
+                        ? 'bg-brand-blue text-white shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="gap-1"
+              disabled={page >= totalPages}
+              onClick={() => onPageChange?.(page + 1)}
+            >
+              Next <ChevronRight size={16} />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

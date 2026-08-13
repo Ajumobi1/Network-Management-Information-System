@@ -181,15 +181,12 @@ export async function deleteProvider(id: string): Promise<boolean> {
   throw trustedOperationRequired('provider retention or correction');
 }
 
-export async function getProviderDirectory(filters: Record<string, any> = {}): Promise<ProviderDirectoryItem[]> {
-  if (useMockData) {
-    const sorted = [...providerDirectory].sort((a, b) => a.providerName.localeCompare(b.providerName));
-    return sorted.map((item, index) => ({
-      ...item,
-      providerCode: String(index + 1).padStart(3, '0'),
-    }));
-  }
-  const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
+export async function getProviderDirectory(filters: Record<string, any> = {}): Promise<ProviderDirectoryItem[] & { totalCount?: number }> {
+  const page = filters.page && filters.page > 0 ? Number(filters.page) : 1;
+  const pageSize = filters.pageSize && filters.pageSize > 0 ? Number(filters.pageSize) : 50;
+  const offset = (page - 1) * pageSize;
+
+  const rpcFilters = {
     p_search: filters.search || null,
     p_state: null, // State is permanently Ondo
     p_lga: filters.lga === 'all' ? null : filters.lga,
@@ -200,13 +197,40 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
     p_credential_status: filters.credentialStatus === 'all' ? null : filters.credentialStatus,
     p_inspection_status: filters.inspectionStatus === 'all' ? null : filters.inspectionStatus,
     p_capitation_status: filters.capitationStatus === 'all' ? null : filters.capitationStatus,
-  });
+  };
+
+  if (useMockData) {
+    const sorted = [...providerDirectory].sort((a, b) => a.providerName.localeCompare(b.providerName));
+    const totalCount = sorted.length;
+    const paged = sorted.slice(offset, offset + pageSize);
+    const items = paged.map((item, index) => ({
+      ...item,
+      providerCode: String(offset + index + 1).padStart(3, '0'),
+    })) as ProviderDirectoryItem[] & { totalCount: number };
+    items.totalCount = totalCount;
+    return items;
+  }
+
+  const [result, countResult] = await Promise.all([
+    invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
+      ...rpcFilters,
+      p_offset: offset,
+      p_page_size: pageSize,
+      p_sort: 'provider_name',
+    }),
+    invokeSecureRpc<number>('nmis_count_provider_directory', rpcFilters)
+  ]);
+
   const rawList = directoryRows(result).map(mapDirectoryRow);
   const sorted = rawList.sort((a, b) => a.providerName.localeCompare(b.providerName));
-  return sorted.map((item, index) => ({
+  const items = sorted.map((item, index) => ({
     ...item,
-    providerCode: String(index + 1).padStart(3, '0'),
-  }));
+    providerCode: String(offset + index + 1).padStart(3, '0'),
+  })) as ProviderDirectoryItem[] & { totalCount: number };
+  const totalCount = typeof countResult === 'number' ? countResult : items.length;
+  items.totalCount = totalCount;
+
+  return items;
 }
 
 export async function createDirectoryProvider(payload: ProviderRegistrationCommand): Promise<ProviderDirectoryItem> {

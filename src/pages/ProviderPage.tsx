@@ -16,6 +16,8 @@ import { isSecureContractError } from '../lib/security/secureContracts';
 
 export default function ProviderPage() {
   const navigate = useNavigate();
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(50);
   const [filters, setFilters] = useState<ProviderDirectoryFilters>({
     search: '',
     status: 'all',
@@ -29,18 +31,29 @@ export default function ProviderPage() {
     ownership: 'all',
   });
 
-  const { data: providers = [], isLoading, isError, error, refetch } = useProviderDirectory(filters);
+  const { data: providers = [], isLoading, isError, error, refetch } = useProviderDirectory({
+    ...filters,
+    page,
+    pageSize,
+  });
 
-  const categories = useMemo(() => ['all', ...new Set(providers.map(p => p.category))].sort(), [providers]);
-  const ownerships = useMemo(() => ['all', ...new Set(providers.map(p => p.ownership))].sort(), [providers]);
-  const lgas = useMemo(() => ['all', ...new Set(providers.map(p => p.lga).filter(Boolean))].sort(), [providers]);
+  const totalCount = (providers as any).totalCount ?? providers.length;
+
+  const handleFilterChange = (newFilters: ProviderDirectoryFilters) => {
+    setFilters(newFilters);
+    setPage(1); // Reset to page 1 on filter change
+  };
+
+  const categories = useMemo(() => ['all', 'Hospital', 'Primary Health Centre (PHC)', 'Clinic', 'Diagnostic Centre', 'Pharmacy'], []);
+  const ownerships = useMemo(() => ['all', 'Government', 'Private'], []);
+  const lgas = useMemo(() => ['all', 'Akoko North-East', 'Akoko North-West', 'Akoko South-East', 'Akoko South-West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'], []);
 
   const stats = useMemo(() => ({
-    total: providers.length,
+    total: totalCount,
     active: providers.filter(p => p.status === 'active').length,
     pending: providers.filter(p => p.status === 'pending').length,
     risk: providers.filter(p => ['suspended', 'blacklisted', 'expired'].includes(p.status)).length,
-  }), [providers]);
+  }), [totalCount, providers]);
 
   if (isError) {
     const secure = isSecureContractError(error);
@@ -86,13 +99,19 @@ export default function ProviderPage() {
           categories={categories}
           ownerships={ownerships}
           lgas={lgas}
-          onChange={setFilters}
+          onChange={handleFilterChange}
         />
 
         {isLoading ? (
           <LoadingState title="Loading provider directory register..." />
         ) : (
-          <ProviderTable providers={providers} />
+          <ProviderTable
+            providers={providers}
+            page={page}
+            pageSize={pageSize}
+            totalCount={totalCount}
+            onPageChange={setPage}
+          />
         )}
 
         <ProviderRegistrationWizard />
