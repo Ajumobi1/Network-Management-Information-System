@@ -14,7 +14,7 @@ import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Card from '../../components/ui/Card';
 import PageHeader from '../../components/ui/PageHeader';
-import { financialDataService } from '../../services/financial-data/financialDataService';
+import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
 import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from '../../types/financial-data';
 import { useCheckDuplicateBatch, useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
 import { useAuth } from '../../contexts/AuthContext';
@@ -165,7 +165,7 @@ export default function DataUploadCentrePage() {
       const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
       rawRows.forEach(row => {
         const name = String(row[providerField] ?? '').trim();
-        if (!name) return;
+        if (!name || isSummaryRow(name)) return;
         const key = `${name.toLowerCase()}|${String(row[codeField ?? ''] ?? '').toLowerCase()}`;
         uniqueProviders.set(key, {
           name,

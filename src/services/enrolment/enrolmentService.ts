@@ -150,6 +150,10 @@ export function smartNormalizeEnrolmentValue(field: EnrolmentField | 'ownership'
     return 'Private'; // Default fallback
   }
 
+  if (field === 'state') {
+    return 'Ondo';
+  }
+
   if (field === 'gender') {
     if (['MALE', 'M', 'BOY', 'MAN'].includes(upper)) return 'male';
     if (['FEMALE', 'F', 'GIRL', 'WOMAN'].includes(upper)) return 'female';

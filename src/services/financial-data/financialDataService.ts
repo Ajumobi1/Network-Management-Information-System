@@ -32,7 +32,7 @@ const buildFingerprint = (record: FinancialRecord) => [
   record.amountPaid ?? record.netAmountPaid ?? record.amount ?? '',
 ].map(value => normalizeText(value)).join('|');
 
-const isSummaryRow = (providerName: string): boolean => {
+export const isSummaryRow = (providerName: string): boolean => {
   const normalized = providerName.trim().toUpperCase();
   return (
     normalized === 'TOTAL' ||
@@ -153,6 +153,10 @@ export const financialDataService = {
       if (upper.includes('HOSPITAL')) return 'Hospital';
       if (upper.includes('PHC') || upper.includes('PRIMARY')) return 'Primary Health Centre (PHC)';
       return text;
+    }
+
+    if (field === 'state') {
+      return 'Ondo';
     }
 
     if (numericFields.has(String(field))) return toNumber(value);

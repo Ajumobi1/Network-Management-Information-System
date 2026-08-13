@@ -5,7 +5,7 @@ import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, FileSpreadsheet, MapP
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useAuth } from '../../contexts/AuthContext';
-import { financialDataService } from '../../services/financial-data/financialDataService';
+import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
 import { enrolmentService } from '../../services/enrolment/enrolmentService';
 import { useCreateEnrolmentImportBatch } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField } from '../../types/enrolment/enrolmentTypes';
@@ -163,7 +163,7 @@ export default function EnrolmentUploadPage() {
       const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
       rawRows.forEach(row => {
         const name = String(row[providerField] ?? '').trim();
-        if (!name) return;
+        if (!name || isSummaryRow(name)) return;
         const key = `${name.toLowerCase()}|${String(row[providerCodeField || ''] ?? '').trim().toLowerCase()}`;
         uniqueProviders.set(key, {
           name,
