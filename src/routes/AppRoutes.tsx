@@ -9,6 +9,7 @@ import InviteProviderPage from '../pages/auth/InviteProviderPage';
 import ManageUsersPage from '../pages/auth/ManageUsersPage';
 import DashboardPage from '../pages/dashboard/ExecutiveDashboardPage';
 import ProviderPage from '../pages/ProviderPage';
+import ProviderProfilePage from '../pages/ProviderProfilePage';
 import InspectionsPage from '../pages/InspectionsPage';
 import ContractsPage from '../pages/ContractsPage';
 import ReportsPage from '../pages/ReportsPage';
@@ -47,6 +48,7 @@ export default function AppRoutes() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/providers" element={<ProviderPage />} />
+        <Route path="/providers/:providerId" element={<ProviderProfilePage />} />
         <Route path="/provider-registration" element={<ProviderPage />} />
         <Route path="/credentialing" element={<CredentialingPage />} />
         <Route path="/contracts" element={<ContractsPage />} />

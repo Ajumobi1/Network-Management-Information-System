@@ -1,16 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Upload, Filter, RotateCcw } from 'lucide-react';
+import { UserPlus, Upload } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import KpiCard from '../components/ui/KpiCard';
 import ProviderFilters from '../features/providers/components/ProviderFilters';
 import ProviderTable from '../features/providers/components/ProviderTable';
-import ProviderGrid from '../features/providers/components/ProviderGrid';
 import ProviderRegistrationWizard from '../features/providers/registration/ProviderRegistrationWizard';
-import { LayoutGrid, List } from 'lucide-react';
-import ProviderProfile from '../features/providers/profile/ProviderProfile';
 import { useProviderDirectory } from '../features/providers/hooks';
 import { ProviderDirectoryFilters } from '../features/providers/types';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
@@ -19,7 +16,6 @@ import { isSecureContractError } from '../lib/security/secureContracts';
 
 export default function ProviderPage() {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
   const [filters, setFilters] = useState<ProviderDirectoryFilters>({
     search: '',
     status: 'all',
@@ -34,7 +30,6 @@ export default function ProviderPage() {
   });
 
   const { data: providers = [], isLoading, isError, error, refetch } = useProviderDirectory(filters);
-  const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
 
   const categories = useMemo(() => ['all', ...new Set(providers.map(p => p.category))].sort(), [providers]);
   const ownerships = useMemo(() => ['all', ...new Set(providers.map(p => p.ownership))].sort(), [providers]);
@@ -65,12 +60,12 @@ export default function ProviderPage() {
       <div className="space-y-6">
         <PageHeader
           eyebrow="Provider Network"
-          title="Provider Directory"
-          subtitle="The authoritative registry of healthcare facilities within the NMIS network. Manage onboarding, compliance, and operational status."
+          title="Providers"
+          subtitle="The authoritative official Network Provider Register within NMIS. Search, filter, and inspect facility records and operational status."
           actions={
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" className="gap-2" onClick={() => navigate('/financial/upload?type=provider-network')}>
-                <Upload size={16} /> Import
+                <Upload size={16} /> Import Directory
               </Button>
               <Button to="/provider-registration" className="gap-2">
                 <UserPlus size={16} /> Register Provider
@@ -86,51 +81,18 @@ export default function ProviderPage() {
           <KpiCard title="Risk flagged" value={stats.risk.toLocaleString()} subtitle="Suspended or expired" tone="danger" />
         </section>
 
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          <div className="flex-1">
-            <ProviderFilters
-              filters={filters}
-              categories={categories}
-              ownerships={ownerships}
-              lgas={lgas}
-              onChange={setFilters}
-            />
-          </div>
-          
-          <div className="flex shrink-0 items-center gap-1 rounded-2xl bg-slate-100 p-1">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-                viewMode === 'grid' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-              title="Profile View"
-            >
-              <LayoutGrid size={20} />
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
-                viewMode === 'table' ? 'bg-white text-brand-blue shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-              title="Table View"
-            >
-              <List size={20} />
-            </button>
-          </div>
-        </div>
+        <ProviderFilters
+          filters={filters}
+          categories={categories}
+          ownerships={ownerships}
+          lgas={lgas}
+          onChange={setFilters}
+        />
 
         {isLoading ? (
-          <LoadingState title="Loading provider directory..." />
-        ) : viewMode === 'grid' ? (
-          <ProviderGrid providers={providers} onSelect={setSelectedProviderId} />
+          <LoadingState title="Loading provider directory register..." />
         ) : (
-          <ProviderTable providers={providers} onSelect={setSelectedProviderId} />
-        )}
-
-        {selectedProviderId && (
-          <section className="mt-12">
-            <ProviderProfile providerId={selectedProviderId} />
-          </section>
+          <ProviderTable providers={providers} />
         )}
 
         <ProviderRegistrationWizard />
@@ -148,7 +110,7 @@ export default function ProviderPage() {
             }
           />
           <p className="mt-4 text-sm text-brand-secondary leading-relaxed">
-            The provider directory is prepared for Leaflet/Google Maps integration. Communication channels (Email, SMS) are represented through service-driven profile data for future operational deployment.
+            The provider register is synchronized with secure Supabase RPC contracts. All facility records maintain strict audit attribution and least-privilege access control.
           </p>
         </Card>
       </div>

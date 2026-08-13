@@ -1,22 +1,23 @@
 import { useMemo, useState } from 'react';
-import { ArrowDownUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowDownUp, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import Button from '../../../../components/ui/Button';
 import Badge from '../../../../components/ui/Badge';
 import { ProviderDirectoryItem } from '../../types';
-import ProviderQuickActions from '../ProviderQuickActions';
-import ProviderStatusBadge, { formatProviderLabel } from '../ProviderStatusBadge';
+import ProviderStatusBadge from '../ProviderStatusBadge';
 import ProviderToolbar from '../ProviderToolbar';
-import { PROVIDER_IMPORT_EXPORT_COLUMNS } from '../../../../constants/providerNetwork';
 
 const listColumns = [
-  { key: 'providerCode', label: 'S/N' },
-  { key: 'providerName', label: 'Provider Name' },
+  { key: 'providerCode', label: 'Code' },
+  { key: 'providerName', label: 'Facility Name' },
   { key: 'category', label: 'Category' },
+  { key: 'ownership', label: 'Ownership' },
   { key: 'lga', label: 'LGA' },
   { key: 'status', label: 'Status' },
 ];
 
-export default function ProviderTable({ providers, onSelect }: { providers: ProviderDirectoryItem[]; onSelect: (providerId: string) => void }) {
+export default function ProviderTable({ providers }: { providers: ProviderDirectoryItem[]; onSelect?: (providerId: string) => void }) {
+  const navigate = useNavigate();
   const [sortKey, setSortKey] = useState<keyof ProviderDirectoryItem>('providerName');
   const [selected, setSelected] = useState<string[]>([]);
   const sortedProviders = useMemo(() => [...providers].sort((left, right) => String(left[sortKey]).localeCompare(String(right[sortKey]))), [providers, sortKey]);
@@ -47,12 +48,16 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
                   </button>
                 </th>
               ))}
-              <th className="px-6 py-4 text-right">Actions</th>
+              <th className="px-6 py-4 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {sortedProviders.map(provider => (
-              <tr key={provider.id} className="hover:bg-slate-50/50 transition-colors cursor-pointer" onClick={() => onSelect(provider.id)}>
+              <tr
+                key={provider.id}
+                className="hover:bg-slate-50/50 transition-colors cursor-pointer"
+                onClick={() => navigate(`/providers/${provider.id}`)}
+              >
                 <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                   <input
                     aria-label={`Select ${provider.providerName}`}
@@ -66,18 +71,28 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
                   {provider.providerCode}
                 </td>
                 <td className="px-6 py-4">
-                  <div className="font-black text-slate-900">{provider.providerName}</div>
+                  <div className="font-black text-slate-900 text-sm hover:text-brand-blue transition-colors">{provider.providerName}</div>
                   <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">{provider.subcategory}</div>
                 </td>
                 <td className="px-6 py-4">
                   <Badge variant="info" className="text-[10px] uppercase tracking-wider">{provider.category}</Badge>
+                </td>
+                <td className="px-6 py-4">
+                  <span className="text-xs font-semibold text-slate-700">{provider.ownership}</span>
                 </td>
                 <td className="px-6 py-4 text-slate-600 font-medium">{provider.lga}</td>
                 <td className="px-6 py-4">
                   <ProviderStatusBadge status={provider.status} />
                 </td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                  <ProviderQuickActions providerId={provider.id} status={provider.status} onSelect={onSelect} />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1 text-xs px-3 py-1.5 text-brand-blue hover:bg-brand-blue/10"
+                    onClick={() => navigate(`/providers/${provider.id}`)}
+                  >
+                    <Eye size={14} /> View Profile
+                  </Button>
                 </td>
               </tr>
             ))}
@@ -86,7 +101,7 @@ export default function ProviderTable({ providers, onSelect }: { providers: Prov
       </div>
       <div className="flex flex-col gap-4 border-t border-brand-divider p-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs font-bold uppercase tracking-wider text-brand-muted">
-          Showing {sortedProviders.length} providers <span className="mx-2 opacity-30">|</span> Page 1 of 1
+          Showing {sortedProviders.length} official network providers <span className="mx-2 opacity-30">|</span> Page 1 of 1
         </p>
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" className="gap-1">
