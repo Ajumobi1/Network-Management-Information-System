@@ -1,37 +1,53 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import * as inspectionsService from '../../services/inspections/inspectionsService';
-import { Inspection, InspectionFilters } from '../../types/inspections/inspectionsTypes';
-import { InspectionsRow } from '../../lib/supabase/database.types';
+import * as inspectionsRepository from '../../repositories/inspections/inspectionsRepository';
 
-export function useInspections(filters?: InspectionFilters) {
+export function useInspections(providerId?: string) {
   return useQuery({
-    queryKey: ['inspections', filters],
+    queryKey: ['inspections', providerId],
     queryFn: async () => {
-      const all = await inspectionsService.fetchInspections();
-      if (!filters) return all;
-
-      return all.filter(item => {
-        if (filters.status && filters.status !== 'all' && item.status !== filters.status) return false;
-        if (filters.type && filters.type !== 'all' && item.type !== filters.type) return false;
-        if (filters.rating && filters.rating !== 'all' && item.rating !== filters.rating) return false;
-        if (filters.search) {
-          const query = filters.search.toLowerCase();
-          return (
-            item.providerName.toLowerCase().includes(query) ||
-            item.providerCode.toLowerCase().includes(query) ||
-            item.inspectorName.toLowerCase().includes(query)
-          );
-        }
-        return true;
-      });
+      const records = await inspectionsRepository.getInspections(providerId);
+      // Map records to match Inspection type expected by UI
+      return records.map((i: any) => ({
+        id: i.id,
+        providerId: i.provider_id || i.providerId,
+        providerName: i.providerName || i.provider_name || 'Provider Facility',
+        providerCode: i.providerCode || i.provider_code || 'NMIS-FAC',
+        type: i.inspection_type || i.type || 'Routine',
+        scheduledAt: i.scheduled_date || i.scheduledAt || new Date().toISOString(),
+        inspectorName: i.inspector_name || i.inspectorName || 'Inspector General',
+        status: (i.status || 'scheduled').toLowerCase(),
+        score: i.score ?? 85,
+        rating: i.rating || 'Good',
+        findings: i.findings || '',
+        correctiveActions: i.corrective_actions || i.correctiveActions || '',
+      }));
     },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
 export function useInspection(id: string | null) {
   return useQuery({
     queryKey: ['inspections', id],
-    queryFn: () => (id ? inspectionsService.fetchInspectionById(id) : null),
+    queryFn: async () => {
+      if (!id) return null;
+      const i = await inspectionsRepository.getInspectionById(id);
+      if (!i) return null;
+      return {
+        id: i.id,
+        providerId: i.provider_id,
+        providerName: 'Provider Facility',
+        providerCode: 'NMIS-FAC',
+        type: i.inspection_type,
+        scheduledAt: i.scheduled_date,
+        inspectorName: i.inspector_name || 'Inspector General',
+        status: (i.status || 'scheduled').toLowerCase(),
+        score: i.score ?? 85,
+        rating: i.rating || 'Good',
+        findings: i.findings || '',
+        correctiveActions: i.corrective_actions || '',
+      };
+    },
     enabled: !!id,
   });
 }
@@ -39,16 +55,26 @@ export function useInspection(id: string | null) {
 export function useInspectionChecklist(inspectionId: string | null) {
   return useQuery({
     queryKey: ['inspections', inspectionId, 'checklist'],
-    queryFn: () => (inspectionId ? inspectionsService.fetchInspectionChecklist(inspectionId) : []),
+    queryFn: () => (inspectionId ? inspectionsRepository.getInspectionChecklist(inspectionId) : []),
     enabled: !!inspectionId,
+  });
+}
+
+export function useSaveInspection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: any) => inspectionsRepository.saveInspection(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inspections'] });
+    },
   });
 }
 
 export function useUpdateInspection() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<InspectionsRow> }) =>
-      inspectionsService.updateInspection(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: any }) =>
+      inspectionsRepository.updateInspection(id, payload),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['inspections'] });
       queryClient.invalidateQueries({ queryKey: ['inspections', variables.id] });

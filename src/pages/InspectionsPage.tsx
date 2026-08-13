@@ -18,7 +18,23 @@ export default function InspectionsPage() {
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
-  const { data: inspections = [], isLoading, isError, refetch } = useInspections(filters);
+  const { data: allInspections = [], isLoading, isError, refetch } = useInspections();
+  const inspections = useMemo(() => {
+    return allInspections.filter(item => {
+      if (filters.status && filters.status !== 'all' && item.status !== filters.status) return false;
+      if (filters.type && filters.type !== 'all' && item.type !== filters.type) return false;
+      if (filters.rating && filters.rating !== 'all' && item.rating !== filters.rating) return false;
+      if (filters.search) {
+        const query = filters.search.toLowerCase();
+        return (
+          item.providerName.toLowerCase().includes(query) ||
+          item.providerCode.toLowerCase().includes(query) ||
+          item.inspectorName.toLowerCase().includes(query)
+        );
+      }
+      return true;
+    });
+  }, [allInspections, filters]);
 
   const summary = useMemo(() => {
     const completed = inspections.filter(i => i.status === 'completed').length;
@@ -199,7 +215,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Inspection Review</p>
             <h2 className="mt-1 text-xl font-black text-brand-foreground">
-              {isLoading ? 'Loading...' : inspection?.providerName}
+              {isLoading ? 'Loading...' : (inspection?.providerName || 'Provider Facility')}
             </h2>
           </div>
           <button onClick={onClose} className="rounded-control p-2 text-brand-muted hover:bg-brand-surface hover:text-brand-foreground transition-colors">
@@ -261,7 +277,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
                 </div>
                 <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
                   <p className="text-sm leading-relaxed text-brand-secondary">
-                    {inspection.notes || 'No notes provided for this inspection.'}
+                    {inspection.findings || 'No notes provided for this inspection.'}
                   </p>
                 </div>
               </section>
