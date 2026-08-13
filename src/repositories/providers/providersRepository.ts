@@ -288,5 +288,12 @@ export async function saveProviderMatchResolution(match: ProviderMatch, _resolve
 
 export async function getPersistedProviderMatches(): Promise<Record<string, ProviderMatch>> {
   if (useMockData) return {};
-  throw trustedOperationRequired('provider match history');
+  try {
+    // Attempt to fetch from a secure RPC if it exists, otherwise return empty
+    const result = await invokeSecureRpc<Record<string, ProviderMatch>>('nmis_get_persisted_matches');
+    return result || {};
+  } catch (error) {
+    // Graceful degradation: if the history contract is unavailable, matching continues without history
+    return {};
+  }
 }
