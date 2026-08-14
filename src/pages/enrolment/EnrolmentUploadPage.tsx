@@ -1,7 +1,24 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, FileSpreadsheet, Hospital, MapPin, RefreshCcw, Upload } from 'lucide-react';
+import { 
+  AlertCircle, 
+  ArrowLeft, 
+  ArrowRight, 
+  CheckCircle2, 
+  FileSpreadsheet, 
+  Hospital, 
+  MapPin, 
+  RefreshCcw, 
+  Upload,
+  FileUp,
+  History,
+  ListChecks,
+  Trash2,
+  FileText,
+  Clock,
+  Loader2
+} from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useAuth } from '../../contexts/AuthContext';
@@ -12,8 +29,36 @@ import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField } from '../../ty
 import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
 
- type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
- type RawRow = Record<string, unknown>;
+type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
+type RawRow = Record<string, unknown>;
+
+interface FileQueueItem {
+  id: string;
+  file: File;
+  status: 'pending' | 'processing' | 'ready' | 'review' | 'error' | 'imported';
+  period?: string;
+  rows: number;
+  matched: number;
+  review: number;
+  errors: number;
+  message?: string;
+  // Stored processing state for this specific file
+  data?: {
+    workbook: XLSX.WorkBook;
+    sourceSheet: string;
+    sheetNames: string[];
+    headerRowIndex: number;
+    headers: string[];
+    rawRows: RawRow[];
+    mappings: EnrolmentColumnMapping[];
+    reportingYear: string;
+    reportingMonth: string;
+    matches: ProviderMatch[];
+    normalizedRecords: EnrolleeRecord[];
+    validationErrors: string[];
+    extractedContext: { facilityName?: string; lga?: string; period?: string };
+  };
+}
 
 const steps: UploadStep[] = ['upload', 'inspect', 'identify', 'map', 'classify', 'match', 'preview', 'commit'];
 const stepLabels: Record<UploadStep, string> = {
@@ -27,142 +72,138 @@ const stepLabels: Record<UploadStep, string> = {
   commit: 'Commit',
 };
 
-const mappingOptions: Array<{ value: EnrolmentField | 'ignored'; label: string }> = [
-  { value: 'ignored', label: 'Ignore this column' },
-  { value: 'policyNumber', label: 'Policy number' },
-  { value: 'category', label: 'CATEGORY (Principal/Dependant)' },
-  { value: 'firstName', label: 'First name' },
-  { value: 'lastName', label: 'Last name' },
-  { value: 'gender', label: 'Gender' },
-  { value: 'age', label: 'Age' },
-  { value: 'phoneNumber', label: 'Phone number' },
-  { value: 'providerCode', label: 'Provider/facility code' },
-  { value: 'providerName', label: 'Facility/provider name' },
-  { value: 'lga', label: 'LGA' },
-  { value: 'state', label: 'State' },
-  { value: 'senatorialDistrict', label: 'Senatorial district' },
-  { value: 'reportingMonth', label: 'Reporting month' },
-  { value: 'reportingYear', label: 'Reporting year' },
-];
-
 export default function EnrolmentUploadPage() {
-  const workbookRef = useRef<XLSX.WorkBook | null>(null);
   const [step, setStep] = useState<UploadStep>('upload');
-  const [file, setFile] = useState<File | null>(null);
-  const [sheetNames, setSheetNames] = useState<string[]>([]);
-  const [sourceSheet, setSourceSheet] = useState('');
-  const [headerRowIndex, setHeaderRowIndex] = useState(0);
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [rawRows, setRawRows] = useState<RawRow[]>([]);
-  const [mappings, setMappings] = useState<EnrolmentColumnMapping[]>([]);
-  const [reportingYear, setReportingYear] = useState('');
-  const [reportingMonth, setReportingMonth] = useState('');
-  const [matches, setMatches] = useState<ProviderMatch[]>([]);
-  const [normalizedRecords, setNormalizedRecords] = useState<EnrolleeRecord[]>([]);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [queue, setQueue] = useState<FileQueueItem[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
-  const [duplicateWarning, setDuplicateWarning] = useState<ImportBatch[] | null>(null);
-  const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const { session } = useAuth();
-  const liveCommitUnavailable = false; // Workflow is now wired to secure RPCs
   const createBatch = useCreateEnrolmentImportBatch();
+  const workbookRef = useRef<XLSX.WorkBook | null>(null);
 
-  const period = reportingYear && reportingMonth
-    ? `${reportingYear}-${reportingMonth.padStart(2, '0')}`
-    : '';
-  const mappingFields = useMemo(() => new Set(mappings.map(mapping => mapping.enrolmentField)), [mappings]);
-  const [extractedContext, setExtractedContext] = useState<{ facilityName?: string; lga?: string; period?: string }>({});
+  const activeItem = useMemo(() => queue.find(item => item.id === activeFileId), [queue, activeFileId]);
+  
+  // Helper to update queue item state
+  const updateQueueItem = (id: string, updates: Partial<FileQueueItem>) => {
+    setQueue(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+  };
 
-  const missingRequiredMappings = ['policyNumber', 'category', 'firstName', 'lastName', 'gender']
-    .filter(field => !mappingFields.has(field as EnrolmentField));
-  const matchSummary = useMemo(() => ({
-    matched: matches.filter(match => match.status === 'confirmed' && Boolean(match.matchedProviderId)).length,
-    ambiguous: matches.filter(match => match.status === 'pending' && Boolean(match.candidates?.length)).length,
-    unmatched: matches.filter(match => !match.matchedProviderId && match.status !== 'confirmed').length,
-  }), [matches]);
-  const validRecords = normalizedRecords.filter(record => record.recordStatus === 'valid');
-  const duplicateRecords = normalizedRecords.filter(record => record.recordStatus === 'duplicate');
-  const recordsRequiringReview = normalizedRecords.filter(record => record.recordStatus === 'match-review-required');
-  const readyToImport = validRecords.length;
+  const updateActiveData = (updates: Partial<NonNullable<FileQueueItem['data']>>) => {
+    if (!activeFileId) return;
+    setQueue(prev => prev.map(item => item.id === activeFileId ? { 
+      ...item, 
+      data: item.data ? { ...item.data, ...updates } : undefined 
+    } : item));
+  };
 
-  const readSheet = (workbook: XLSX.WorkBook, sheetName: string, hIndex: number) => {
-    const sheet = workbook.Sheets[sheetName];
-    if (!sheet) throw new Error('The selected worksheet could not be read.');
-    const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-    
-    // AI Context Extraction from header rows above the table
-    const context = enrolmentService.extractWorkbookContext(matrix);
-    setExtractedContext(context);
-    if (context.period) {
-      const yearMatch = context.period.match(/20\d\d/);
-      if (yearMatch) setReportingYear(yearMatch[0]);
-    }
-    
-    const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
-    const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
-      .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
-    if (detectedHeaders.length === 0 || rows.length === 0) throw new Error('The selected header row has no readable columns.');
-    setSourceSheet(sheetName);
-    setHeaderRowIndex(hIndex);
-    setHeaders(detectedHeaders);
-    setRawRows(rows);
-    setMappings(enrolmentService.suggestEnrolmentMappings(detectedHeaders));
+  const reset = () => {
+    setStep('upload');
+    setQueue([]);
+    setActiveFileId(null);
+    setErrorMessage('');
+    setCommitMessage('');
+    workbookRef.current = null;
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (!selectedFile) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
     setErrorMessage('');
     setCommitMessage('');
-    setFile(selectedFile);
+    
+    const newItems: FileQueueItem[] = files.map(file => ({
+      id: Math.random().toString(36).substring(7),
+      file,
+      status: 'pending',
+      rows: 0,
+      matched: 0,
+      review: 0,
+      errors: 0
+    }));
+
+    setQueue(prev => [...prev, ...newItems]);
+    
+    // Auto-process first file if nothing active
+    if (!activeFileId) {
+      processFile(newItems[0]);
+    }
+  };
+
+  const processFile = async (item: FileQueueItem) => {
+    setActiveFileId(item.id);
     setIsAnalyzing(true);
     try {
-      const workbook = XLSX.read(await selectedFile.arrayBuffer(), { type: 'array', cellDates: true });
+      const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
       if (workbook.SheetNames.length === 0) throw new Error('The workbook does not contain a readable worksheet.');
+      
       workbookRef.current = workbook;
-      setSheetNames(workbook.SheetNames);
-      readSheet(workbook, workbook.SheetNames[0], 0);
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+      
+      // AI Context Extraction
+      const context = enrolmentService.extractWorkbookContext(matrix);
+      
+      // Automatic Period Detection from filename or context
+      let detectedYear = '';
+      let detectedMonth = '';
+      
+      const fileName = item.file.name.toLowerCase();
+      const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+      const monthIdx = monthNames.findIndex(m => fileName.includes(m));
+      if (monthIdx !== -1) detectedMonth = String(monthIdx + 1);
+      
+      const yearMatch = fileName.match(/202[4-6]/);
+      if (yearMatch) detectedYear = yearMatch[0];
+
+      if (context.period) {
+        const ctxYearMatch = context.period.match(/202[4-6]/);
+        if (ctxYearMatch) detectedYear = ctxYearMatch[0];
+        const ctxMonthIdx = monthNames.findIndex(m => context.period?.toLowerCase().includes(m));
+        if (ctxMonthIdx !== -1) detectedMonth = String(ctxMonthIdx + 1);
+      }
+
+      const hIndex = 0;
+      const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
+      const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
+        .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
+
+      updateQueueItem(item.id, {
+        status: 'processing',
+        rows: rows.length,
+        data: {
+          workbook,
+          sourceSheet: sheetName,
+          sheetNames: workbook.SheetNames,
+          headerRowIndex: hIndex,
+          headers: detectedHeaders,
+          rawRows: rows,
+          mappings: enrolmentService.suggestEnrolmentMappings(detectedHeaders),
+          reportingYear: detectedYear,
+          reportingMonth: detectedMonth,
+          matches: [],
+          normalizedRecords: [],
+          validationErrors: [],
+          extractedContext: context
+        }
+      });
       setStep('inspect');
     } catch (error) {
-      setFile(null);
+      updateQueueItem(item.id, { status: 'error', message: error instanceof Error ? error.message : 'Inspection failed' });
       setErrorMessage(error instanceof Error ? error.message : 'The workbook could not be inspected.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const updateMapping = (index: number, value: EnrolmentField | 'ignored') => {
-    setMappings(current => current.map((mapping, mappingIndex) => mappingIndex === index
-      ? { ...mapping, enrolmentField: value, confidence: 'HIGH', confidenceScore: 1, isCustom: true }
-      : mapping));
-  };
-
-  const continueToPeriod = () => {
-    setErrorMessage('');
-    setStep('identify');
-  };
-
-  const continueToMap = () => {
-    setErrorMessage('');
-    if (!reportingYear || !reportingMonth) {
-      setErrorMessage('Enter the reporting year and month before continuing.');
-      return;
-    }
-    setStep('map');
-  };
-
-  const continueToClassify = () => {
-    setErrorMessage('');
-    if (missingRequiredMappings.length > 0) {
-      setErrorMessage(`Map the required fields before continuing: ${missingRequiredMappings.join(', ')}.`);
-      return;
-    }
-    setStep('classify');
-  };
-
   const startMatching = async () => {
+    if (!activeItem?.data) return;
+    const { rawRows, mappings, extractedContext } = activeItem.data;
+    
     setErrorMessage('');
     setIsAnalyzing(true);
     try {
@@ -188,120 +229,96 @@ export default function EnrolmentUploadPage() {
         });
         results = await Promise.all([...uniqueProviders.values()].map(provider => financialDataService.matchProvider(provider.name, provider.code, provider.lga, provider.state)));
       } else if (extractedContext.facilityName) {
-        // Use extracted context facility name from header rows
         const match = await financialDataService.matchProvider(extractedContext.facilityName, undefined, extractedContext.lga, 'Ondo');
         results = [match];
       } else {
-        throw new Error('Could not detect a facility/provider name in the column mappings or workbook header.');
+        throw new Error('Could not detect a facility/provider name.');
       }
 
-      setMatches(results);
+      updateActiveData({ matches: results });
       setStep('match');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Facility matching could not be completed.');
+      setErrorMessage(error instanceof Error ? error.message : 'Matching failed');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const resolveMatch = async (index: number, candidateId: string) => {
-    const current = matches[index];
-    const candidate = current?.candidates?.find(item => item.id === candidateId);
-    if (!candidate) return;
-    const resolved: ProviderMatch = {
-      ...current,
-      matchedProviderId: candidate.id,
-      matchedProviderName: candidate.name,
-      matchedProviderCode: candidate.code,
-      matchedProviderLga: candidate.lga,
-      matchedProviderState: candidate.state,
-      matchedProviderSenatorialDistrict: candidate.senatorialDistrict,
-      matchedProviderFacilityType: candidate.facilityType,
-      matchedProviderOwnership: candidate.ownership,
-      confidence: 1,
-      matchType: 'manual',
-      status: 'confirmed',
-    };
-    setMatches(items => items.map((item, itemIndex) => itemIndex === index ? resolved : item));
-    // Preview-only resolution. Persistent provider-match resolution requires the trusted import workflow.
-  };
-
   const generatePreview = () => {
-    setErrorMessage('');
-    if (!period) {
-      setErrorMessage('A valid reporting period is required.');
-      return;
-    }
-    const records = enrolmentService.normalizeEnrolmentRows(rawRows, mappings, matches, period, 'pending-enrolment-batch', file?.name || 'unknown.xlsx', sourceSheet);
+    if (!activeItem?.data) return;
+    const { rawRows, mappings, matches, reportingYear, reportingMonth, extractedContext } = activeItem.data;
+    
+    const period = `${reportingYear}-${reportingMonth.padStart(2, '0')}`;
+    const records = enrolmentService.normalizeEnrolmentRows(rawRows, mappings, matches, period, activeItem.id, activeItem.file.name, activeItem.data.sourceSheet);
     const errors = records.flatMap(record => (record.validationErrors || []).map(error => `Source row ${record.sourceRow || '?'}: ${error}`));
-    setNormalizedRecords(records);
-    setValidationErrors([...new Set(errors)]);
-    setDuplicateWarning(null);
-    setDuplicateAcknowledged(false);
+    
+    updateActiveData({ 
+      normalizedRecords: records, 
+      validationErrors: [...new Set(errors)] 
+    });
+    
+    const reviewCount = records.filter(r => r.recordStatus === 'match-review-required').length;
+    updateQueueItem(activeItem.id, { 
+      status: reviewCount > 0 ? 'review' : 'ready',
+      review: reviewCount,
+      errors: errors.length,
+      matched: records.filter(r => r.recordStatus === 'valid').length
+    });
+    
     setStep('preview');
   };
 
   const handleCommit = async () => {
-    if (liveCommitUnavailable) {
-      setErrorMessage('This operation requires the approved secure import workflow. Workbook preview and validation remain available, but live commit is disabled.');
-      return;
-    }
-    if (!file || !period || readyToImport === 0 || validationErrors.length > 0) return;
-    setErrorMessage('');
+    if (!activeItem?.data || activeItem.status !== 'ready') return;
+    
+    setIsAnalyzing(true);
     try {
-      if (!duplicateAcknowledged) {
-        const providerNames = [...new Set(matches.map(match => (match.matchedProviderName || match.excelName).trim()).filter(Boolean))];
-        const duplicateCheck = await enrolmentService.checkDuplicateEnrolmentBatch(period, providerNames);
-        if (duplicateCheck.isDuplicate) {
-          setDuplicateWarning(duplicateCheck.batches);
-          setErrorMessage('Potential duplicate dataset detected. Review the existing batch or choose to import only records that are not already present.');
-          return;
-        }
-        setDuplicateAcknowledged(true);
-      }
-      const committed = await createBatch.mutateAsync({
+      const period = `${activeItem.data.reportingYear}-${activeItem.data.reportingMonth.padStart(2, '0')}`;
+      await createBatch.mutateAsync({
         batch: {
-          fileName: file.name,
+          fileName: activeItem.file.name,
           dataType: 'enrolment',
-          reportingYear: Number(reportingYear),
-          reportingMonth: Number(reportingMonth),
-          uploadedBy: session?.user.email || 'NMIS user',
-          totalRows: rawRows.length,
-          importedRows: readyToImport,
-          warningRows: recordsRequiringReview.length,
-          errorRows: normalizedRecords.length - validRecords.length - duplicateRecords.length,
-          duplicateRows: duplicateRecords.length,
-          unmatchedProviders: matchSummary.unmatched + matchSummary.ambiguous,
-          status: 'processing',
           periodCovered: period,
-          metadata: { sourceSheet, headers, fileSize: file.size, providerNames: [...new Set(matches.map(match => (match.matchedProviderName || match.excelName).trim()).filter(Boolean))], formalCount: validRecords.filter(record => record.sector === 'formal').length, informalCount: validRecords.filter(record => record.sector === 'informal').length, principalCount: validRecords.filter(record => record.category === 'principal').length, dependantCount: validRecords.filter(record => record.category === 'dependant').length, sectorDerivation: 'policy-number /C/ or /D/', categorySource: 'source CATEGORY field' },
+          totalRows: activeItem.rows,
+          status: 'imported',
+          uploadedBy: session?.user?.email || 'System',
+          importedRows: activeItem.matched,
+          warningRows: 0,
+          errorRows: activeItem.errors,
+          duplicateRows: 0,
+          unmatchedProviders: activeItem.review,
+          metadata: {
+            sourceSheet: activeItem.data.sourceSheet,
+            extractedContext: activeItem.data.extractedContext,
+            providerNames: [...new Set(activeItem.data.normalizedRecords.map(r => r.providerName).filter(Boolean))]
+          }
         },
-        records: validRecords,
-        actor: session?.user ? { id: session.user.id, email: session.user.email } : undefined,
+        records: activeItem.data.normalizedRecords.filter(r => r.recordStatus === 'valid')
       });
-      setCommitMessage(`Import committed as ${committed.id}. ${committed.importedRows.toLocaleString()} enrollee records are now available for ${period}.`);
-      setStep('commit');
+      
+      updateQueueItem(activeItem.id, { status: 'imported' });
+      setCommitMessage(`Successfully imported ${activeItem.rows} records from ${activeItem.file.name}`);
+      
+      // Check if there are more files in queue
+      const nextPending = queue.find(item => item.id !== activeItem.id && item.status === 'pending');
+      if (nextPending) {
+        processFile(nextPending);
+      } else {
+        setStep('commit');
+      }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'The enrolment dataset could not be committed.');
+      setErrorMessage(error instanceof Error ? error.message : 'Commit failed');
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
-  const reset = () => {
-    workbookRef.current = null;
-    setStep('upload');
-    setFile(null);
-    setSheetNames([]);
-    setSourceSheet('');
-    setHeaders([]);
-    setRawRows([]);
-    setMappings([]);
-    setMatches([]);
-    setNormalizedRecords([]);
-    setValidationErrors([]);
-    setCommitMessage('');
-    setDuplicateWarning(null);
-    setDuplicateAcknowledged(false);
-    setErrorMessage('');
+  const removeItem = (id: string) => {
+    setQueue(prev => prev.filter(item => item.id !== id));
+    if (activeFileId === id) {
+      setActiveFileId(null);
+      setStep('upload');
+    }
   };
 
   return (
@@ -309,193 +326,424 @@ export default function EnrolmentUploadPage() {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-blue">Population &amp; Enrolment</p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">Upload Capitation List</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">Normalize monthly beneficiary lists without changing source CATEGORY values. Sector is derived from the policy number and facilities are matched against the Provider Directory.</p>
+          <h1 className="mt-2 text-2xl font-bold text-slate-900">Historical Bulk Import</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">Upload multiple capitation workbooks. The AI engine automatically detects periods, extracts facility context, and matches against the Provider Master Register.</p>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">
-          {steps.map((item, index) => <div key={item} className={`flex items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold ${step === item ? 'bg-brand-blue text-white' : 'text-slate-500'}`}><span>{index + 1}</span><span className="hidden xl:inline">{stepLabels[item]}</span></div>)}
+          {steps.map((item, index) => (
+            <div key={item} className={`flex items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold ${step === item ? 'bg-brand-blue text-white' : 'text-slate-500'}`}>
+              <span>{index + 1}</span>
+              <span className="hidden xl:inline">{stepLabels[item]}</span>
+            </div>
+          ))}
         </div>
       </header>
 
-      {liveCommitUnavailable && <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><AlertCircle className="h-5 w-5 shrink-0" /><p><strong>Secure workflow unavailable.</strong> Workbook inspection, period identification, mapping, CATEGORY preservation, /C/ and /D/ sector validation, matching preview, and record preview remain enabled. Live commit and persistent match resolution are disabled.</p></div>}
-      {errorMessage && <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><AlertCircle className="h-5 w-5 shrink-0" /><p>{errorMessage}</p></div>}
-      {commitMessage && <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700"><CheckCircle2 className="h-5 w-5 shrink-0" /><p>{commitMessage}</p></div>}
-
-      {isAnalyzing && <div className="rounded-3xl border border-slate-200 bg-white py-20 text-center"><div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand-blue" /><p className="mt-4 text-sm font-semibold text-slate-700">Processing workbook and provider directory...</p></div>}
-
-      {!isAnalyzing && step === 'upload' && <section className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue"><Upload className="h-7 w-7" /></div><h2 className="mt-5 text-xl font-bold text-slate-900">Upload a monthly capitation or enrollee workbook</h2><p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Supports XLSX, XLS, and CSV files with flexible column order, naming, and worksheet selection.</p><label className="mt-7 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy"><Upload className="h-4 w-4" /> Select workbook<input className="hidden" type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} /></label></section>}
-
-      {!isAnalyzing && step === 'inspect' && file && (
-        <div className="space-y-6">
-          <Panel title="Inspect workbook" description="Confirm the worksheet and source structure before identifying the reporting period.">
-            <div className="grid gap-4 md:grid-cols-3">
-              <Info label="File" value={file.name} />
-              <Info label="Worksheets" value={String(sheetNames.length)} />
-              <Info label="Rows in sheet" value={rawRows.length.toLocaleString()} />
-            </div>
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
-              <label className="block text-sm font-semibold text-slate-700">Source worksheet
-                <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={sourceSheet} onChange={event => workbookRef.current && readSheet(workbookRef.current, event.target.value, 0)}>
-                  {sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
-                </select>
-              </label>
-              <label className="block text-sm font-semibold text-slate-700">Header row index
-                <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={headerRowIndex} onChange={event => workbookRef.current && readSheet(workbookRef.current, sourceSheet, Number(event.target.value))}>
-                  {Array.from({ length: 10 }).map((_, i) => <option key={i} value={i}>Row {i + 1}</option>)}
-                </select>
-              </label>
-            </div>
-            <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Detected headers</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {headers.map(header => <Badge key={header} variant="info">{header}</Badge>)}
-              </div>
-            </div>
-            <Actions onNext={continueToPeriod} />
-          </Panel>
-
-          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
-              <h3 className="text-sm font-bold text-slate-900">Workbook preview (First 10 rows)</h3>
-              <p className="text-xs text-slate-500">Select the row that contains your column headers.</p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="bg-slate-50 text-slate-400">
-                    <th className="px-6 py-3 font-bold">Index</th>
-                    {Array.from({ length: 10 }).map((_, i) => <th key={i} className="px-4 py-3">Col {i + 1}</th>)}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {(() => {
-                    if (!workbookRef.current || !sourceSheet) return [];
-                    const sheet = workbookRef.current.Sheets[sourceSheet];
-                    return XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 0, defval: '' }).slice(0, 10);
-                  })().map((row, rowIndex) => (
-                    <tr key={rowIndex} className={rowIndex === headerRowIndex ? 'bg-blue-50 font-bold text-blue-700' : ''}>
-                      <td className="px-6 py-3 font-mono text-slate-400 whitespace-nowrap">Row {rowIndex + 1} {rowIndex === headerRowIndex && '(Headers)'}</td>
-                      {Array.from({ length: 10 }).map((_, colIndex) => (
-                        <td key={colIndex} className="px-4 py-3 truncate max-w-[150px]">{String(row[colIndex] ?? '')}</td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+      {errorMessage && (
+        <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 animate-in fade-in slide-in-from-top-1">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <p>{errorMessage}</p>
         </div>
       )}
 
-      {!isAnalyzing && step === 'identify' && <Panel title="Identify reporting period" description="Use the workbook values where available, then confirm the month that this list represents."><div className="grid gap-4 md:grid-cols-2"><label className="text-sm font-semibold text-slate-700">Reporting year<input className="mt-2 w-full rounded-xl border-slate-200" inputMode="numeric" value={reportingYear} onChange={event => setReportingYear(event.target.value.replace(/[^0-9]/g, '').slice(0, 4))} placeholder="2026" /></label><label className="text-sm font-semibold text-slate-700">Reporting month<select className="mt-2 w-full rounded-xl border-slate-200" value={reportingMonth} onChange={event => setReportingMonth(event.target.value)}><option value="">Select month</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={String(index + 1)}>{new Date(2020, index, 1).toLocaleString('en', { month: 'long' })}</option>)}</select></label></div><div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">The reporting period is independent from CATEGORY and SECTOR. CATEGORY is preserved from the source, while SECTOR is derived only from <strong>/C/</strong> or <strong>/D/</strong> in the policy number.</div><Actions onBack={() => setStep('inspect')} onNext={continueToMap} /></Panel>}
-
-      {!isAnalyzing && step === 'map' && (
-        <Panel title="Map source columns" description="Map each source column once. The AI handler automatically detects variations in naming and structure.">
-          {extractedContext.facilityName && (
-            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
-              <Hospital className="h-5 w-5" />
-              <div>
-                <p className="font-bold">AI Detected Facility Context</p>
-                <p className="text-xs">Workbook header: <strong>{extractedContext.facilityName}</strong> {extractedContext.lga ? `(${extractedContext.lga} LGA)` : ''}</p>
-              </div>
+      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+        {/* Sidebar: Queue Management */}
+        <aside className="space-y-4">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Import Queue</h3>
+              <Badge variant="default">{queue.length}</Badge>
             </div>
-          )}
-          <div className="space-y-3">
-            {mappings.map((mapping, index) => (
-              <div key={`${mapping.excelField}-${index}`} className="grid gap-3 rounded-2xl border border-slate-100 p-3 md:grid-cols-[1fr_1.3fr_auto] md:items-center">
-                <div>
-                  <p className="font-semibold text-slate-800">{mapping.excelField}</p>
-                  <p className="text-xs text-slate-400">Method: {mapping.confidenceScore >= 0.8 ? 'AI Handler' : 'Manual'}</p>
+            
+            <div className="mt-4 space-y-2 max-h-[500px] overflow-y-auto pr-1">
+              {queue.length === 0 ? (
+                <div className="py-10 text-center">
+                  <Clock className="mx-auto h-8 w-8 text-slate-200" />
+                  <p className="mt-2 text-xs text-slate-400">Queue is empty</p>
                 </div>
-                <select className="rounded-xl border-slate-200 text-sm" value={mapping.enrolmentField} onChange={event => updateMapping(index, event.target.value as EnrolmentField | 'ignored')}>
-                  {mappingOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                </select>
-                <Badge variant={mapping.confidence === 'HIGH' ? 'success' : mapping.confidence === 'MEDIUM' ? 'warning' : 'error'}>
-                  {mapping.confidence === 'HIGH' ? 'AI SUGGESTED' : mapping.confidence}
-                </Badge>
-              </div>
-            ))}
+              ) : queue.map(item => (
+                <div 
+                  key={item.id} 
+                  onClick={() => item.status !== 'pending' && processFile(item)}
+                  className={`group relative cursor-pointer rounded-2xl border p-3 transition-all ${activeFileId === item.id ? 'border-brand-blue bg-blue-50/50' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-bold text-slate-900">{item.file.name}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-500">{item.rows.toLocaleString()} records {item.period ? `· ${item.period}` : ''}</p>
+                    </div>
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); removeItem(item.id); }}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 transition-opacity"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <Badge variant={
+                      item.status === 'imported' ? 'success' : 
+                      item.status === 'ready' ? 'success' :
+                      item.status === 'review' ? 'warning' :
+                      item.status === 'error' ? 'error' : 'default'
+                    } className="text-[9px] py-0 px-1.5">
+                      {item.status}
+                    </Badge>
+                    {item.status === 'processing' && <Loader2 className="h-3 w-3 animate-spin text-brand-blue" />}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <label className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+              <Upload className="h-3.5 w-3.5" /> Add more files
+              <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+            </label>
           </div>
-          <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-            Required mappings: <strong>policy number, CATEGORY, first name, last name, and gender</strong>. 
-            {extractedContext.facilityName ? ' Facility name was detected in the header.' : ' Facility name is required.'}
-          </div>
-          <Actions onBack={() => setStep('identify')} onNext={continueToClassify} />
-        </Panel>
-      )}
+        </aside>
 
-      {!isAnalyzing && step === 'classify' && <Panel title="Classify records" description="Review the classification rules before the system matches facilities and generates a record preview."><div className="grid gap-4 md:grid-cols-2"><Rule title="CATEGORY" text="Copied from the workbook as PRINCIPAL or DEPENDANT. It is never reconstructed from the policy number." /><Rule title="SECTOR" text="Derived from policy numbers containing /C/ (formal) or /D/ (informal). Unrecognized policy formats require review." /></div><div className="mt-5 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800"><FileSpreadsheet className="h-5 w-5" /><span>{rawRows.length.toLocaleString()} source rows will be classified for period <strong>{period}</strong>.</span></div><Actions onBack={() => setStep('map')} onNext={startMatching} nextLabel="Match facilities" /></Panel>}
+        {/* Main Content Area */}
+        <main>
+          {isAnalyzing ? (
+            <div className="rounded-3xl border border-slate-200 bg-white py-20 text-center shadow-sm">
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand-blue" />
+              <p className="mt-4 text-sm font-semibold text-slate-700">AI Engine is processing {activeItem?.file.name}...</p>
+              <p className="mt-1 text-xs text-slate-400 italic">Matching against 80 authoritative providers & aliases</p>
+            </div>
+          ) : (
+            <>
+              {step === 'upload' && (
+                <section className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue">
+                    <FileUp className="h-7 w-7" />
+                  </div>
+                  <h2 className="mt-5 text-xl font-bold text-slate-900">Select Historical Capitation Files</h2>
+                  <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Drag and drop files or folders here. The system supports bulk processing of monthly enrollee workbooks from January 2025 onwards.</p>
+                  <label className="mt-7 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
+                    <Upload className="h-4 w-4" /> Choose Files / Folders
+                    <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+                  </label>
+                </section>
+              )}
 
-      {!isAnalyzing && step === 'match' && <Panel title="Match facilities" description="The Provider Directory is authoritative. Confirm ambiguous facilities before previewing the import."><div className="space-y-3">{matches.length === 0 ? <div className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">No provider names were found in the mapped rows.</div> : matches.map((match, index) => <div key={`${match.excelName}-${index}`} className="rounded-2xl border border-slate-100 p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-start gap-3"><MapPin className="mt-0.5 h-4 w-4 text-slate-400" /><div><p className="font-semibold text-slate-900">{match.excelName}</p><p className="text-xs text-slate-500">{match.matchedProviderName || 'No confident Provider Directory match'}</p></div></div><Badge variant={match.status === 'confirmed' ? 'success' : match.candidates?.length ? 'warning' : 'error'}>{match.status === 'confirmed' ? `${match.matchType} match` : match.candidates?.length ? 'Manual review' : 'Unmatched'}</Badge></div>{match.candidates && match.candidates.length > 0 && match.status !== 'confirmed' && <select className="mt-3 w-full rounded-xl border-slate-200 text-sm" value="" onChange={event => resolveMatch(index, event.target.value)}><option value="">Select the authoritative facility...</option>{match.candidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.name} ({candidate.code})</option>)}</select>}</div>)}</div><div className="mt-5 grid gap-3 sm:grid-cols-3"><Info label="Matched" value={String(matchSummary.matched)} /><Info label="Ambiguous" value={String(matchSummary.ambiguous)} /><Info label="Unmatched" value={String(matchSummary.unmatched)} /></div><Actions onBack={() => setStep('classify')} onNext={generatePreview} nextLabel="Generate preview" /></Panel>}
+              {step === 'inspect' && activeItem?.data && (
+                <Panel title="Inspect workbook structure" description="Confirm the worksheet and column headers. The AI has detected the core table structure.">
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-4">
+                      <div className="flex-1 min-w-[200px]">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Worksheet</label>
+                        <select 
+                          className="mt-2 w-full rounded-xl border-slate-200 text-sm"
+                          value={activeItem.data.sourceSheet}
+                          onChange={e => processFile({ ...activeItem, data: { ...activeItem.data!, sourceSheet: e.target.value } } as any)}
+                        >
+                          {activeItem.data.sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-400">
+                          <tr>
+                            <th className="px-4 py-2">Row</th>
+                            {activeItem.data.headers.slice(0, 5).map((h, i) => <th key={i} className="px-4 py-2">{h}</th>)}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {activeItem.data.rawRows.slice(0, 5).map((row, i) => (
+                            <tr key={i}>
+                              <td className="px-4 py-2 font-mono text-slate-300">{i + 1}</td>
+                              {activeItem.data!.headers.slice(0, 5).map((h, j) => <td key={j} className="px-4 py-2 truncate max-w-[150px]">{String(row[h] || '')}</td>)}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                  <Actions onBack={reset} onNext={() => setStep('identify')} />
+                </Panel>
+              )}
 
-      {!isAnalyzing && step === 'preview' && <Panel title="Validate and preview" description="Only valid, matched, non-duplicate records are eligible for commit."><div className="grid gap-3 sm:grid-cols-4"><Info label="Source rows" value={String(rawRows.length)} /><Info label="Ready" value={String(readyToImport)} /><Info label="Duplicates" value={String(duplicateRecords.length)} /><Info label="Review required" value={String(recordsRequiringReview.length)} /></div>{duplicateWarning && !duplicateAcknowledged && <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-bold">Potential duplicate dataset detected</p><p className="mt-1">An enrolment batch already exists for {period} and overlaps the selected facilities.</p><div className="mt-3 space-y-1 text-xs">{duplicateWarning.slice(0, 3).map(batch => <p key={batch.id}><span className="font-semibold">{batch.fileName}</span> · {batch.importedRows.toLocaleString()} records · uploaded {new Date(batch.uploadedAt).toLocaleDateString()}</p>)}</div><div className="mt-4 flex flex-wrap items-center gap-2"><Button variant="secondary" className="py-2" onClick={reset}>Cancel import</Button><Button className="py-2" onClick={() => { setDuplicateAcknowledged(true); setErrorMessage(''); }}>Import only new records</Button><Link className="text-sm font-semibold text-amber-900 underline" to="/financial/history">Review import history</Link></div></div>}{validationErrors.length > 0 && <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><p className="font-semibold">Resolve validation issues before commit</p><ul className="mt-2 max-h-40 list-disc space-y-1 overflow-auto pl-5">{validationErrors.slice(0, 30).map(error => <li key={error}>{error}</li>)}</ul></div>}<div className="mt-5 overflow-x-auto rounded-2xl border border-slate-100">
-            <table className="w-full min-w-[1000px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">Policy number</th>
-                  <th className="px-4 py-3">Beneficiary</th>
-                  <th className="px-4 py-3">Age</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Sector</th>
-                  <th className="px-4 py-3">Facility (Matched)</th>
-                  <th className="px-4 py-3">Match</th>
-                  <th className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {normalizedRecords.slice(0, 20).map(record => {
-                  const match = matches.find(m => m.excelName.toLowerCase() === record.metadata?.sourceProviderName?.toLowerCase()) || matches[0];
-                  const confidence = match?.confidence ? Math.round(match.confidence * 100) : 0;
-                  
-                  return (
-                    <tr key={record.id}>
-                      <td className="px-4 py-3 font-mono text-xs">{record.policyNumber || 'Missing'}</td>
-                      <td className="px-4 py-3 font-semibold">{record.firstName} {record.lastName}</td>
-                      <td className="px-4 py-3">{record.age || '-'}</td>
-                      <td className="px-4 py-3 capitalize">{record.category}</td>
-                      <td className="px-4 py-3 capitalize">{record.sector}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-slate-900">{record.providerName}</span>
-                          {record.providerId && <span className="text-[10px] font-mono text-slate-400">{record.providerId}</span>}
+              {step === 'identify' && activeItem?.data && (
+                <Panel title="Reporting Period" description="The AI has attempted to detect the period from the filename and workbook headers.">
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reporting Year</label>
+                      <input 
+                        className="mt-2 w-full rounded-xl border-slate-200 font-semibold"
+                        value={activeItem.data.reportingYear}
+                        onChange={e => updateActiveData({ reportingYear: e.target.value })}
+                        placeholder="e.g. 2025"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reporting Month</label>
+                      <select 
+                        className="mt-2 w-full rounded-xl border-slate-200 font-semibold"
+                        value={activeItem.data.reportingMonth}
+                        onChange={e => updateActiveData({ reportingMonth: e.target.value })}
+                      >
+                        <option value="">Select Month</option>
+                        {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((m, i) => (
+                          <option key={m} value={String(i + 1)}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex items-center gap-3 rounded-2xl bg-amber-50 p-4 text-xs text-amber-800 border border-amber-100">
+                    <Clock className="h-4 w-4 shrink-0" />
+                    <p>Historical imports must be mapped to the correct month to ensure accurate capitation and FFS comparative analytics.</p>
+                  </div>
+                  <Actions onBack={() => setStep('inspect')} onNext={() => setStep('map')} />
+                </Panel>
+              )}
+
+              {step === 'map' && activeItem?.data && (
+                <Panel title="AI Column Mapping" description="The ingestion engine has automatically mapped your source columns to the NMIS schema.">
+                  {activeItem.data.extractedContext.facilityName && (
+                    <div className="mb-6 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+                      <Hospital className="h-5 w-5" />
+                      <div>
+                        <p className="font-bold">AI Detected Facility Context</p>
+                        <p className="text-xs">Workbook header: <strong>{activeItem.data.extractedContext.facilityName}</strong> {activeItem.data.extractedContext.lga ? `(${activeItem.data.extractedContext.lga} LGA)` : ''}</p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {activeItem.data.mappings.map((mapping, idx) => (
+                      <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 hover:bg-slate-50 transition-colors">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-tight">Source Column</p>
+                          <p className="text-sm font-semibold text-slate-800 truncate">{mapping.excelField}</p>
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {confidence > 0 ? (
-                          <span className={`font-bold ${confidence >= 90 ? 'text-emerald-600' : 'text-amber-600'}`}>{confidence}%</span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={record.recordStatus === 'valid' ? 'success' : record.recordStatus === 'duplicate' ? 'warning' : 'error'}>
-                          {record.recordStatus === 'valid' ? '✓ Matched' : record.recordStatus}
-                        </Badge>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div><Actions onBack={() => setStep('match')} onNext={handleCommit} nextLabel={liveCommitUnavailable ? 'Secure workflow required' : createBatch.isPending ? 'Committing...' : 'Commit valid records'} disabled={liveCommitUnavailable || createBatch.isPending || readyToImport === 0 || validationErrors.length > 0 || (duplicateWarning !== null && !duplicateAcknowledged)} /></Panel>}
+                        <ArrowRight className="mx-4 h-4 w-4 text-slate-300" />
+                        <div className="w-1/2">
+                          <select 
+                            className="w-full rounded-lg border-slate-200 text-sm py-1.5"
+                            value={mapping.enrolmentField}
+                            onChange={e => {
+                              const newMappings = [...activeItem.data!.mappings];
+                              newMappings[idx] = { ...mapping, enrolmentField: e.target.value as any, confidence: 'HIGH', confidenceScore: 1 };
+                              updateActiveData({ mappings: newMappings });
+                            }}
+                          >
+                            <option value="ignored">Ignore Column</option>
+                            <option value="policyNumber">Policy Number</option>
+                            <option value="firstName">First Name</option>
+                            <option value="lastName">Last Name</option>
+                            <option value="category">Category (Principal/Dependant)</option>
+                            <option value="gender">Gender</option>
+                            <option value="age">Age</option>
+                            <option value="phoneNumber">Phone Number</option>
+                            <option value="providerName">Facility Name</option>
+                          </select>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <Actions onBack={() => setStep('identify')} onNext={() => setStep('classify')} />
+                </Panel>
+              )}
 
-      {!isAnalyzing && step === 'commit' && <Panel title="Import committed" description="The normalized enrollee records are now available to the Population & Enrolment register and analytics."><div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-800"><CheckCircle2 className="inline h-5 w-5 align-text-bottom" /> {commitMessage}</div><div className="mt-5 flex flex-wrap gap-3"><Button onClick={reset}><RefreshCcw className="mr-2 h-4 w-4" /> Upload another list</Button><Button variant="secondary" onClick={() => window.location.href = '/population/enrolment'}>Open Population Overview</Button></div></Panel>}
+              {step === 'classify' && activeItem?.data && (
+                <Panel title="Classification Rules" description="NMIS preserves source CATEGORY values while deriving SECTOR from policy identifiers.">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/50">
+                      <p className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">CATEGORY RULE</p>
+                      <p className="mt-2 text-sm text-slate-600 leading-relaxed">Values are imported exactly as stated in the workbook (PRINCIPAL or DEPENDANT). No reconstruction is performed.</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/50">
+                      <p className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">SECTOR RULE</p>
+                      <p className="mt-2 text-sm text-slate-600 leading-relaxed">Derived from policy numbers: <strong>/C/</strong> for Formal and <strong>/D/</strong> for Informal. Invalid formats are flagged for review.</p>
+                    </div>
+                  </div>
+                  <div className="mt-8 flex items-center gap-4 p-4 rounded-2xl border border-blue-100 bg-blue-50/50">
+                    <FileText className="h-6 w-6 text-brand-blue" />
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">{activeItem.rows.toLocaleString()} records will be classified.</p>
+                      <p className="text-xs text-slate-500">Period: {activeItem.data.reportingYear}-{activeItem.data.reportingMonth.padStart(2, '0')}</p>
+                    </div>
+                  </div>
+                  <Actions onBack={() => setStep('map')} onNext={startMatching} nextLabel="Match Facilities" />
+                </Panel>
+              )}
+
+              {step === 'match' && activeItem?.data && (
+                <Panel title="Provider Matching" description="Matching source names against 80 authoritative providers and their approved aliases.">
+                  <div className="space-y-3">
+                    {activeItem.data.matches.map((match, idx) => (
+                      <div key={idx} className="rounded-2xl border border-slate-100 p-4 hover:shadow-md transition-all bg-white">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1 rounded-lg bg-slate-50 p-2">
+                              <MapPin className="h-4 w-4 text-slate-400" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">Workbook Name</p>
+                              <p className="text-sm font-bold text-slate-900">{match.excelName}</p>
+                              <div className="mt-1 flex items-center gap-2">
+                                <Badge variant={match.status === 'confirmed' ? 'success' : 'warning'} className="text-[10px]">
+                                  {match.status === 'confirmed' ? '✓ CONFIRMED' : '⚠ MANUAL REVIEW'}
+                                </Badge>
+                                {match.confidence > 0 && (
+                                  <span className="text-[10px] font-mono text-slate-400">{Math.round(match.confidence * 100)}% Confidence</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1 lg:max-w-md">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Authoritative Master</p>
+                            <div className="mt-1 flex items-center gap-2">
+                              <p className="text-sm font-semibold text-slate-700">{match.matchedProviderName || 'No match found'}</p>
+                              {match.matchedProviderCode && <Badge variant="default" className="text-[9px]">{match.matchedProviderCode}</Badge>}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {match.status !== 'confirmed' && match.candidates && (
+                          <div className="mt-4 border-t border-slate-50 pt-4">
+                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Authoritative Provider to resolve & learn alias</label>
+                            <select 
+                              className="mt-2 w-full rounded-xl border-slate-200 text-sm"
+                              onChange={async (e) => {
+                                const candidate = match.candidates?.find(c => c.id === e.target.value);
+                                if (!candidate) return;
+                                
+                                // Resolve and trigger learning mechanism
+                                await financialDataService.resolveMatch(match, session?.user?.email, activeItem.id, candidate.id, match.excelName);
+                                
+                                const newMatches = [...activeItem.data!.matches];
+                                newMatches[idx] = {
+                                  ...match,
+                                  matchedProviderId: candidate.id,
+                                  matchedProviderName: candidate.name,
+                                  matchedProviderCode: candidate.code,
+                                  status: 'confirmed',
+                                  confidence: 1,
+                                  matchType: 'manual'
+                                };
+                                updateActiveData({ matches: newMatches });
+                              }}
+                            >
+                              <option value="">Search directory...</option>
+                              {match.candidates.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code}) - {c.lga}</option>)}
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <Actions onBack={() => setStep('classify')} onNext={generatePreview} nextLabel="Generate Preview" />
+                </Panel>
+              )}
+
+              {step === 'preview' && activeItem?.data && (
+                <Panel title="Validation & Preview" description="Paginated preview of normalized records. All records must be matched before commit.">
+                  <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+                    <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TOTAL ROWS</p>
+                      <p className="mt-1 text-xl font-bold text-slate-900">{activeItem.rows.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-2xl bg-emerald-50 p-4 border border-emerald-100">
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">READY</p>
+                      <p className="mt-1 text-xl font-bold text-emerald-700">{activeItem.matched.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-2xl bg-amber-50 p-4 border border-amber-100">
+                      <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">REVIEW</p>
+                      <p className="mt-1 text-xl font-bold text-amber-700">{activeItem.review.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100">
+                      <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">ERRORS</p>
+                      <p className="mt-1 text-xl font-bold text-rose-700">{activeItem.errors.toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-2xl border border-slate-100">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        <tr>
+                          <th className="px-4 py-3">Policy Number</th>
+                          <th className="px-4 py-3">Beneficiary</th>
+                          <th className="px-4 py-3">Age</th>
+                          <th className="px-4 py-3">Category</th>
+                          <th className="px-4 py-3">Matched Provider</th>
+                          <th className="px-4 py-3 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {activeItem.data.normalizedRecords.slice(0, 10).map(record => (
+                          <tr key={record.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 font-mono text-xs text-slate-500">{record.policyNumber}</td>
+                            <td className="px-4 py-3 font-bold text-slate-800">{record.firstName} {record.lastName}</td>
+                            <td className="px-4 py-3 text-slate-500">{record.age || '-'}</td>
+                            <td className="px-4 py-3 capitalize text-slate-500">{record.category}</td>
+                            <td className="px-4 py-3">
+                              <p className="text-xs font-semibold text-slate-700">{record.providerName}</p>
+                              <p className="text-[9px] text-slate-400 font-mono">{record.providerId?.substring(0, 8)}...</p>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Badge variant={record.recordStatus === 'valid' ? 'success' : 'error'} className="text-[9px]">
+                                {record.recordStatus === 'valid' ? 'READY' : 'REVIEW'}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="mt-4 p-4 rounded-2xl bg-slate-50 text-[10px] text-slate-400 text-center uppercase tracking-widest font-bold">
+                    Showing first 10 of {activeItem.rows.toLocaleString()} records
+                  </div>
+                  <Actions onBack={() => setStep('match')} onNext={handleCommit} nextLabel="Commit Batch" disabled={activeItem.status !== 'ready'} />
+                </Panel>
+              )}
+
+              {step === 'commit' && (
+                <Panel title="Bulk Import Complete" description="The historical records have been successfully normalized and persisted.">
+                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-10 text-center">
+                    <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-sm">
+                      <CheckCircle2 className="h-10 w-10 text-emerald-500" />
+                    </div>
+                    <h3 className="mt-6 text-xl font-bold text-slate-900">All Files Processed Successfully</h3>
+                    <p className="mt-2 text-slate-600">{commitMessage}</p>
+                    <div className="mt-10 flex flex-wrap justify-center gap-4">
+                      <Button onClick={reset} size="lg" className="rounded-2xl px-8 shadow-lg shadow-brand-blue/20">
+                        <RefreshCcw className="mr-2 h-4 w-4" /> Start New Import
+                      </Button>
+                      <Button variant="secondary" size="lg" className="rounded-2xl px-8" onClick={() => window.location.href = '/population/enrolment'}>
+                        <ListChecks className="mr-2 h-4 w-4" /> View Register
+                      </Button>
+                    </div>
+                  </div>
+                </Panel>
+              )}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }
 
 function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-bold text-slate-900">{title}</h2><p className="mt-1 text-sm text-slate-500">{description}</p><div className="mt-6">{children}</div></section>;
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-2 break-words text-lg font-bold text-slate-900">{value}</p></div>;
-}
-
-function Rule({ title, text }: { title: string; text: string }) {
-  return <div className="rounded-2xl border border-slate-100 p-5"><p className="text-xs font-bold uppercase tracking-wider text-brand-blue">{title}</p><p className="mt-2 text-sm leading-6 text-slate-600">{text}</p></div>;
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+      <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
+      <div className="mt-8">{children}</div>
+    </section>
+  );
 }
 
 function Actions({ onBack, onNext, nextLabel = 'Continue', disabled = false }: { onBack?: () => void; onNext: () => void; nextLabel?: string; disabled?: boolean }) {
-  return <div className="mt-7 flex items-center justify-between gap-3"><Button variant="secondary" onClick={onBack} disabled={!onBack}><ArrowLeft className="mr-2 h-4 w-4" /> Back</Button><Button onClick={onNext} disabled={disabled}>{nextLabel}<ArrowRight className="ml-2 h-4 w-4" /></Button></div>;
+  return (
+    <div className="mt-10 flex items-center justify-between gap-4 border-t border-slate-50 pt-8">
+      <Button variant="secondary" onClick={onBack} disabled={!onBack} className="rounded-2xl px-6 py-3">
+        <ArrowLeft className="mr-2 h-4 w-4" /> Back
+      </Button>
+      <Button onClick={onNext} disabled={disabled} className="rounded-2xl px-8 py-3 shadow-lg shadow-brand-blue/20">
+        {nextLabel} <ArrowRight className="ml-2 h-4 w-4" />
+      </Button>
+    </div>
+  );
 }
