@@ -297,18 +297,57 @@ export async function deleteDirectoryProvider(id: string): Promise<boolean> {
 export async function findSafeProviderMatchCandidates(query: string, limit = 10): Promise<ProviderDirectoryItem[]> {
   const normalizedQuery = query.trim();
   if (!normalizedQuery) return [];
+  const resultLimit = Math.min(Math.max(limit, 1), 25);
+
   if (useMockData) {
     const needle = normalizedQuery.toLowerCase();
     return providerDirectory
       .filter(provider => [provider.providerCode, provider.providerName, provider.lga].join(' ').toLowerCase().includes(needle))
-      .slice(0, Math.min(Math.max(limit, 1), 25));
+      .slice(0, resultLimit);
   }
-  const result = await invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
-    p_search: normalizedQuery,
-    p_page_size: Math.min(Math.max(limit, 1), 25),
-    p_sort: 'provider_name',
+
+  // Manual resolution must use the same secure import-matching contract as
+  // automatic matching. The provider-directory RPC is a separate contract and
+  // may be unavailable in environments where import matching is enabled.
+  const sessionId = typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : '00000000-0000-4000-8000-000000000001';
+  const result = await invokeSecureRpc<{
+    candidates?: Array<{
+      id: string;
+      provider_code: string;
+      provider_name: string;
+      category: string;
+      ownership: string;
+      state: string;
+      lga: string;
+      status: string;
+    }>;
+  }>('nmis_import_match_candidates', {
+    p_import_session_id: sessionId,
+    p_provider_name: normalizedQuery,
+    p_provider_code: null,
+    p_lga: null,
+    p_state: null,
   });
-  return directoryRows(result).map(mapDirectoryRow);
+
+  return (result.candidates ?? []).slice(0, resultLimit).map(candidate => mapDirectoryRow({
+    id: candidate.id,
+    provider_code: candidate.provider_code,
+    provider_name: candidate.provider_name,
+    category: candidate.category,
+    subcategory: null,
+    ownership: candidate.ownership,
+    state: candidate.state,
+    lga: candidate.lga,
+    status: candidate.status,
+    contract_status: '',
+    credential_status: '',
+    inspection_status: '',
+    capitation_status: '',
+    inspection_rating: null,
+    last_inspection_date: null,
+  }));
 }
 
 export async function getProviderProfile(providerId: string): Promise<ProviderProfile> {
