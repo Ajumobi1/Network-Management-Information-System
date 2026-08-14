@@ -4,16 +4,22 @@ import { ProviderDirectoryFilters, ProviderLifecycleStatus } from '../../types/p
 import type { ProviderOperationalUpdate, ProviderRegistrationCommand } from '../../repositories/providers/providersRepository';
 
 function invalidateProviderIntelligence(queryClient: ReturnType<typeof useQueryClient>, providerId?: string) {
-  queryClient.invalidateQueries({ queryKey: ['providers', 'directory'] });
-  if (providerId) queryClient.invalidateQueries({ queryKey: ['providers', 'profile', providerId] });
+  queryClient.invalidateQueries({ queryKey: ['providers'] });
   queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  if (providerId) {
+    queryClient.invalidateQueries({ queryKey: ['providers', 'profile', providerId] });
+  }
+  queryClient.refetchQueries({ queryKey: ['dashboard'] });
+  queryClient.refetchQueries({ queryKey: ['providers', 'directory'] });
 }
 
 export function useProviderDirectory(filters: ProviderDirectoryFilters) {
   return useQuery({
     queryKey: ['providers', 'directory', filters],
     queryFn: () => fetchProviderDirectory(filters),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -22,7 +28,8 @@ export function useProviderProfile(providerId: string) {
     queryKey: ['providers', 'profile', providerId],
     queryFn: () => fetchProviderProfile(providerId),
     enabled: Boolean(providerId),
-    staleTime: 1000 * 60 * 5,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 
