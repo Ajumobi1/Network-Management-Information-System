@@ -117,6 +117,11 @@ export default function EnrolmentUploadPage() {
     workbookRef.current = null;
   };
 
+  const openIssueInspection = (filter: string = 'all') => {
+    setErrorTypeFilter(filter);
+    setIsErrorModalOpen(true);
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
@@ -722,19 +727,32 @@ export default function EnrolmentUploadPage() {
                     <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100 relative group">
                       <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">ERRORS</p>
                       <p className="mt-1 text-xl font-bold text-rose-700">{activeItem.errors.toLocaleString()}</p>
-                      {activeItem.errors > 0 && (
-                        <button 
-                          onClick={() => setIsErrorModalOpen(true)}
-                          className="mt-2 flex items-center gap-1 text-[10px] font-bold text-rose-600 hover:text-rose-800 transition-colors uppercase"
-                        >
-                          <AlertCircle size={12} /> View Errors
-                        </button>
-                      )}
+                                              {activeItem.errors > 0 && (
+                         <button
+                           type="button"
+                           onClick={() => openIssueInspection('all')}
+                           className="mt-2 flex items-center gap-1 text-[10px] font-bold text-rose-600 hover:text-rose-800 transition-colors uppercase"
+                         >
+                           <AlertCircle size={12} /> View Errors
+                         </button>
+                       )}
+
                     </div>
-                    <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => activeItem.duplicates > 0 && openIssueInspection('DUPLICATE_RECORD')}
+                      disabled={activeItem.duplicates === 0}
+                      className={`rounded-2xl bg-slate-50 p-4 border border-slate-100 text-left transition-colors ${
+                        activeItem.duplicates > 0 ? 'cursor-pointer hover:border-amber-300 hover:bg-amber-50/40' : 'cursor-default'
+                      }`}
+                      aria-label={activeItem.duplicates > 0 ? 'Inspect duplicate records' : 'No duplicate records'}
+                    >
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">DUPLICATES</p>
                       <p className="mt-1 text-xl font-bold text-slate-700">{activeItem.duplicates?.toLocaleString() || 0}</p>
-                    </div>
+                      {activeItem.duplicates > 0 && (
+                        <span className="mt-2 block text-[10px] font-bold uppercase text-amber-700">View duplicates</span>
+                      )}
+                    </button>
                   </div>
 
                   <div className="overflow-x-auto rounded-2xl border border-slate-100">
@@ -952,16 +970,17 @@ function ErrorInspectionModal({
         <div className="flex items-start justify-between bg-slate-50/80 p-6 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
-              <Badge variant="error" className="text-[10px]">IMPORT ERRORS</Badge>
+              <Badge variant="error" className="text-[10px]">IMPORT ISSUES</Badge>
               <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{item.file.name}</p>
             </div>
-            <h2 className="mt-1 text-2xl font-black text-slate-900">Error Inspection & Resolution</h2>
-            <p className="mt-1 text-sm text-slate-500">Review and resolve validation issues before committing this batch.</p>
+            <h2 className="mt-1 text-2xl font-black text-slate-900">Issue Inspection & Resolution</h2>
+            <p className="mt-1 text-sm text-slate-500">Review validation issues and duplicate records before committing this batch.</p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm" onClick={downloadErrorReport} className="gap-2">
-              <Download size={14} /> Error Report
-            </Button>
+                          <Button variant="secondary" size="sm" onClick={downloadErrorReport} className="gap-2">
+                <Download size={14} /> Issue Report
+              </Button>
+
             <Button variant="secondary" size="sm" onClick={downloadReadyRecords} className="gap-2">
               <CheckCircle2 size={14} className="text-emerald-500" /> Ready Records
             </Button>
@@ -1012,7 +1031,7 @@ function ErrorInspectionModal({
                 value={typeFilter}
                 onChange={e => setTypeFilter(e.target.value)}
               >
-                <option value="all">All Error Types</option>
+                <option value="all">All Issue Types</option>
                 {Object.keys(errorStats).map(code => (
                   <option key={code} value={code}>{code.replace(/_/g, ' ')}</option>
                 ))}
@@ -1027,7 +1046,7 @@ function ErrorInspectionModal({
                 <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
                   <Search size={32} />
                 </div>
-                <p className="text-slate-500 font-medium">No errors match your current filters.</p>
+                <p className="text-slate-500 font-medium">No issues match your current filters.</p>
                 <button 
                   onClick={() => { setSearch(''); setTypeFilter('all'); }}
                   className="mt-2 text-brand-blue font-bold text-sm hover:underline"
@@ -1158,7 +1177,7 @@ function ErrorInspectionModal({
                           >
                             Resolve
                           </Button>
-                          <button 
+                          <button
                             className="p-2 rounded-xl border border-slate-100 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors" 
                             title="Exclude Record"
                             onClick={() => {
