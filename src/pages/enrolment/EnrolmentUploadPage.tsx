@@ -34,6 +34,7 @@ const mappingOptions: Array<{ value: EnrolmentField | 'ignored'; label: string }
   { value: 'firstName', label: 'First name' },
   { value: 'lastName', label: 'Last name' },
   { value: 'gender', label: 'Gender' },
+  { value: 'age', label: 'Age' },
   { value: 'phoneNumber', label: 'Phone number' },
   { value: 'providerCode', label: 'Provider/facility code' },
   { value: 'providerName', label: 'Facility/provider name' },
@@ -88,6 +89,13 @@ export default function EnrolmentUploadPage() {
     const sheet = workbook.Sheets[sheetName];
     if (!sheet) throw new Error('The selected worksheet could not be read.');
     const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+    
+    // AI Context Extraction from header rows above the table
+    const context = enrolmentService.extractWorkbookContext(matrix);
+    if (context.lga) {
+      // Pre-fill or store context if needed
+    }
+    
     const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
     const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
       .filter(row => Object.values(row).some(value => String(value).trim() !== ''));

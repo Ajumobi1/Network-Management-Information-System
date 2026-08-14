@@ -9,6 +9,7 @@ export type EnrolmentField =
   | 'firstName'
   | 'lastName'
   | 'gender'
+  | 'age'
   | 'phoneNumber'
   | 'providerCode'
   | 'providerName'
@@ -34,6 +35,7 @@ export interface EnrolleeRecord {
   firstName: string;
   lastName: string;
   gender: 'male' | 'female' | 'other';
+  age?: number;
   phoneNumber?: string;
 
   // Provider association

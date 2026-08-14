@@ -26,6 +26,7 @@ const mappingRules: Array<{ field: EnrolmentField | 'ignored'; keywords: string[
   { field: 'firstName', keywords: ['first name', 'firstname', 'given name', 'other names'], weight: 0.9 },
   { field: 'lastName', keywords: ['last name', 'lastname', 'surname', 'family name'], weight: 0.9 },
   { field: 'gender', keywords: ['gender', 'sex'], weight: 0.8 },
+  { field: 'age', keywords: ['age', 'years', 'dob', 'date of birth'], weight: 0.9 },
   { field: 'phoneNumber', keywords: ['phone', 'telephone', 'mobile', 'phone number'], weight: 0.8 },
   { field: 'providerCode', keywords: ['provider code', 'facility code', 'facility id', 'provider id', 'hcp code'], weight: 0.9 },
   { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'health facility', 'facility name', 'name of facility', 'account name as it appears'], weight: 1.0 },
@@ -76,6 +77,59 @@ export function normalizeEnrolmentCategory(value: unknown): EnrolmentCategory | 
 /**
  * Suggest enrolment mappings using fuzzy AI-like logic
  */
+export function extractWorkbookContext(matrix: unknown[][]): { facilityName?: string; lga?: string; period?: string } {
+  let facilityName: string | undefined;
+  let lga: string | undefined;
+  let period: string | undefined;
+
+  // Scan top 6 rows before column headers for metadata
+  for (let i = 0; i < Math.min(matrix.length, 6); i++) {
+    const row = matrix[i];
+    if (!row) continue;
+    const rowText = row.map(cell => String(cell ?? '').trim()).filter(Boolean).join(' ');
+    const upper = rowText.toUpperCase();
+
+    // Detect LGA
+    if (upper.includes('LOCAL GOVERNMENT') || upper.includes('LGA')) {
+      const lgaMatch = rowText.match(/([A-Z\s]+(?:LOCAL GOVERNMENT|LGA))/i);
+      if (lgaMatch) {
+        lga = lgaMatch[1].replace(/LOCAL GOVERNMENT|LGA/gi, '').trim();
+      } else {
+        // common LGAs in Ondo
+        const lgas = ['AKOKO NORTH EAST', 'AKOKO NORTH WEST', 'AKOKO SOUTH AKURE', 'AKOKO SOUTH EAST', 'AKOKO SOUTH WEST', 'AKURE SOUTH', 'AKURE NORTH', 'IDANRE', 'ODIGBO', 'OKITIPUPA', 'ILE OLUJI', 'IFE', 'OWO', 'OJEBU'];
+        for (const l of lgas) {
+          if (upper.includes(l)) {
+            lga = l;
+            break;
+          }
+        }
+      }
+    }
+
+    // Detect Facility Name (contains Hospital, Clinic, Medical, Healthcare, Health Center)
+    if (upper.includes('HOSPITAL') || upper.includes('CLINIC') || upper.includes('MEDICAL') || upper.includes('HEALTH CENTER') || upper.includes('HEALTH CENTRE')) {
+      for (const cell of row) {
+        const text = String(cell ?? '').trim();
+        const uText = text.toUpperCase();
+        if (uText.length > 5 && (uText.includes('HOSPITAL') || uText.includes('CLINIC') || uText.includes('MEDICAL') || uText.includes('CENTER') || uText.includes('CENTRE'))) {
+          facilityName = text.replace(/^["']|["']$/g, '').trim();
+          break;
+        }
+      }
+    }
+
+    // Detect Period / Month / Year
+    if (upper.includes('JULY') || upper.includes('JANUARY') || upper.includes('FEBRUARY') || upper.includes('MARCH') || upper.includes('APRIL') || upper.includes('MAY') || upper.includes('JUNE') || upper.includes('AUGUST') || upper.includes('SEPTEMBER') || upper.includes('OCTOBER') || upper.includes('NOVEMBER') || upper.includes('DECEMBER')) {
+      const yearMatch = rowText.match(/20\d\d/);
+      if (yearMatch) {
+        period = yearMatch[0];
+      }
+    }
+  }
+
+  return { facilityName, lga, period };
+}
+
 export function suggestEnrolmentMappings(headers: string[]): EnrolmentColumnMapping[] {
   return headers.map(header => {
     const normalized = normalizeHeader(header).replace(/[^a-z0-9/ ]/g, '');
@@ -283,6 +337,7 @@ export const enrolmentService = {
   normalizeEnrolmentCategory,
   normalizeGender,
   buildEnrolleeFingerprint,
+  extractWorkbookContext,
   suggestEnrolmentMappings,
   normalizeEnrolmentRows,
   markDuplicateEnrollees,
