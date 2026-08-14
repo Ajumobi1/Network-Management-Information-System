@@ -91,6 +91,7 @@ function mapDatabaseError(error: { code?: string | null; message?: string | null
     const message = error.message ?? '';
     if (message.includes('PROVIDER_NOT_FOUND')) return new ProviderAdminError('PROVIDER_NOT_FOUND', 'Provider not found.', 404);
     if (message.includes('INVALID_LIFECYCLE_TRANSITION')) return new ProviderAdminError('INVALID_LIFECYCLE_TRANSITION', 'Invalid lifecycle transition.', 409);
+    if (message.includes('DEPENDENCY_CONFLICT')) return new ProviderAdminError('DEPENDENCY_CONFLICT', message.replace('DEPENDENCY_CONFLICT: ', ''), 409);
     if (message.includes('AUDIT_FAILURE')) return new ProviderAdminError('AUDIT_FAILURE', 'Audit failure.', 500);
     if (message.includes('VALIDATION_ERROR')) return new ProviderAdminError('VALIDATION_ERROR', 'Validation failure.', 400);
   }
@@ -136,6 +137,9 @@ Deno.serve(async request => {
     if (error) throw mapDatabaseError(error);
 
     const result = data as ProviderAdminRpcResponse | null;
+    if (command.command === 'delete_provider') {
+      return response(request, 200, { data: { success: true, correlationId } });
+    }
     if (!result?.provider) throw new ProviderAdminError('INTERNAL_ERROR', 'Provider workflow returned no provider.', 500);
     return response(request, 200, { data: { provider: result.provider, correlationId } });
   } catch (error) {

@@ -25,7 +25,7 @@ type OperationalForm = {
 function workflowMessage(error: unknown): string {
   if (isSecureContractError(error)) return (error as any).message;
   if (error instanceof Error) return error.message;
-  return 'The provider action was not completed. Please verify constraints.';
+  return 'Unable to update provider. The server rejected the operation.';
 }
 
 const statusOptions: { label: string; value: ProviderLifecycleStatus }[] = [
@@ -52,7 +52,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
     category: provider.category,
     subcategory: provider.subcategory,
     ownership: provider.ownership,
-    state: provider.state,
+    state: 'Ondo',
     lga: provider.lga,
     address: provider.address || '',
     contactPerson: provider.contactPerson || '',
@@ -72,7 +72,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
       category: provider.category,
       subcategory: provider.subcategory,
       ownership: provider.ownership,
-      state: provider.state,
+      state: 'Ondo',
       lga: provider.lga,
       address: provider.address || '',
       contactPerson: provider.contactPerson || '',
@@ -90,7 +90,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
     setErrorMessage(null);
     setSuccessMessage(null);
     updateProvider.mutate(
-      { id: provider.id, payload: form },
+      { id: provider.id, payload: { ...form, state: 'Ondo' } },
       {
         onSuccess: () => {
           setSuccessMessage('Provider record was updated through the trusted workflow.');
@@ -111,7 +111,10 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
         onSuccess: () => {
           setSuccessMessage(`Provider status successfully updated to ${newStatus}. Audit event recorded.`);
         },
-        onError: error => setErrorMessage(workflowMessage(error)),
+        onError: error => {
+          setSelectedStatus(provider.status); // Revert on error
+          setErrorMessage(workflowMessage(error));
+        },
       }
     );
   }
@@ -191,7 +194,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
             <label className="space-y-1 text-xs font-semibold text-brand-secondary">
               Category
               <select value={form.category} onChange={event => setForm(current => ({ ...current, category: event.target.value as ProviderCategory }))} className="w-full rounded-xl border border-brand-divider bg-white px-3 py-2 text-sm text-brand-foreground outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20">
-                {Object.values(ProviderCategory).map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                {['Hospital', 'Primary Health Centre (PHC)', 'Clinic', 'Diagnostic Centre', 'Pharmacy'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
             </label>
             <label className="space-y-1 text-xs font-semibold text-brand-secondary">
@@ -207,12 +210,12 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
             <label className="space-y-1 text-xs font-semibold text-brand-secondary">
               Ownership
               <select value={form.ownership} onChange={event => setForm(current => ({ ...current, ownership: event.target.value as ProviderOwnership }))} className="w-full rounded-xl border border-brand-divider bg-white px-3 py-2 text-sm text-brand-foreground outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20">
-                {Object.values(ProviderOwnership).map(own => <option key={own} value={own}>{own}</option>)}
+                {['Government', 'Private'].map(own => <option key={own} value={own}>{own}</option>)}
               </select>
             </label>
             <label className="space-y-1 text-xs font-semibold text-brand-secondary">
               State
-              <input value={form.state} maxLength={120} onChange={event => setForm(current => ({ ...current, state: event.target.value }))} className="w-full rounded-xl border border-brand-divider bg-white px-3 py-2 text-sm text-brand-foreground outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
+              <input value="Ondo" disabled className="w-full rounded-xl border border-brand-divider bg-slate-100 px-3 py-2 text-sm text-slate-500 cursor-not-allowed outline-none" />
             </label>
             <label className="space-y-1 text-xs font-semibold text-brand-secondary">
               Local government area

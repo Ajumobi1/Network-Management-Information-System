@@ -22,6 +22,7 @@ export type SecureContractErrorCode =
   | 'DUPLICATE_PROVIDER'
   | 'PROVIDER_NOT_FOUND'
   | 'INVALID_LIFECYCLE_TRANSITION'
+  | 'DEPENDENCY_CONFLICT'
   | 'AUDIT_FAILURE'
   | 'INTERNAL_ERROR';
 
@@ -75,7 +76,7 @@ export function importWorkflowUnavailable(): SecureContractError {
 
 const providerWorkflowMessages: Record<Extract<SecureContractErrorCode,
   'UNAUTHORIZED' | 'AAL_REQUIRED' | 'VALIDATION_ERROR' | 'DUPLICATE_PROVIDER' |
-  'PROVIDER_NOT_FOUND' | 'INVALID_LIFECYCLE_TRANSITION' | 'AUDIT_FAILURE' | 'INTERNAL_ERROR'
+  'PROVIDER_NOT_FOUND' | 'INVALID_LIFECYCLE_TRANSITION' | 'DEPENDENCY_CONFLICT' | 'AUDIT_FAILURE' | 'INTERNAL_ERROR'
 >, string> = {
   UNAUTHORIZED: 'You are not authorized to perform this provider operation.',
   AAL_REQUIRED: 'Complete multi-factor authentication before performing this provider operation.',
@@ -83,6 +84,7 @@ const providerWorkflowMessages: Record<Extract<SecureContractErrorCode,
   DUPLICATE_PROVIDER: 'A provider with this provider code already exists.',
   PROVIDER_NOT_FOUND: 'The requested provider was not found.',
   INVALID_LIFECYCLE_TRANSITION: 'This provider lifecycle transition is not permitted.',
+  DEPENDENCY_CONFLICT: 'This provider has historical operational records and cannot be permanently deleted. Change the provider status to Inactive instead.',
   AUDIT_FAILURE: 'The provider operation was not completed because its authoritative audit event could not be recorded.',
   INTERNAL_ERROR: 'The trusted provider workflow could not complete the operation.',
 };

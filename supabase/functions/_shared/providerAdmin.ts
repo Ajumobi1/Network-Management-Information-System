@@ -1,6 +1,6 @@
 import type { NmisRole } from './security.ts';
 
-export const PROVIDER_ADMIN_COMMANDS = ['register', 'edit_operational', 'change_lifecycle'] as const;
+export const PROVIDER_ADMIN_COMMANDS = ['register', 'edit_operational', 'change_lifecycle', 'delete_provider'] as const;
 export type ProviderAdminCommand = (typeof PROVIDER_ADMIN_COMMANDS)[number];
 
 export type ProviderDirectoryDto = {
@@ -35,6 +35,7 @@ export type ProviderAdminFailureCode =
   | 'DUPLICATE_PROVIDER'
   | 'PROVIDER_NOT_FOUND'
   | 'INVALID_LIFECYCLE_TRANSITION'
+  | 'DEPENDENCY_CONFLICT'
   | 'AUDIT_FAILURE'
   | 'INTERNAL_ERROR';
 
@@ -64,6 +65,7 @@ export type RegisterProviderPayload = {
   bank_name?: string | null;
   account_name?: string | null;
   account_number?: string | null;
+  status?: string | null;
 };
 
 export type EditProviderPayload = {
@@ -83,13 +85,16 @@ export type EditProviderPayload = {
 };
 
 export type LifecyclePayload = {
-  status: 'active' | 'inactive';
+  status: string;
 };
+
+export type DeleteProviderPayload = Record<string, never>;
 
 export type ValidatedProviderAdminCommand =
   | { command: 'register'; providerId: null; payload: RegisterProviderPayload }
   | { command: 'edit_operational'; providerId: string; payload: EditProviderPayload }
-  | { command: 'change_lifecycle'; providerId: string; payload: LifecyclePayload };
+  | { command: 'change_lifecycle'; providerId: string; payload: LifecyclePayload }
+  | { command: 'delete_provider'; providerId: string; payload: DeleteProviderPayload };
 
 const categories = new Set([
   'Hospital',
@@ -104,6 +109,16 @@ const categories = new Set([
 const ownerships = new Set([
   'Government',
   'Private',
+]);
+
+const allowedStatuses = new Set([
+  'active',
+  'pending',
+  'pending review',
+  'suspended',
+  'inactive',
+  'expired',
+  'blacklisted',
 ]);
 
 const providerCodePattern = /^[A-Za-z0-9][A-Za-z0-9/_-]{2,63}$/;
@@ -169,7 +184,7 @@ export function validateProviderAdminCommand(input: unknown): ValidatedProviderA
 
   if (action === 'register') {
     if (input.providerId !== undefined && input.providerId !== null) validationError('providerId is not allowed for provider registration.');
-    assertExactKeys(input.payload, ['provider_code', 'provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga', 'address', 'contact_person', 'phone', 'email', 'bank_name', 'account_name', 'account_number']);
+    assertExactKeys(input.payload, ['provider_code', 'provider_name', 'category', 'subcategory', 'ownership', 'state', 'lga', 'address', 'contact_person', 'phone', 'email', 'bank_name', 'account_name', 'account_number', 'status']);
 
     const provider_code = optionalString(input.payload.provider_code, 'provider_code', 64)?.toUpperCase();
     if (provider_code && !providerCodePattern.test(provider_code)) validationError('The provider_code format is invalid.');
@@ -186,11 +201,13 @@ export function validateProviderAdminCommand(input: unknown): ValidatedProviderA
     const bank_name = optionalString(input.payload.bank_name, 'bank_name', 160);
     const account_name = optionalString(input.payload.account_name, 'account_name', 160);
     const account_number = optionalString(input.payload.account_number, 'account_number', 32);
+    const status = optionalString(input.payload.status, 'status', 20);
 
     if (!categories.has(category)) validationError('The provider category is invalid.');
     if (!ownerships.has(ownership)) validationError('The provider ownership is invalid.');
+    if (status && !allowedStatuses.has(status.toLowerCase())) validationError('The provider status is invalid.');
 
-    return { command: 'register', providerId: null, payload: { provider_code, provider_name, category, subcategory, ownership, state, lga, address, contact_person, phone, email, bank_name, account_name, account_number } };
+    return { command: 'register', providerId: null, payload: { provider_code, provider_name, category, subcategory, ownership, state, lga, address, contact_person, phone, email, bank_name, account_name, account_number, status } };
   }
 
   const id = providerId(input.providerId);
@@ -234,14 +251,13 @@ export function validateProviderAdminCommand(input: unknown): ValidatedProviderA
     return { command: 'edit_operational', providerId: id, payload };
   }
 
-  assertExactKeys(input.payload, ['status']);
-  const status = requiredString(input.payload.status, 'status', 20).toLowerCase();
-  if (status !== 'active' && status !== 'inactive') validationError('Only active and inactive lifecycle states are approved for this workflow.');
-  return { command: 'change_lifecycle', providerId: id, payload: { status } };
-}
+  if (action === 'delete_provider') {
+    assertExactKeys(input.payload, []);
+    return { command: 'delete_provider', providerId: id, payload: {} };
+  }
 
-export function assertLifecycleTransition(current: string, next: LifecyclePayload['status']): void {
-  const normalizedCurrent = current.trim().toLowerCase();
-  if ((normalizedCurrent === 'active' && next === 'inactive') || (normalizedCurrent === 'inactive' && next === 'active')) return;
-  throw new ProviderAdminError('INVALID_LIFECYCLE_TRANSITION', 'This lifecycle transition is not permitted by the approved provider workflow.', 409);
+  assertExactKeys(input.payload, ['status']);
+  const status = requiredString(input.payload.status, 'status', 20);
+  if (!allowedStatuses.has(status.toLowerCase())) validationError('The requested lifecycle state is not approved for this workflow.');
+  return { command: 'change_lifecycle', providerId: id, payload: { status } };
 }

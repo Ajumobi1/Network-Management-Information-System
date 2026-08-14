@@ -3,10 +3,9 @@ import {
   providerWorkflowError,
   trustedOperationRequired,
 } from '../../lib/security/secureContracts';
-import { getApiClient } from '../../api/client';
 import { invokeSecureRpc } from '../contracts/secureRpcRepository';
 import { useMockData } from '../common';
-import { apiMocks } from '../../mocks';
+import * as apiMocks from '../../mocks/apiMocks';
 import {
   providerDirectory,
   providerProfiles,
@@ -17,7 +16,6 @@ import {
 } from '../../mocks/providersMocks';
 import { ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile } from '../../types/providers/providerTypes';
 import type { ProvidersRow } from '../../lib/supabase/database.types';
-import { ProviderMatch } from '../../types/financial-data';
 
 export type ProviderRegistrationCommand = Omit<ProviderDirectoryItem, 'id' | 'providerCode' | 'status' | 'contractStatus' | 'credentialStatus' | 'inspectionStatus' | 'capitationStatus' | 'inspectionRating' | 'lastInspectionDate'> & {
   address?: string | null;
@@ -56,13 +54,6 @@ type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
 };
 
 type ProviderDirectoryRpcResult = ProviderDirectoryRpcRow[] | { items: ProviderDirectoryRpcRow[] };
-type ProviderAdminResponse = { data?: { provider?: ProviderDirectoryRpcRow } };
-type ProviderAdminFunctionError = { message?: string; context?: { json?: () => Promise<unknown> } } | null;
-type ProviderAdminFunctionClient = {
-  functions: {
-    invoke: <T>(functionName: string, options: { body: Record<string, unknown> }) => Promise<{ data: T | null; error: ProviderAdminFunctionError }>;
-  };
-};
 
 const providerWorkflowCodes = [
   'UNAUTHORIZED',
@@ -71,6 +62,7 @@ const providerWorkflowCodes = [
   'DUPLICATE_PROVIDER',
   'PROVIDER_NOT_FOUND',
   'INVALID_LIFECYCLE_TRANSITION',
+  'DEPENDENCY_CONFLICT',
   'TRUSTED_OPERATION_REQUIRED',
   'AUDIT_FAILURE',
   'INTERNAL_ERROR',
@@ -89,7 +81,9 @@ function normalizedLifecycleStatus(status: string): ProviderLifecycleStatus {
 function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
   return {
     id: row.id,
-    providerCode: row.provider_code,
+    providerCode: (row as any).register_position 
+      ? String((row as any).register_position).padStart(3, '0') 
+      : row.provider_code,
     providerName: row.provider_name,
     category: row.category as ProviderDirectoryItem['category'],
     subcategory: row.subcategory ?? '',
@@ -128,29 +122,34 @@ function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
   };
 }
 
-function isProviderWorkflowCode(value: unknown): value is ProviderWorkflowCode {
-  return typeof value === 'string' && (providerWorkflowCodes as readonly string[]).includes(value);
-}
+async function invokeProviderAdmin(args: { command: string; providerId?: string | null; payload: Record<string, unknown> }): Promise<ProviderDirectoryItem> {
+  const { data, error } = await invokeSecureRpc<any>('nmis_provider_admin_write', {
+    p_command: args.command,
+    p_provider_id: args.providerId || null,
+    p_payload: args.payload,
+  });
 
-async function mapProviderAdminError(error: ProviderAdminFunctionError) {
-  let code: ProviderWorkflowCode = 'INTERNAL_ERROR';
-  try {
-    const body = await error?.context?.json?.();
-    if (body && typeof body === 'object' && isProviderWorkflowCode((body as { code?: unknown }).code)) {
-      code = (body as { code: ProviderWorkflowCode }).code;
-    }
-  } catch {
-    // The Edge Function error body is intentionally optional and never exposed to the UI.
+  if (error) {
+    let code: ProviderWorkflowCode = 'INTERNAL_ERROR';
+    const message = (error as any).message || '';
+    
+    if (message.includes('UNAUTHORIZED')) code = 'UNAUTHORIZED';
+    else if (message.includes('AAL_REQUIRED')) code = 'AAL_REQUIRED';
+    else if (message.includes('VALIDATION_ERROR')) code = 'VALIDATION_ERROR';
+    else if (message.includes('DUPLICATE_PROVIDER')) code = 'DUPLICATE_PROVIDER';
+    else if (message.includes('PROVIDER_NOT_FOUND')) code = 'PROVIDER_NOT_FOUND';
+    else if (message.includes('INVALID_LIFECYCLE_TRANSITION')) code = 'INVALID_LIFECYCLE_TRANSITION';
+    else if (message.includes('DEPENDENCY_CONFLICT')) code = 'DEPENDENCY_CONFLICT';
+    else if (message.includes('AUDIT_FAILURE')) code = 'AUDIT_FAILURE';
+    
+    throw providerWorkflowError(code);
   }
-  if (code === 'TRUSTED_OPERATION_REQUIRED') throw trustedOperationRequired('provider administration');
-  throw providerWorkflowError(code);
-}
 
-async function invokeProviderAdmin(body: Record<string, unknown>): Promise<ProviderDirectoryItem> {
-  const client = getApiClient() as unknown as ProviderAdminFunctionClient;
-  const { data, error } = await client.functions.invoke<ProviderAdminResponse>('nmis-provider-admin', { body });
-  if (error) await mapProviderAdminError(error);
-  const row = data?.data?.provider;
+  if (args.command === 'delete_provider') {
+    return {} as ProviderDirectoryItem;
+  }
+
+  const row = data?.provider;
   if (!row) throw providerWorkflowError('INTERNAL_ERROR');
   return mapDirectoryRow(row);
 }
@@ -189,7 +188,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
 
   const rpcFilters = {
     p_search: filters.search || null,
-    p_state: null, // State is permanently Ondo
+    p_state: null,
     p_lga: filters.lga === 'all' ? null : filters.lga,
     p_category: filters.category === 'all' ? null : filters.category,
     p_ownership: filters.ownership === 'all' ? null : filters.ownership,
@@ -277,7 +276,7 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
       category: payload.category,
       subcategory: payload.subcategory || null,
       ownership: payload.ownership,
-      state: payload.state || 'Ondo',
+      state: 'Ondo',
       lga: payload.lga,
       address: payload.address || null,
       contact_person: payload.contactPerson || null,
@@ -295,7 +294,6 @@ export async function updateDirectoryProvider(id: string, payload: ProviderOpera
   if (payload.category !== undefined) safePayload.category = payload.category;
   if (payload.subcategory !== undefined) safePayload.subcategory = payload.subcategory || null;
   if (payload.ownership !== undefined) safePayload.ownership = payload.ownership;
-  if (payload.state !== undefined) safePayload.state = payload.state;
   if (payload.lga !== undefined) safePayload.lga = payload.lga;
   if ((payload as any).address !== undefined) safePayload.address = (payload as any).address || null;
   if (payload.contactPerson !== undefined) safePayload.contact_person = payload.contactPerson || null;
@@ -360,22 +358,21 @@ export async function getProviderFacilities(_providerId: string) {
   throw accessRestricted('provider facility data');
 }
 
-export async function saveProviderMatchResolution(match: ProviderMatch, _resolvedBy?: string) {
-  if (useMockData) {
-    console.log('[Mock] Saving provider match resolution:', match);
-    return;
+export async function getPersistedProviderMatches(): Promise<Record<string, any>> {
+  if (useMockData) return {};
+  const result = await invokeSecureRpc<any[]>('nmis_get_persisted_provider_matches', {});
+  const matches: Record<string, any> = {};
+  if (Array.isArray(result)) {
+    result.forEach(m => {
+      if (m.excel_name) {
+        matches[m.excel_name.toLowerCase().trim()] = m;
+      }
+    });
   }
-  throw trustedOperationRequired('provider match resolution');
+  return matches;
 }
 
-export async function getPersistedProviderMatches(): Promise<Record<string, ProviderMatch>> {
-  if (useMockData) return {};
-  try {
-    // Attempt to fetch from a secure RPC if it exists, otherwise return empty
-    const result = await invokeSecureRpc<Record<string, ProviderMatch>>('nmis_get_persisted_matches');
-    return result || {};
-  } catch (error) {
-    // Graceful degradation: if the history contract is unavailable, matching continues without history
-    return {};
-  }
+export async function saveProviderMatchResolution(payload: any, _resolvedBy?: string) {
+  if (useMockData) return true;
+  return invokeSecureRpc<any>('nmis_save_provider_match_resolution', payload);
 }
