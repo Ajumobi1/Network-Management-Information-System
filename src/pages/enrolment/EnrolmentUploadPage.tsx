@@ -192,10 +192,21 @@ export default function EnrolmentUploadPage() {
         if (ctxMonthIdx !== -1) detectedMonth = String(ctxMonthIdx + 1);
       }
 
-      const hIndex = enrolmentService.detectHeaderRowIndex(matrix);
-      const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
-      const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
+      let hIndex = enrolmentService.detectHeaderRowIndex(matrix);
+      let detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
+      let rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
         .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
+
+      // Robust Fallback: If no rows found with detected header, look for first row with at least 3 columns of data
+      if (rows.length === 0 && matrix.length > 0) {
+        const fallbackIndex = matrix.findIndex(r => Array.isArray(r) && r.filter(c => String(c ?? '').trim() !== '').length >= 3);
+        if (fallbackIndex !== -1 && fallbackIndex !== hIndex) {
+          hIndex = fallbackIndex;
+          detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
+          rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
+            .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
+        }
+      }
 
       updateQueueItem(item.id, {
         status: 'processing',

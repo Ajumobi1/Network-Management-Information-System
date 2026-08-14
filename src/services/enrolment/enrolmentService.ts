@@ -63,15 +63,33 @@ function readMappedValue(row: Record<string, unknown>, mappings: EnrolmentColumn
 }
 
 export function detectHeaderRowIndex(matrix: unknown[][]): number {
-  for (let i = 0; i < Math.min(matrix.length, 10); i++) {
+  // Increase search range to 20 rows to handle large titles
+  for (let i = 0; i < Math.min(matrix.length, 20); i++) {
     const row = matrix[i];
-    if (!row) continue;
+    if (!row || !Array.isArray(row)) continue;
+    
     const rowText = row.map(cell => String(cell ?? '').toLowerCase()).join(' ');
-    if ((rowText.includes('policy') || rowText.includes('member') || rowText.includes('number') || rowText.includes('s/n')) && 
-        (rowText.includes('name') || rowText.includes('beneficiary') || rowText.includes('first') || rowText.includes('surname'))) {
+    
+    // Comprehensive keyword matching for enrolment headers
+    const hasIdentity = rowText.includes('policy') || rowText.includes('member') || rowText.includes('number') || rowText.includes('s/n') || rowText.includes('sn ') || rowText.includes('id');
+    const hasName = rowText.includes('name') || rowText.includes('beneficiary') || rowText.includes('first') || rowText.includes('surname') || rowText.includes('provider');
+    const hasCategory = rowText.includes('category') || rowText.includes('sector') || rowText.includes('type');
+    
+    if ((hasIdentity && hasName) || (hasName && hasCategory)) {
       return i;
     }
   }
+  
+  // Fallback: Find the first row that has at least 3 non-empty cells
+  for (let i = 0; i < Math.min(matrix.length, 15); i++) {
+    const row = matrix[i];
+    if (!row || !Array.isArray(row)) continue;
+    const nonEmptyCount = row.filter(cell => String(cell ?? '').trim() !== '').length;
+    if (nonEmptyCount >= 3) {
+      return i;
+    }
+  }
+  
   return 0;
 }
 
