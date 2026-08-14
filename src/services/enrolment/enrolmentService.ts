@@ -142,11 +142,11 @@ export function extractWorkbookContext(matrix: unknown[][]): { facilityName?: st
     }
 
     // Detect Facility Name (contains Hospital, Clinic, Medical, Healthcare, Health Center)
-    if (upper.includes('HOSPITAL') || upper.includes('HOSP') || upper.includes('CLINIC') || upper.includes('MEDICAL') || upper.includes('HEALTH CENTER') || upper.includes('HEALTH CENTRE')) {
+    if (!facilityName && (upper.includes('HOSPITAL') || upper.includes('HOSP') || upper.includes('CLINIC') || upper.includes('MEDICAL') || upper.includes('HEALTH CENTER') || upper.includes('HEALTH CENTRE') || upper.includes('ST.'))) {
       for (const cell of row) {
         const text = String(cell ?? '').trim();
         const uText = text.toUpperCase();
-        if (uText.length > 5 && (uText.includes('HOSPITAL') || uText.includes('HOSP') || uText.includes('CLINIC') || uText.includes('MEDICAL') || uText.includes('CENTER') || uText.includes('CENTRE'))) {
+        if (uText.length > 5 && (uText.includes('HOSPITAL') || uText.includes('HOSP') || uText.includes('CLINIC') || uText.includes('MEDICAL') || uText.includes('CENTER') || uText.includes('CENTRE') || uText.includes('ST.'))) {
           facilityName = text.replace(/^["']|["']$/g, '').trim();
           break;
         }
@@ -172,7 +172,7 @@ export function extractWorkbookContext(matrix: unknown[][]): { facilityName?: st
 export function extractFacilityNameFromFilename(fileName: string): string | undefined {
   const baseName = fileName
     .replace(/\.[^.]+$/, '')
-    .replace(/[_-]+/g, ' ')
+    .replace(/[._-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 

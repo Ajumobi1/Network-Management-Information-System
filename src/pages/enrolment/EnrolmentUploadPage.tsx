@@ -300,9 +300,12 @@ export default function EnrolmentUploadPage() {
 
       // If the mapped column was absent or empty, use the workbook context. This
       // includes a descriptive facility filename such as an original provider workbook.
-      if (results.length === 0 && extractedContext.facilityName) {
-        const match = await financialDataService.matchProvider(extractedContext.facilityName, undefined, extractedContext.lga, 'Ondo');
-        results = [match];
+      if (results.length === 0) {
+        const nameToMatch = extractedContext.facilityName || enrolmentService.extractFacilityNameFromFilename(activeItem.file.name);
+        if (nameToMatch) {
+          const match = await financialDataService.matchProvider(nameToMatch, undefined, extractedContext.lga, 'Ondo');
+          results = [match];
+        }
       }
 
       if (results.length === 0) {
