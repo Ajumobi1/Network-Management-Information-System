@@ -4,6 +4,8 @@ import {
   EnrolmentSector,
   EnrolmentColumnMapping,
   EnrolmentField,
+  EnrolmentValidationError,
+  EnrolmentErrorCode,
 } from '../../types/enrolment/enrolmentTypes';
 import { ProviderMatch } from '../../types/financial-data';
 import {
@@ -265,17 +267,111 @@ export function normalizeEnrolmentRows(
     const sourceState = normalizeText(readMappedValue(row, mappings, 'state'));
     
     const match = matchByName.get(sourceProviderName.toLowerCase()) || fallbackMatch;
-    const errors: string[] = [];
+    const structuredErrors: EnrolmentValidationError[] = [];
 
-    if (!policyNumber) errors.push('Policy number is required.');
-    if (!category) errors.push('CATEGORY must be PRINCIPAL or DEPENDANT.');
-    if (!sector) errors.push('Policy number must contain /C/ for formal or /D/ for informal sector.');
-    if (!firstName) errors.push('First name is required.');
-    if (!lastName) errors.push('Last name is required.');
-    if (!gender) errors.push('Gender is required.');
-    if (!sourceProviderName) errors.push('Facility/provider name is required.');
-    if (!periodYear || !periodMonth) errors.push('A valid reporting period is required.');
-    if (!match || match.status !== 'confirmed' || !match.matchedProviderId) errors.push(match?.status === 'pending' ? 'Facility match requires manual review.' : 'Facility could not be matched to the Provider Directory.');
+    if (!policyNumber) {
+      structuredErrors.push({
+        code: 'POLICY_NUMBER_MISSING',
+        message: 'Policy number is required.',
+        field: 'policyNumber',
+        severity: 'error',
+        suggestedAction: 'Enter a valid policy number before this record can be committed.',
+        originalValue: readMappedValue(row, mappings, 'policyNumber')
+      });
+    } else if (!sector) {
+      structuredErrors.push({
+        code: 'POLICY_NUMBER_INVALID',
+        message: 'Policy number must contain /C/ for formal or /D/ for informal sector.',
+        field: 'policyNumber',
+        severity: 'error',
+        suggestedAction: 'Correct the policy number format in the source Excel and re-upload.',
+        originalValue: readMappedValue(row, mappings, 'policyNumber')
+      });
+    }
+
+    if (!category) {
+      structuredErrors.push({
+        code: 'CATEGORY_MISSING',
+        message: 'CATEGORY must be PRINCIPAL or DEPENDANT.',
+        field: 'category',
+        severity: 'error',
+        suggestedAction: 'Ensure the category column is correctly mapped and contains valid values.',
+        originalValue: readMappedValue(row, mappings, 'category')
+      });
+    }
+
+    if (!firstName) {
+      structuredErrors.push({
+        code: 'BENEFICIARY_NAME_MISSING',
+        message: 'First name is required.',
+        field: 'firstName',
+        severity: 'error',
+        suggestedAction: 'Enter the beneficiary first name.',
+        originalValue: readMappedValue(row, mappings, 'firstName')
+      });
+    }
+    if (!lastName) {
+      structuredErrors.push({
+        code: 'BENEFICIARY_NAME_MISSING',
+        message: 'Last name is required.',
+        field: 'lastName',
+        severity: 'error',
+        suggestedAction: 'Enter the beneficiary last name.',
+        originalValue: readMappedValue(row, mappings, 'lastName')
+      });
+    }
+    if (!gender) {
+      structuredErrors.push({
+        code: 'REQUIRED_FIELD_MISSING',
+        message: 'Gender is required.',
+        field: 'gender',
+        severity: 'error',
+        suggestedAction: 'Select a gender (Male/Female).',
+        originalValue: readMappedValue(row, mappings, 'gender')
+      });
+    }
+    if (rawAge !== undefined && rawAge !== '' && (isNaN(Number(rawAge)) || Number(rawAge) < 0)) {
+      structuredErrors.push({
+        code: 'AGE_INVALID',
+        message: 'Age must be a valid non-negative number.',
+        field: 'age',
+        severity: 'error',
+        suggestedAction: 'Correct the age in the source Excel and re-upload.',
+        originalValue: rawAge
+      });
+    }
+
+    if (!sourceProviderName) {
+      structuredErrors.push({
+        code: 'REQUIRED_FIELD_MISSING',
+        message: 'Facility/provider name is required.',
+        field: 'providerName',
+        severity: 'error',
+        suggestedAction: 'Ensure the provider name column is correctly mapped.',
+        originalValue: readMappedValue(row, mappings, 'providerName')
+      });
+    }
+
+    if (!periodYear || !periodMonth) {
+      structuredErrors.push({
+        code: 'PERIOD_MISSING',
+        message: 'A valid reporting period is required.',
+        field: 'reportingMonth',
+        severity: 'error',
+        suggestedAction: 'Ensure the reporting month and year are correctly detected or selected.',
+      });
+    }
+
+    if (!match || match.status !== 'confirmed' || !match.matchedProviderId) {
+      structuredErrors.push({
+        code: match?.status === 'pending' ? 'PROVIDER_MATCH_REVIEW' : 'PROVIDER_NOT_FOUND',
+        message: match?.status === 'pending' ? 'Facility match requires manual review.' : 'Facility could not be matched to the Provider Directory.',
+        field: 'providerName',
+        severity: 'error',
+        suggestedAction: 'Resolve the facility match in the Match step.',
+        originalValue: sourceProviderName
+      });
+    }
 
     const providerName = match?.matchedProviderName || sourceProviderName;
     const providerCode = match?.matchedProviderCode || sourceProviderCode;
@@ -287,8 +383,8 @@ export function normalizeEnrolmentRows(
     const rawOwnership = match?.matchedProviderOwnership || (row['ownership'] || row['OWNERSHIP'] || row['Ownership']);
     const ownership = smartNormalizeEnrolmentValue('ownership', rawOwnership);
 
-    const recordStatus = errors.length > 0
-      ? (match && match.status !== 'confirmed' ? 'match-review-required' : 'error')
+    const recordStatus = structuredErrors.length > 0
+      ? (structuredErrors.some(e => e.code === 'PROVIDER_MATCH_REVIEW' || e.code === 'PROVIDER_NOT_FOUND') ? 'match-review-required' : 'error')
       : 'valid';
     const record: EnrolleeRecord = {
       id: `enrollee-${batchId}-${index + 1}`,
@@ -315,12 +411,25 @@ export function normalizeEnrolmentRows(
       importBatchId: batchId,
       sourceRow: index + 2,
       recordStatus,
-      validationErrors: errors.length > 0 ? errors : undefined,
+      validationErrors: structuredErrors.map(e => e.message),
+      structuredErrors,
       fingerprint: buildEnrolleeFingerprint(policyNumber, period),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       metadata: {
         sourceSheet,
+        sourceValues: {
+          policyNumber: readMappedValue(row, mappings, 'policyNumber'),
+          category: readMappedValue(row, mappings, 'category'),
+          firstName: readMappedValue(row, mappings, 'firstName'),
+          lastName: readMappedValue(row, mappings, 'lastName'),
+          gender: readMappedValue(row, mappings, 'gender'),
+          age: readMappedValue(row, mappings, 'age'),
+          providerName: readMappedValue(row, mappings, 'providerName'),
+          providerCode: readMappedValue(row, mappings, 'providerCode'),
+          lga: readMappedValue(row, mappings, 'lga'),
+          state: readMappedValue(row, mappings, 'state'),
+        },
         sourceCategory: normalizeText(readMappedValue(row, mappings, 'category')),
         sourceProviderName,
         sourceProviderCode,
@@ -348,9 +457,23 @@ export function markDuplicateEnrollees(records: EnrolleeRecord[]): EnrolleeRecor
     const fingerprint = record.fingerprint || buildEnrolleeFingerprint(record.policyNumber, record.period);
     const duplicate = seen.has(fingerprint);
     seen.add(fingerprint);
-    return duplicate
-      ? { ...record, fingerprint, recordStatus: 'duplicate' }
-      : { ...record, fingerprint };
+    if (duplicate) {
+      const duplicateError: EnrolmentValidationError = {
+        code: 'DUPLICATE_RECORD',
+        message: 'This policy number already exists in this batch for the same reporting period.',
+        field: 'policyNumber',
+        severity: 'error',
+        suggestedAction: 'Remove the duplicate row from the source Excel or exclude it from the import.'
+      };
+      return { 
+        ...record, 
+        fingerprint, 
+        recordStatus: 'duplicate',
+        structuredErrors: [...(record.structuredErrors || []), duplicateError],
+        validationErrors: [...(record.validationErrors || []), duplicateError.message]
+      };
+    }
+    return { ...record, fingerprint };
   });
 }
 

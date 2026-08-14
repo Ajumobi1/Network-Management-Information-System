@@ -17,7 +17,12 @@ import {
   Trash2,
   FileText,
   Clock,
-  Loader2
+  Loader2,
+  X,
+  Search,
+  Copy,
+  Download,
+  Filter
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -25,7 +30,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
 import { enrolmentService } from '../../services/enrolment/enrolmentService';
 import { useCreateEnrolmentImportBatch } from '../../hooks/enrolment';
-import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField } from '../../types/enrolment/enrolmentTypes';
+import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField, EnrolmentValidationError } from '../../types/enrolment/enrolmentTypes';
 import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
 
@@ -81,6 +86,9 @@ export default function EnrolmentUploadPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [errorSearch, setErrorSearch] = useState('');
+  const [errorTypeFilter, setErrorTypeFilter] = useState<string>('all');
   const { session } = useAuth();
   const createBatch = useCreateEnrolmentImportBatch();
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
@@ -292,8 +300,16 @@ export default function EnrolmentUploadPage() {
   };
 
   const handleCommit = async () => {
-    if (!activeItem?.data || activeItem.status !== 'ready') return;
+    if (!activeItem?.data || activeItem.matched === 0) return;
     
+    const hasIssues = activeItem.errors > 0 || activeItem.review > 0 || activeItem.duplicates > 0;
+    if (hasIssues) {
+      const confirmed = window.confirm(
+        `This batch contains ${activeItem.errors + activeItem.review + activeItem.duplicates} issues that will be skipped. Only ${activeItem.matched} READY records will be committed.\n\nDo you want to proceed with a partial import?`
+      );
+      if (!confirmed) return;
+    }
+
     setIsAnalyzing(true);
     try {
       const period = `${activeItem.data.reportingYear}-${activeItem.data.reportingMonth.padStart(2, '0')}`;
@@ -308,7 +324,7 @@ export default function EnrolmentUploadPage() {
           importedRows: activeItem.matched,
           warningRows: 0,
           errorRows: activeItem.errors,
-          duplicateRows: 0,
+          duplicateRows: activeItem.duplicates,
           unmatchedProviders: activeItem.review,
           metadata: {
             sourceSheet: activeItem.data.sourceSheet,
@@ -320,7 +336,7 @@ export default function EnrolmentUploadPage() {
       });
       
       updateQueueItem(activeItem.id, { status: 'imported' });
-      setCommitMessage(`Successfully imported ${activeItem.rows} records from ${activeItem.file.name}`);
+      setCommitMessage(`Successfully imported ${activeItem.matched} records from ${activeItem.file.name}. ${activeItem.errors + activeItem.review + activeItem.duplicates} records were skipped due to validation issues.`);
       
       // Check if there are more files in queue
       setQueue(currentQueue => {
@@ -678,9 +694,17 @@ export default function EnrolmentUploadPage() {
                       <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">REVIEW</p>
                       <p className="mt-1 text-xl font-bold text-amber-700">{activeItem.review.toLocaleString()}</p>
                     </div>
-                    <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100">
+                    <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100 relative group">
                       <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">ERRORS</p>
                       <p className="mt-1 text-xl font-bold text-rose-700">{activeItem.errors.toLocaleString()}</p>
+                      {activeItem.errors > 0 && (
+                        <button 
+                          onClick={() => setIsErrorModalOpen(true)}
+                          className="mt-2 flex items-center gap-1 text-[10px] font-bold text-rose-600 hover:text-rose-800 transition-colors uppercase"
+                        >
+                          <AlertCircle size={12} /> View Errors
+                        </button>
+                      )}
                     </div>
                     <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">DUPLICATES</p>
@@ -724,7 +748,26 @@ export default function EnrolmentUploadPage() {
                   <div className="mt-4 p-4 rounded-2xl bg-slate-50 text-[10px] text-slate-400 text-center uppercase tracking-widest font-bold">
                     Showing first 10 of {activeItem.rows.toLocaleString()} records
                   </div>
-                  <Actions onBack={() => setStep('match')} onNext={handleCommit} nextLabel="Commit Batch" disabled={activeItem.status !== 'ready'} />
+
+                  {(activeItem.errors > 0 || activeItem.review > 0 || activeItem.duplicates > 0) && (
+                    <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+                      <AlertCircle className="h-5 w-5 shrink-0" />
+                      <div>
+                        <p className="font-bold">Validation Issues Detected</p>
+                        <p className="text-xs mt-1">
+                          {activeItem.errors + activeItem.review + activeItem.duplicates} records have errors or require review and will be skipped during commit. 
+                          You can inspect and resolve these issues using the <strong>View Errors</strong> action above.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <Actions 
+                    onBack={() => setStep('match')} 
+                    onNext={handleCommit} 
+                    nextLabel={activeItem.errors > 0 || activeItem.review > 0 || activeItem.duplicates > 0 ? "Commit Ready Records" : "Commit Batch"} 
+                    disabled={activeItem.matched === 0} 
+                  />
                 </Panel>
               )}
 
@@ -750,6 +793,438 @@ export default function EnrolmentUploadPage() {
             </>
           )}
         </main>
+        {isErrorModalOpen && activeItem?.data && (
+          <ErrorInspectionModal 
+            item={activeItem} 
+            onClose={() => setIsErrorModalOpen(false)} 
+            search={errorSearch}
+            setSearch={setErrorSearch}
+            typeFilter={errorTypeFilter}
+            setTypeFilter={setErrorTypeFilter}
+            onUpdateRecords={(newRecords) => {
+              const reviewCount = newRecords.filter(r => r.recordStatus === 'match-review-required').length;
+              const errorCount = newRecords.filter(r => r.recordStatus === 'error').length;
+              const duplicateCount = newRecords.filter(r => r.recordStatus === 'duplicate').length;
+              const readyCount = newRecords.filter(r => r.recordStatus === 'valid').length;
+
+              updateActiveData({ normalizedRecords: newRecords });
+              updateQueueItem(activeFileId!, {
+                status: (reviewCount > 0) ? 'review' : (errorCount > 0 ? 'error' : 'ready'),
+                review: reviewCount,
+                errors: errorCount,
+                matched: readyCount,
+                duplicates: duplicateCount,
+                rows: newRecords.length
+              });
+            }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ErrorInspectionModal({ 
+  item, 
+  onClose,
+  search,
+  setSearch,
+  typeFilter,
+  setTypeFilter,
+  onUpdateRecords
+}: { 
+  item: FileQueueItem; 
+  onClose: () => void;
+  search: string;
+  setSearch: (v: string) => void;
+  typeFilter: string;
+  setTypeFilter: (v: string) => void;
+  onUpdateRecords: (records: EnrolleeRecord[]) => void;
+}) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Partial<EnrolleeRecord>>({});
+
+  const records = item.data?.normalizedRecords || [];
+  const errorRecords = records.filter(r => r.recordStatus === 'error' || r.recordStatus === 'match-review-required' || r.recordStatus === 'duplicate');
+  
+  const errorStats = useMemo(() => {
+    const stats: Record<string, number> = {};
+    errorRecords.forEach(r => {
+      r.structuredErrors?.forEach(e => {
+        stats[e.code] = (stats[e.code] || 0) + 1;
+      });
+    });
+    return stats;
+  }, [errorRecords]);
+
+  const filteredErrors = useMemo(() => {
+    return errorRecords.filter(r => {
+      const matchesSearch = !search || 
+        r.policyNumber.toLowerCase().includes(search.toLowerCase()) ||
+        `${r.firstName} ${r.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+        r.providerName.toLowerCase().includes(search.toLowerCase());
+      
+      const matchesType = typeFilter === 'all' || 
+        r.structuredErrors?.some(e => e.code === typeFilter);
+      
+      return matchesSearch && matchesType;
+    });
+  }, [errorRecords, search, typeFilter]);
+
+  const downloadErrorReport = () => {
+    const headers = ['Source Row', 'Policy Number', 'Beneficiary', 'Age', 'Category', 'Facility', 'Error Type', 'Error Message', 'Suggested Action'];
+    const rows = errorRecords.flatMap(r => 
+      (r.structuredErrors || []).map(e => [
+        r.sourceRow,
+        r.policyNumber,
+        `${r.firstName} ${r.lastName}`,
+        r.age || '',
+        r.category,
+        r.providerName,
+        e.code,
+        e.message,
+        e.suggestedAction || ''
+      ])
+    );
+    const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${item.file.name.replace(/\.[^/.]+$/, "")}_errors.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadReadyRecords = () => {
+    const readyRecords = records.filter(r => r.recordStatus === 'valid');
+    const headers = ['Policy Number', 'First Name', 'Last Name', 'Age', 'Gender', 'Category', 'Sector', 'Facility', 'LGA', 'State', 'Period'];
+    const rows = readyRecords.map(r => [
+      r.policyNumber,
+      r.firstName,
+      r.lastName,
+      r.age || '',
+      r.gender,
+      r.category,
+      r.sector,
+      r.providerName,
+      r.lga,
+      r.state,
+      r.period
+    ]);
+    const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${item.file.name.replace(/\.[^/.]+$/, "")}_ready.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="w-full max-w-5xl max-h-[90vh] flex flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between bg-slate-50/80 p-6 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="error" className="text-[10px]">IMPORT ERRORS</Badge>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{item.file.name}</p>
+            </div>
+            <h2 className="mt-1 text-2xl font-black text-slate-900">Error Inspection & Resolution</h2>
+            <p className="mt-1 text-sm text-slate-500">Review and resolve validation issues before committing this batch.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" size="sm" onClick={downloadErrorReport} className="gap-2">
+              <Download size={14} /> Error Report
+            </Button>
+            <Button variant="secondary" size="sm" onClick={downloadReadyRecords} className="gap-2">
+              <CheckCircle2 size={14} className="text-emerald-500" /> Ready Records
+            </Button>
+            <button 
+              className="ml-2 rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors" 
+              onClick={onClose}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Summary Bar */}
+          <div className="bg-white px-6 py-4 border-b border-slate-50 overflow-x-auto flex items-center gap-6 no-scrollbar">
+            <div className="shrink-0">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Total Issues</p>
+              <p className="text-lg font-black text-rose-600">{errorRecords.length}</p>
+            </div>
+            <div className="h-8 w-px bg-slate-100 shrink-0" />
+            <div className="flex items-center gap-4 py-1">
+              {Object.entries(errorStats).map(([code, count]) => (
+                <div key={code} className="shrink-0 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{code.replace(/_/g, ' ')}</p>
+                  <p className="text-sm font-bold text-slate-700">{count}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Filter Bar */}
+          <div className="px-6 py-4 bg-slate-50/30 border-b border-slate-50 flex flex-col sm:flex-row items-center gap-4">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input 
+                type="text"
+                placeholder="Search policy, beneficiary, or facility..."
+                className="w-full pl-9 pr-4 py-2 rounded-xl border-slate-200 text-sm focus:ring-brand-blue focus:border-brand-blue"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Filter size={14} className="text-slate-400" />
+              <select 
+                className="flex-1 sm:w-48 rounded-xl border-slate-200 text-sm py-2"
+                value={typeFilter}
+                onChange={e => setTypeFilter(e.target.value)}
+              >
+                <option value="all">All Error Types</option>
+                {Object.keys(errorStats).map(code => (
+                  <option key={code} value={code}>{code.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Error List */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/20">
+            {filteredErrors.length === 0 ? (
+              <div className="py-20 text-center">
+                <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
+                  <Search size={32} />
+                </div>
+                <p className="text-slate-500 font-medium">No errors match your current filters.</p>
+                <button 
+                  onClick={() => { setSearch(''); setTypeFilter('all'); }}
+                  className="mt-2 text-brand-blue font-bold text-sm hover:underline"
+                >
+                  Clear all filters
+                </button>
+              </div>
+            ) : (
+              filteredErrors.map((record, idx) => (
+                <div key={idx} className="rounded-2xl border border-slate-100 bg-white p-5 hover:shadow-md transition-shadow group">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Left: Record Context */}
+                    <div className="w-full lg:w-1/3 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Source Row {record.sourceRow}</p>
+                        <Badge variant={record.recordStatus === 'duplicate' ? 'warning' : 'error'} className="text-[9px]">
+                          {record.recordStatus.toUpperCase()}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Policy Number</p>
+                        <p className="text-sm font-mono font-bold text-slate-800">{record.policyNumber || record.metadata?.sourceValues?.policyNumber || 'MISSING'}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Beneficiary</p>
+                        <p className="text-sm font-bold text-slate-900">{record.firstName} {record.lastName}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Facility</p>
+                        <p className="text-sm font-semibold text-slate-700">{record.providerName}</p>
+                      </div>
+                    </div>
+
+                    {/* Right: Error Details */}
+                    <div className="flex-1 space-y-4">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Validation Issues</p>
+                      <div className="space-y-3">
+                        {record.structuredErrors?.map((error, eIdx) => (
+                          <div key={eIdx} className="rounded-xl border border-rose-100 bg-rose-50/30 p-4">
+                            <div className="flex items-start gap-3">
+                              <AlertCircle className="h-5 w-5 text-rose-500 shrink-0 mt-0.5" />
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <p className="text-xs font-bold text-rose-700 uppercase tracking-tight">{error.code.replace(/_/g, ' ')}</p>
+                                  <span className="text-[10px] font-bold text-rose-400 uppercase">{error.severity}</span>
+                                </div>
+                                <p className="mt-1 text-sm font-semibold text-slate-800">{error.message}</p>
+                                {error.suggestedAction && (
+                                  <div className="mt-2 flex items-start gap-2 text-xs text-slate-600 bg-white/50 p-2 rounded-lg border border-rose-100/50">
+                                    <span className="font-bold text-rose-600 uppercase text-[9px] mt-0.5">Required:</span>
+                                    <span>{error.suggestedAction}</span>
+                                  </div>
+                                )}
+                                {error.originalValue !== undefined && (
+                                  <p className="mt-2 text-[10px] font-mono text-slate-400 italic">Source value: "{String(error.originalValue)}"</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="shrink-0 flex flex-row lg:flex-col gap-2">
+                      {editingId === record.id ? (
+                        <>
+                          <Button 
+                            size="sm" 
+                            onClick={() => {
+                              const newRecords = records.map(r => r.id === record.id ? { ...r, ...editValues } : r);
+                              // Re-normalize to apply validation logic to the manual changes
+                              // Note: We need to pass the updated records through normalization again
+                              // For simplicity in this UI, we'll just update and re-run the service logic
+                              const period = `${item.data?.reportingYear}-${item.data?.reportingMonth.padStart(2, '0')}`;
+                              
+                              // We need a way to re-validate without full workbook re-processing
+                              // Let's manually trigger the record-level validation here
+                              const updatedRecord = { ...record, ...editValues };
+                              const errors: string[] = [];
+                              const structuredErrors: EnrolmentValidationError[] = [];
+                              
+                              // Policy check
+                              if (!updatedRecord.policyNumber) {
+                                structuredErrors.push({ code: 'POLICY_NUMBER_MISSING', message: 'Policy number is required.', field: 'policyNumber', severity: 'error' });
+                              } else {
+                                const sector = enrolmentService.deriveSectorFromPolicy(updatedRecord.policyNumber);
+                                if (!sector) {
+                                  structuredErrors.push({ code: 'POLICY_NUMBER_INVALID', message: 'Policy number must contain /C/ for formal or /D/ for informal sector.', field: 'policyNumber', severity: 'error' });
+                                } else {
+                                  updatedRecord.sector = sector;
+                                }
+                              }
+                              
+                              if (!updatedRecord.firstName) structuredErrors.push({ code: 'BENEFICIARY_NAME_MISSING', message: 'First name is required.', field: 'firstName', severity: 'error' });
+                              if (!updatedRecord.lastName) structuredErrors.push({ code: 'BENEFICIARY_NAME_MISSING', message: 'Last name is required.', field: 'lastName', severity: 'error' });
+                              
+                              updatedRecord.structuredErrors = structuredErrors;
+                              updatedRecord.validationErrors = structuredErrors.map(e => e.message);
+                              updatedRecord.recordStatus = structuredErrors.length > 0 ? 'error' : 'valid';
+                              
+                              const finalRecords = records.map(r => r.id === record.id ? updatedRecord : r);
+                              onUpdateRecords(finalRecords);
+                              setEditingId(null);
+                            }}
+                          >
+                            Save
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="gap-1"
+                            onClick={() => {
+                              setEditingId(record.id);
+                              setEditValues({
+                                policyNumber: record.policyNumber,
+                                firstName: record.firstName,
+                                lastName: record.lastName,
+                                age: record.age,
+                                gender: record.gender,
+                                category: record.category
+                              });
+                            }}
+                          >
+                            Resolve
+                          </Button>
+                          <button 
+                            className="p-2 rounded-xl border border-slate-100 text-rose-400 hover:bg-rose-50 hover:text-rose-600 transition-colors" 
+                            title="Exclude Record"
+                            onClick={() => {
+                              const newRecords = records.filter(r => r.id !== record.id);
+                              onUpdateRecords(newRecords);
+                            }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Inline Edit Form */}
+                  {editingId === record.id && (
+                    <div className="mt-6 pt-6 border-t border-slate-100 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in slide-in-from-top-2">
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Policy Number</label>
+                        <input 
+                          type="text" 
+                          className="mt-1 w-full rounded-xl border-slate-200 text-sm font-mono"
+                          value={editValues.policyNumber || ''}
+                          onChange={e => setEditValues({ ...editValues, policyNumber: e.target.value.toUpperCase() })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">First Name</label>
+                        <input 
+                          type="text" 
+                          className="mt-1 w-full rounded-xl border-slate-200 text-sm"
+                          value={editValues.firstName || ''}
+                          onChange={e => setEditValues({ ...editValues, firstName: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Last Name</label>
+                        <input 
+                          type="text" 
+                          className="mt-1 w-full rounded-xl border-slate-200 text-sm"
+                          value={editValues.lastName || ''}
+                          onChange={e => setEditValues({ ...editValues, lastName: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Age</label>
+                        <input 
+                          type="number" 
+                          className="mt-1 w-full rounded-xl border-slate-200 text-sm"
+                          value={editValues.age || ''}
+                          onChange={e => setEditValues({ ...editValues, age: Number(e.target.value) })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gender</label>
+                        <select 
+                          className="mt-1 w-full rounded-xl border-slate-200 text-sm"
+                          value={editValues.gender || ''}
+                          onChange={e => setEditValues({ ...editValues, gender: e.target.value as any })}
+                        >
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Category</label>
+                        <select 
+                          className="mt-1 w-full rounded-xl border-slate-200 text-sm"
+                          value={editValues.category || ''}
+                          onChange={e => setEditValues({ ...editValues, category: e.target.value as any })}
+                        >
+                          <option value="principal">Principal</option>
+                          <option value="dependant">Dependant</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="bg-slate-50 p-6 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-xs text-slate-500">
+            Showing <strong>{filteredErrors.length}</strong> of <strong>{errorRecords.length}</strong> issues found in <strong>{item.rows.toLocaleString()}</strong> records.
+          </p>
+          <Button onClick={onClose}>Close Inspector</Button>
+        </div>
       </div>
     </div>
   );

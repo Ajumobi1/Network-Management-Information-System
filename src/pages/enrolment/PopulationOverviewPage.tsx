@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowUpRight, Building2, FileSpreadsheet, MapPin, Users, Upload, LayoutGrid } from 'lucide-react';
+import { ArrowUpRight, Building2, FileSpreadsheet, MapPin, Users, Upload, LayoutGrid, UserPlus } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import KpiCard from '../../components/ui/KpiCard';
@@ -36,9 +36,12 @@ export default function PopulationOverviewPage() {
           title="Population Overview"
           subtitle="Management view of normalized monthly capitation lists across the Provider Directory, including sector and category composition."
           actions={
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              <Link to="/population/enrolment/new">
+                <Button className="gap-2"><UserPlus size={16} /> New Enrollee</Button>
+              </Link>
               <Link to="/population/enrolment/upload">
-                <Button className="gap-2"><Upload size={16} /> Upload Capitation List</Button>
+                <Button variant="secondary" className="gap-2"><Upload size={16} /> Upload Capitation List</Button>
               </Link>
               <Link to="/population/enrolment/register">
                 <Button variant="secondary" className="gap-2"><LayoutGrid size={16} /> Open Register</Button>

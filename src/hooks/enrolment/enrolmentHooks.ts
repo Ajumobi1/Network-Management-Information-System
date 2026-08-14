@@ -47,6 +47,7 @@ export function useInsertEnrollees() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrolment'] });
       queryClient.invalidateQueries({ queryKey: ['financial-data'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }
@@ -58,6 +59,7 @@ export function useCreateEnrolmentImportBatch() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['enrolment'] });
       queryClient.invalidateQueries({ queryKey: ['financial-data'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

@@ -19,6 +19,43 @@ export type EnrolmentField =
   | 'reportingMonth'
   | 'reportingYear';
 
+export type EnrolmentErrorCode =
+  // Provider / Facility Errors
+  | 'PROVIDER_NOT_FOUND'
+  | 'PROVIDER_AMBIGUOUS'
+  | 'PROVIDER_MATCH_REVIEW'
+  | 'PROVIDER_INACTIVE'
+  // Policy Errors
+  | 'POLICY_NUMBER_MISSING'
+  | 'POLICY_NUMBER_INVALID'
+  | 'POLICY_NUMBER_DUPLICATE'
+  // Beneficiary Errors
+  | 'BENEFICIARY_NAME_MISSING'
+  | 'AGE_INVALID'
+  | 'CATEGORY_MISSING'
+  | 'INVALID_CATEGORY'
+  // Period Errors
+  | 'PERIOD_MISSING'
+  | 'PERIOD_INVALID'
+  | 'PERIOD_MISMATCH'
+  // Data Integrity Errors
+  | 'DUPLICATE_RECORD'
+  | 'REQUIRED_FIELD_MISSING'
+  | 'INVALID_DATA_TYPE'
+  // Database / System Errors
+  | 'DATABASE_VALIDATION_ERROR'
+  | 'COMMIT_ERROR'
+  | 'UNEXPECTED_ERROR';
+
+export interface EnrolmentValidationError {
+  code: EnrolmentErrorCode;
+  message: string;
+  field?: EnrolmentField | string;
+  severity: 'error' | 'warning';
+  suggestedAction?: string;
+  originalValue?: any;
+}
+
 export interface EnrolmentColumnMapping {
   excelField: string;
   enrolmentField: EnrolmentField | 'ignored';
@@ -62,7 +99,8 @@ export interface EnrolleeRecord {
 
   // Status & Protection
   recordStatus: 'valid' | 'warning' | 'error' | 'match-review-required' | 'duplicate';
-  validationErrors?: string[];
+  validationErrors?: string[]; // Legacy support
+  structuredErrors?: EnrolmentValidationError[];
   fingerprint: string;
 
   createdAt: string;

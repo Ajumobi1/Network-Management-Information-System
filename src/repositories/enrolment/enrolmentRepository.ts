@@ -1,6 +1,6 @@
 import { useMockData } from '../common';
 import { invokeSecureRpc } from '../contracts/secureRpcRepository';
-import { importWorkflowUnavailable, piiAccessNotApproved } from '../../lib/security/secureContracts';
+import { importWorkflowUnavailable, piiAccessNotApproved, isSecureContractError } from '../../lib/security/secureContracts';
 import { ImportBatch, FinancialRecord } from '../../types/financial-data';
 import { mockImportBatches } from '../../mocks/financialDataMocks';
 import { fetchFinancialRecords } from '../financial-data/financialDataRepository';
@@ -12,6 +12,7 @@ import {
   EnrolmentSector,
 } from '../../types/enrolment/enrolmentTypes';
 import { getEnrolleeByIdMock, getEnrolleesMock, insertEnrolleesMock } from '../../mocks/enrolmentMocks';
+import { Dashboard2Intelligence } from '../../types/dashboard/dashboardIntelligenceTypes';
 
 function matchesFilter(record: EnrolleeRecord, filters: EnrolmentFilters): boolean {
   const query = filters.search?.trim().toLowerCase() || '';
@@ -173,13 +174,78 @@ export async function createEnrolmentImportBatch(
   return created;
 }
 
+function analyticsFromDashboardIntelligence(intelligence: Dashboard2Intelligence): EnrolmentAnalytics {
+  const population = intelligence.population;
+  const totalEnrollees = Number(population.total || 0);
+  const formalCount = Number(population.formal || 0);
+  const informalCount = Number(population.informal || 0);
+  const principalCount = Number(population.principal || 0);
+  const dependantCount = Number(population.dependant || 0);
+  const percentage = (count: number) => totalEnrollees > 0 ? Number(((count / totalEnrollees) * 100).toFixed(1)) : 0;
+
+  return {
+    totalEnrollees,
+    formalCount,
+    informalCount,
+    principalCount,
+    dependantCount,
+    maleCount: 0,
+    femaleCount: 0,
+    providerCount: Number(intelligence.provider.total || 0),
+    lgaCount: population.byLga?.length || 0,
+    senatorialDistrictCount: 0,
+    formalPercentage: percentage(formalCount),
+    informalPercentage: percentage(informalCount),
+    principalPercentage: percentage(principalCount),
+    dependantPercentage: percentage(dependantCount),
+    bySector: population.bySector || [],
+    byCategory: population.byCategory || [],
+    byGender: [],
+    byState: totalEnrollees > 0 ? [{ name: 'Ondo', value: totalEnrollees }] : [],
+    byLga: population.byLga || [],
+    bySenatorialDistrict: [],
+    byFacility: population.topFacilities || [],
+    monthlyTrend: population.monthlyTrend || [],
+    financialExpenditure: Number(intelligence.financial.totalExpenditure || 0),
+    financialRecordCount: Number(intelligence.matchedFinancialRecords || 0),
+    pepm: Number(intelligence.efficiency.networkPepm || 0),
+    pepmTrend: intelligence.efficiency.trend || [],
+  };
+}
+
+async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<EnrolmentAnalytics> {
+  try {
+    return await invokeSecureRpc<EnrolmentAnalytics>('nmis_population_analytics', populationArgs(filters));
+  } catch (error) {
+    // The dedicated contract was previously deployed as a guarded stub. Use
+    // the approved aggregate dashboard contract until the replacement RPC is
+    // applied; never fall back to raw enrollee rows or fabricated values.
+    if (!isSecureContractError(error)
+      || error.contract !== 'nmis_population_analytics'
+      || !['SECURE_CONTRACT_UNAVAILABLE', 'VALIDATION_ERROR'].includes(error.code)) {
+      throw error;
+    }
+
+    const intelligence = await invokeSecureRpc<Dashboard2Intelligence>('nmis_dashboard_intelligence', {
+      p_year: filters.year ?? null,
+      p_month: filters.month ?? null,
+      p_sector: activeFilter(filters.sector),
+      p_state: activeFilter(filters.state),
+      p_lga: activeFilter(filters.lga),
+      p_facility_type: null,
+      p_ownership: null,
+    });
+    return analyticsFromDashboardIntelligence(intelligence);
+  }
+}
+
 export async function fetchEnrolmentAnalytics(filters: EnrolmentFilters = {}): Promise<EnrolmentAnalytics> {
-  if (!useMockData) return invokeSecureRpc<EnrolmentAnalytics>('nmis_population_analytics', populationArgs(filters));
+  if (!useMockData) return fetchLiveEnrolmentAnalytics(filters);
   return analyticsFromRecords(await fetchEnrollees(filters));
 }
 
 export async function fetchEnrolmentAnalyticsWithFinance(filters: EnrolmentFilters = {}): Promise<EnrolmentAnalytics> {
-  if (!useMockData) return invokeSecureRpc<EnrolmentAnalytics>('nmis_population_analytics', populationArgs(filters));
+  if (!useMockData) return fetchLiveEnrolmentAnalytics(filters);
 
   const [analytics, financialRecords] = await Promise.all([
     fetchEnrolmentAnalytics(filters),

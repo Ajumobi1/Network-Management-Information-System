@@ -135,7 +135,6 @@ export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
 }
 
 export async function fetchPopulationSnapshot(): Promise<EnrolmentAnalytics> {
-  if (!useMockData) return invokeSecureRpc<EnrolmentAnalytics>('nmis_population_analytics');
   return fetchEnrolmentAnalyticsWithFinance();
 }
 
