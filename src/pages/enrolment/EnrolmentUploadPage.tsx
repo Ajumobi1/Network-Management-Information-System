@@ -126,9 +126,24 @@ export default function EnrolmentUploadPage() {
     }));
 
     setQueue(prev => [...prev, ...newItems]);
-    
+
+    // Pre-inspect all files to get row counts
+    for (const item of newItems) {
+      try {
+        const wb = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+        const hIdx = enrolmentService.detectHeaderRowIndex(matrix);
+        const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIdx, defval: '', raw: false })
+          .filter(r => Object.values(r).some(v => String(v).trim() !== ''));
+        updateQueueItem(item.id, { rows: rows.length });
+      } catch (e) {
+        // ignore pre-inspect error
+      }
+    }
+
     // Auto-process first file if nothing active
-    if (!activeFileId) {
+    if (!activeFileId && newItems.length > 0) {
       processFile(newItems[0]);
     }
   };
