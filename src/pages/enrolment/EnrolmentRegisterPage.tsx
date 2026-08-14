@@ -12,6 +12,7 @@ import { useEnrollee, useEnrollees, useEnrolmentAnalytics } from '../../hooks/en
 import { EnrolleeRecord, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
 import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
 import { isSecureContractError } from '../../lib/security/secureContracts';
+import ExportEnrolmentDialog from './ExportEnrolmentDialog';
 
 type SortField = 'policyNumber' | 'beneficiary' | 'providerName' | 'lga' | 'period';
 
@@ -29,6 +30,7 @@ export default function EnrolmentRegisterPage() {
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const pageSize = 15;
 
   const allRecordsQuery = useEnrollees();
@@ -74,18 +76,7 @@ export default function EnrolmentRegisterPage() {
   const removeFilter = (id: string) => { if (id === 'search') setSearch(''); if (id === 'sector') setSector('all'); if (id === 'category') setCategory('all'); if (id === 'gender') setGender('all'); if (id === 'state') setState('all'); if (id === 'lga') setLga('all'); if (id === 'district') setDistrict('all'); if (id === 'providerId') setProviderId('all'); if (id === 'period') setPeriod('all'); };
   const toggleSort = (field: SortField) => { if (sortField === field) setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDirection('asc'); } };
 
-  const exportCsv = () => {
-    if (records.length === 0) return;
-    const headers = ['Policy Number', 'Category', 'Sector', 'First Name', 'Last Name', 'Gender', 'Phone', 'Facility', 'Provider Code', 'LGA', 'State', 'Senatorial District', 'Period', 'Status'];
-    const rows = records.map(record => [record.policyNumber, record.category, record.sector, record.firstName, record.lastName, record.gender, record.phoneNumber, record.providerName, record.providerCode, record.lga, record.state, record.senatorialDistrict, record.period, record.recordStatus]);
-    const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `nmis-enrolment-register-${period === 'all' ? 'all-periods' : period}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
+  const openExportDialog = () => setIsExportDialogOpen(true);
 
   const formalCount = analytics?.formalCount ?? 0;
   const informalCount = analytics?.informalCount ?? 0;
@@ -97,7 +88,7 @@ export default function EnrolmentRegisterPage() {
   }
 
   return <div className="space-y-6">
-<PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={exportCsv} disabled={records.length === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
+<PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={openExportDialog} disabled={totalMatching === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
 	    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard title="Matching records" value={isAnalyticsLoading ? '...' : totalMatching.toLocaleString()} subtitle="Current filter context" tone="primary" />
         <KpiCard title="Formal" value={isAnalyticsLoading ? '...' : formalCount.toLocaleString()} subtitle="/C/ policy sector" tone="success" />
@@ -108,6 +99,13 @@ export default function EnrolmentRegisterPage() {
 	    <FilterBar primaryFilters={<><label className="relative min-w-[240px] flex-[2]"><span className="nmis-label">Search records</span><Search className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-brand-subtle" /><Input aria-label="Search policy, beneficiary, facility, or LGA" placeholder="Policy, beneficiary, facility, LGA..." value={search} onChange={event => setSearch(event.target.value)} className="pl-9" /></label><Select label="Sector" value={sector || 'all'} onChange={value => setSector(value as EnrolmentFilters['sector'])} options={['all', 'formal', 'informal']} /><Select label="Category" value={category || 'all'} onChange={value => setCategory(value as EnrolmentFilters['category'])} options={['all', 'principal', 'dependant']} /><Select label="Period" value={period} onChange={setPeriod} options={['all', ...options.periods]} /></>} advancedFilters={<><Select label="Gender" value={gender} onChange={setGender} options={['all', 'male', 'female', 'other']} /><Select label="State" value={state} onChange={setState} options={['all', ...options.states]} /><Select label="LGA" value={lga} onChange={setLga} options={['all', ...options.lgas]} /><Select label="Senatorial district" value={district} onChange={setDistrict} options={['all', ...options.districts]} /><label><span className="nmis-label">Facility</span><select className="nmis-control" value={providerId} onChange={event => setProviderId(event.target.value)}><option value="all">All facilities</option>{options.providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label></>} activeFilters={<ActiveFilterChips chips={activeFilterChips} onRemove={removeFilter} onClear={clearFilters} />} onReset={clearFilters} />
 	    <section className="nmis-table-wrap"><div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="nmis-section-title">Normalized beneficiary records</h2><p className="nmis-section-subtitle">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p></div><div className="flex items-center gap-2 text-xs text-brand-muted"><span>Sort by</span><select className="nmis-control min-h-8 py-1.5 text-xs" value={sortField} onChange={event => setSortField(event.target.value as SortField)}><option value="policyNumber">Policy number</option><option value="beneficiary">Beneficiary</option><option value="providerName">Facility</option><option value="lga">LGA</option><option value="period">Period</option></select><button type="button" className="rounded-control border border-brand-border bg-brand-card px-2 py-1 font-bold text-brand-secondary" onClick={() => setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc')}>{sortDirection === 'asc' ? 'A–Z' : 'Z–A'}</button></div></div><div className="overflow-x-auto"><table className="nmis-table min-w-[1250px]"><thead><tr><SortableHead label="Policy number" field="policyNumber" active={sortField} onClick={toggleSort} /><SortableHead label="Category" /><SortableHead label="Sector" /><SortableHead label="Beneficiary" field="beneficiary" active={sortField} onClick={toggleSort} /><SortableHead label="Gender" /><SortableHead label="Facility" field="providerName" active={sortField} onClick={toggleSort} /><SortableHead label="LGA" field="lga" active={sortField} onClick={toggleSort} /><SortableHead label="Senatorial district" /><SortableHead label="Period" field="period" active={sortField} onClick={toggleSort} /><SortableHead label="Status" /></tr></thead><tbody>{isLoading || allLoading ? <LoadingRows /> : records.length === 0 ? <EmptyRow /> : records.map(record => <RegisterRow key={record.id} record={record} onSelect={() => setSelectedId(record.id)} />)}</tbody></table></div><div className="flex items-center justify-between border-t border-brand-divider px-5 py-4 text-sm"><p className="text-brand-muted">Page {page} of {totalPages}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(current => current - 1)}>Previous</Button><Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(current => current + 1)}>Next</Button></div></div></section>
     {selectedId && <DetailDrawer record={selectedRecord} onClose={() => setSelectedId(null)} />}
+    {isExportDialogOpen && (
+      <ExportEnrolmentDialog
+        onClose={() => setIsExportDialogOpen(false)}
+        currentFilters={filters}
+        options={options}
+      />
+    )}
   </div>;
 }
 
