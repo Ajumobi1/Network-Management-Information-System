@@ -53,6 +53,7 @@ export interface Dashboard2Intelligence {
     active: number;
     inactive: number;
     byLga: DashboardBreakdown[];
+    bySenatorialDistrict: DashboardBreakdown[];
     byFacilityType: DashboardBreakdown[];
     byOwnership: DashboardBreakdown[];
     byLifecycle: DashboardBreakdown[];
@@ -66,6 +67,7 @@ export interface Dashboard2Intelligence {
     bySector: DashboardBreakdown[];
     byCategory: DashboardBreakdown[];
     byLga: DashboardBreakdown[];
+    bySenatorialDistrict: DashboardBreakdown[];
     topFacilities: DashboardBreakdown[];
     monthlyTrend: DashboardBreakdown[];
     growthPercentage?: number;
