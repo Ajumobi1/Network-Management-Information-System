@@ -428,7 +428,56 @@ export default function EnrolmentUploadPage() {
 
       {!isAnalyzing && step === 'match' && <Panel title="Match facilities" description="The Provider Directory is authoritative. Confirm ambiguous facilities before previewing the import."><div className="space-y-3">{matches.length === 0 ? <div className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">No provider names were found in the mapped rows.</div> : matches.map((match, index) => <div key={`${match.excelName}-${index}`} className="rounded-2xl border border-slate-100 p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-start gap-3"><MapPin className="mt-0.5 h-4 w-4 text-slate-400" /><div><p className="font-semibold text-slate-900">{match.excelName}</p><p className="text-xs text-slate-500">{match.matchedProviderName || 'No confident Provider Directory match'}</p></div></div><Badge variant={match.status === 'confirmed' ? 'success' : match.candidates?.length ? 'warning' : 'error'}>{match.status === 'confirmed' ? `${match.matchType} match` : match.candidates?.length ? 'Manual review' : 'Unmatched'}</Badge></div>{match.candidates && match.candidates.length > 0 && match.status !== 'confirmed' && <select className="mt-3 w-full rounded-xl border-slate-200 text-sm" value="" onChange={event => resolveMatch(index, event.target.value)}><option value="">Select the authoritative facility...</option>{match.candidates.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.name} ({candidate.code})</option>)}</select>}</div>)}</div><div className="mt-5 grid gap-3 sm:grid-cols-3"><Info label="Matched" value={String(matchSummary.matched)} /><Info label="Ambiguous" value={String(matchSummary.ambiguous)} /><Info label="Unmatched" value={String(matchSummary.unmatched)} /></div><Actions onBack={() => setStep('classify')} onNext={generatePreview} nextLabel="Generate preview" /></Panel>}
 
-      {!isAnalyzing && step === 'preview' && <Panel title="Validate and preview" description="Only valid, matched, non-duplicate records are eligible for commit."><div className="grid gap-3 sm:grid-cols-4"><Info label="Source rows" value={String(rawRows.length)} /><Info label="Ready" value={String(readyToImport)} /><Info label="Duplicates" value={String(duplicateRecords.length)} /><Info label="Review required" value={String(recordsRequiringReview.length)} /></div>{duplicateWarning && !duplicateAcknowledged && <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-bold">Potential duplicate dataset detected</p><p className="mt-1">An enrolment batch already exists for {period} and overlaps the selected facilities.</p><div className="mt-3 space-y-1 text-xs">{duplicateWarning.slice(0, 3).map(batch => <p key={batch.id}><span className="font-semibold">{batch.fileName}</span> · {batch.importedRows.toLocaleString()} records · uploaded {new Date(batch.uploadedAt).toLocaleDateString()}</p>)}</div><div className="mt-4 flex flex-wrap items-center gap-2"><Button variant="secondary" className="py-2" onClick={reset}>Cancel import</Button><Button className="py-2" onClick={() => { setDuplicateAcknowledged(true); setErrorMessage(''); }}>Import only new records</Button><Link className="text-sm font-semibold text-amber-900 underline" to="/financial/history">Review import history</Link></div></div>}{validationErrors.length > 0 && <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><p className="font-semibold">Resolve validation issues before commit</p><ul className="mt-2 max-h-40 list-disc space-y-1 overflow-auto pl-5">{validationErrors.slice(0, 30).map(error => <li key={error}>{error}</li>)}</ul></div>}<div className="mt-5 overflow-x-auto rounded-2xl border border-slate-100"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3">Policy number</th><th className="px-4 py-3">Beneficiary</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Sector</th><th className="px-4 py-3">Facility</th><th className="px-4 py-3">Status</th></tr></thead><tbody className="divide-y divide-slate-100">{normalizedRecords.slice(0, 20).map(record => <tr key={record.id}><td className="px-4 py-3 font-mono text-xs">{record.policyNumber || 'Missing'}</td><td className="px-4 py-3 font-semibold">{record.firstName} {record.lastName}</td><td className="px-4 py-3">{record.category}</td><td className="px-4 py-3">{record.sector}</td><td className="px-4 py-3">{record.providerName || 'Unmatched'}</td><td className="px-4 py-3"><Badge variant={record.recordStatus === 'valid' ? 'success' : record.recordStatus === 'duplicate' ? 'warning' : 'error'}>{record.recordStatus}</Badge></td></tr>)}</tbody></table></div><Actions onBack={() => setStep('match')} onNext={handleCommit} nextLabel={liveCommitUnavailable ? 'Secure workflow required' : createBatch.isPending ? 'Committing...' : 'Commit valid records'} disabled={liveCommitUnavailable || createBatch.isPending || readyToImport === 0 || validationErrors.length > 0 || (duplicateWarning !== null && !duplicateAcknowledged)} /></Panel>}
+      {!isAnalyzing && step === 'preview' && <Panel title="Validate and preview" description="Only valid, matched, non-duplicate records are eligible for commit."><div className="grid gap-3 sm:grid-cols-4"><Info label="Source rows" value={String(rawRows.length)} /><Info label="Ready" value={String(readyToImport)} /><Info label="Duplicates" value={String(duplicateRecords.length)} /><Info label="Review required" value={String(recordsRequiringReview.length)} /></div>{duplicateWarning && !duplicateAcknowledged && <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-bold">Potential duplicate dataset detected</p><p className="mt-1">An enrolment batch already exists for {period} and overlaps the selected facilities.</p><div className="mt-3 space-y-1 text-xs">{duplicateWarning.slice(0, 3).map(batch => <p key={batch.id}><span className="font-semibold">{batch.fileName}</span> · {batch.importedRows.toLocaleString()} records · uploaded {new Date(batch.uploadedAt).toLocaleDateString()}</p>)}</div><div className="mt-4 flex flex-wrap items-center gap-2"><Button variant="secondary" className="py-2" onClick={reset}>Cancel import</Button><Button className="py-2" onClick={() => { setDuplicateAcknowledged(true); setErrorMessage(''); }}>Import only new records</Button><Link className="text-sm font-semibold text-amber-900 underline" to="/financial/history">Review import history</Link></div></div>}{validationErrors.length > 0 && <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700"><p className="font-semibold">Resolve validation issues before commit</p><ul className="mt-2 max-h-40 list-disc space-y-1 overflow-auto pl-5">{validationErrors.slice(0, 30).map(error => <li key={error}>{error}</li>)}</ul></div>}<div className="mt-5 overflow-x-auto rounded-2xl border border-slate-100">
+            <table className="w-full min-w-[1000px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                <tr>
+                  <th className="px-4 py-3">Policy number</th>
+                  <th className="px-4 py-3">Beneficiary</th>
+                  <th className="px-4 py-3">Age</th>
+                  <th className="px-4 py-3">Category</th>
+                  <th className="px-4 py-3">Sector</th>
+                  <th className="px-4 py-3">Facility (Matched)</th>
+                  <th className="px-4 py-3">Match</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {normalizedRecords.slice(0, 20).map(record => {
+                  const match = matches.find(m => m.excelName.toLowerCase() === record.metadata?.sourceProviderName?.toLowerCase()) || matches[0];
+                  const confidence = match?.confidence ? Math.round(match.confidence * 100) : 0;
+                  
+                  return (
+                    <tr key={record.id}>
+                      <td className="px-4 py-3 font-mono text-xs">{record.policyNumber || 'Missing'}</td>
+                      <td className="px-4 py-3 font-semibold">{record.firstName} {record.lastName}</td>
+                      <td className="px-4 py-3">{record.age || '-'}</td>
+                      <td className="px-4 py-3 capitalize">{record.category}</td>
+                      <td className="px-4 py-3 capitalize">{record.sector}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-900">{record.providerName}</span>
+                          {record.providerId && <span className="text-[10px] font-mono text-slate-400">{record.providerId}</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {confidence > 0 ? (
+                          <span className={`font-bold ${confidence >= 90 ? 'text-emerald-600' : 'text-amber-600'}`}>{confidence}%</span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant={record.recordStatus === 'valid' ? 'success' : record.recordStatus === 'duplicate' ? 'warning' : 'error'}>
+                          {record.recordStatus === 'valid' ? '✓ Matched' : record.recordStatus}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div><Actions onBack={() => setStep('match')} onNext={handleCommit} nextLabel={liveCommitUnavailable ? 'Secure workflow required' : createBatch.isPending ? 'Committing...' : 'Commit valid records'} disabled={liveCommitUnavailable || createBatch.isPending || readyToImport === 0 || validationErrors.length > 0 || (duplicateWarning !== null && !duplicateAcknowledged)} /></Panel>}
 
       {!isAnalyzing && step === 'commit' && <Panel title="Import committed" description="The normalized enrollee records are now available to the Population & Enrolment register and analytics."><div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5 text-sm text-emerald-800"><CheckCircle2 className="inline h-5 w-5 align-text-bottom" /> {commitMessage}</div><div className="mt-5 flex flex-wrap gap-3"><Button onClick={reset}><RefreshCcw className="mr-2 h-4 w-4" /> Upload another list</Button><Button variant="secondary" onClick={() => window.location.href = '/population/enrolment'}>Open Population Overview</Button></div></Panel>}
     </div>
