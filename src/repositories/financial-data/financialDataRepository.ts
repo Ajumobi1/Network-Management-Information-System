@@ -2,7 +2,7 @@ import { FinancialDataType, FinancialRecord, ImportBatch, RecordValidationStatus
 import { mockFinancialRecords, mockImportBatches } from '../../mocks/financialDataMocks';
 import { useMockData } from '../common';
 import { invokeSecureRpc } from '../contracts/secureRpcRepository';
-import { accessRestricted, importWorkflowUnavailable } from '../../lib/security/secureContracts';
+import { importWorkflowUnavailable } from '../../lib/security/secureContracts';
 
 const normalizeFingerprintValue = (value: unknown) => String(value ?? '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 const recordFingerprint = (record: FinancialRecord) => [
@@ -15,6 +15,68 @@ const recordFingerprint = (record: FinancialRecord) => [
   record.amountApproved ?? '',
   record.amountPaid ?? record.netAmountPaid ?? record.amount ?? '',
 ].map(normalizeFingerprintValue).join('|');
+
+type SecureFinancialRow = {
+  id: string;
+  provider_id?: string | null;
+  provider_code?: string | null;
+  provider_name: string;
+  facility_type?: string | null;
+  ownership?: string | null;
+  state?: string | null;
+  lga?: string | null;
+  reporting_year: number;
+  reporting_month: number;
+  period: string;
+  data_type: string;
+  claims_category?: string | null;
+  amount_submitted?: number | null;
+  amount_claimed?: number | null;
+  amount_approved?: number | null;
+  amount_paid?: number | null;
+  net_amount_paid?: number | null;
+  claim_count?: number | null;
+  encounter_count?: number | null;
+  eligible_lives?: number | null;
+  source_file?: string | null;
+  import_batch_id?: string | null;
+  record_status: string;
+  fingerprint?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapSecureFinancialRow(row: SecureFinancialRow): FinancialRecord {
+  return {
+    id: row.id,
+    providerId: row.provider_id || undefined,
+    providerCode: row.provider_code || undefined,
+    providerName: row.provider_name,
+    facilityType: row.facility_type as FinancialRecord['facilityType'],
+    ownership: row.ownership as FinancialRecord['ownership'],
+    state: row.state || undefined,
+    lga: row.lga || undefined,
+    reportingYear: row.reporting_year,
+    reportingMonth: row.reporting_month,
+    period: row.period,
+    dataType: row.data_type as FinancialDataType,
+    claimsCategory: row.claims_category || undefined,
+    amountSubmitted: row.amount_submitted ?? undefined,
+    amountClaimed: row.amount_claimed ?? undefined,
+    amountApproved: row.amount_approved ?? undefined,
+    amountPaid: row.amount_paid ?? undefined,
+    netAmountPaid: row.net_amount_paid ?? undefined,
+    claimCount: row.claim_count ?? undefined,
+    encounterCount: row.encounter_count ?? undefined,
+    eligibleLives: row.eligible_lives ?? undefined,
+    sourceFile: row.source_file || '',
+    importBatchId: row.import_batch_id || '',
+    recordStatus: row.record_status as FinancialRecord['recordStatus'],
+    fingerprint: row.fingerprint || undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 export interface FinancialFilters {
   dataType?: FinancialDataType;
@@ -74,10 +136,26 @@ function reportingArgs(filters: FinancialFilters): Record<string, unknown> {
   };
 }
 
-/** Raw financial registers remain denied until claims/finance scope is approved. */
+/** Read-only financial rows are returned through the role-gated register contract. */
 export async function fetchFinancialRecords(filters: FinancialFilters = {}): Promise<FinancialRecord[]> {
   if (useMockData) return applyMockFilters(mockFinancialRecords, filters);
-  throw accessRestricted('raw financial record register');
+  const rows = await invokeSecureRpc<SecureFinancialRow[]>('nmis_list_financial_register', {
+    p_data_type: filters.dataType ?? null,
+    p_year: filters.year ?? null,
+    p_month: filters.month ?? null,
+    p_period: filters.period ?? null,
+    p_state: filters.state ?? null,
+    p_lga: filters.lga ?? null,
+    p_provider_id: filters.providerId ?? null,
+    p_facility_type: filters.facilityType ?? null,
+    p_ownership: filters.ownership ?? null,
+    p_claims_category: filters.claimsCategory ?? null,
+    p_status: filters.status ?? null,
+    p_search: filters.search ?? null,
+    p_offset: 0,
+    p_page_size: 50000,
+  });
+  return rows.map(mapSecureFinancialRow);
 }
 
 export interface FinancialBreakdown { name: string; value: number; }

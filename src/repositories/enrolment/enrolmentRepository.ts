@@ -1,6 +1,6 @@
 import { useMockData } from '../common';
 import { invokeSecureRpc } from '../contracts/secureRpcRepository';
-import { importWorkflowUnavailable, piiAccessNotApproved, isSecureContractError } from '../../lib/security/secureContracts';
+import { importWorkflowUnavailable, isSecureContractError } from '../../lib/security/secureContracts';
 import { ImportBatch, FinancialRecord } from '../../types/financial-data';
 import { mockImportBatches } from '../../mocks/financialDataMocks';
 import { fetchFinancialRecords } from '../financial-data/financialDataRepository';
@@ -13,6 +13,66 @@ import {
 } from '../../types/enrolment/enrolmentTypes';
 import { getEnrolleeByIdMock, getEnrolleesMock, insertEnrolleesMock } from '../../mocks/enrolmentMocks';
 import { Dashboard2Intelligence } from '../../types/dashboard/dashboardIntelligenceTypes';
+
+type SecureEnrolleeRow = {
+  id: string;
+  policy_number: string;
+  category: string;
+  sector: string;
+  first_name: string;
+  last_name: string;
+  gender: string;
+  phone_number?: string | null;
+  provider_id?: string | null;
+  provider_code?: string | null;
+  provider_name: string;
+  facility_type?: string | null;
+  ownership?: string | null;
+  lga: string;
+  state: string;
+  senatorial_district?: string | null;
+  reporting_year: number;
+  reporting_month: number;
+  period: string;
+  source_file?: string | null;
+  import_batch_id?: string | null;
+  source_row?: number | null;
+  record_status: string;
+  fingerprint: string;
+  created_at: string;
+  updated_at: string;
+};
+
+function mapSecureEnrolleeRow(row: SecureEnrolleeRow): EnrolleeRecord {
+  return {
+    id: row.id,
+    policyNumber: row.policy_number,
+    category: row.category as EnrolleeRecord['category'],
+    sector: row.sector as EnrolleeRecord['sector'],
+    firstName: row.first_name,
+    lastName: row.last_name,
+    gender: row.gender as EnrolleeRecord['gender'],
+    phoneNumber: row.phone_number || undefined,
+    providerId: row.provider_id || undefined,
+    providerCode: row.provider_code || undefined,
+    providerName: row.provider_name,
+    facilityType: row.facility_type as EnrolleeRecord['facilityType'],
+    ownership: row.ownership as EnrolleeRecord['ownership'],
+    lga: row.lga,
+    state: row.state,
+    senatorialDistrict: row.senatorial_district || undefined,
+    reportingYear: row.reporting_year,
+    reportingMonth: row.reporting_month,
+    period: row.period,
+    sourceFile: row.source_file || '',
+    importBatchId: row.import_batch_id || '',
+    sourceRow: row.source_row || undefined,
+    recordStatus: row.record_status as EnrolleeRecord['recordStatus'],
+    fingerprint: row.fingerprint,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
 
 function matchesFilter(record: EnrolleeRecord, filters: EnrolmentFilters): boolean {
   const query = filters.search?.trim().toLowerCase() || '';
@@ -103,12 +163,30 @@ function populationArgs(filters: EnrolmentFilters): Record<string, unknown> {
 
 export async function fetchEnrollees(filters: EnrolmentFilters = {}): Promise<EnrolleeRecord[]> {
   if (useMockData) return (await getEnrolleesMock()).filter(record => matchesFilter(record, filters));
-  throw piiAccessNotApproved('raw enrollee records');
+  const rows = await invokeSecureRpc<SecureEnrolleeRow[]>('nmis_list_enrollee_register', {
+    p_search: filters.search || null,
+    p_sector: activeFilter(filters.sector),
+    p_category: activeFilter(filters.category),
+    p_gender: activeFilter(filters.gender),
+    p_state: activeFilter(filters.state),
+    p_lga: activeFilter(filters.lga),
+    p_senatorial_district: activeFilter(filters.senatorialDistrict),
+    p_provider_id: activeFilter(filters.providerId),
+    p_period: activeFilter(filters.period),
+    p_year: filters.year ?? null,
+    p_month: filters.month ?? null,
+    p_offset: 0,
+    p_page_size: 50000,
+    p_sort: 'policy_number',
+    p_sort_direction: 'asc',
+  });
+  return rows.map(mapSecureEnrolleeRow);
 }
 
-export async function fetchEnrolleeById(id: string): Promise<EnrolleeRecord> {
+export async function fetchEnrolleeById(id: string): Promise<EnrolleeRecord | undefined> {
   if (useMockData) return getEnrolleeByIdMock(id);
-  throw piiAccessNotApproved('enrollee detail');
+  const rows = await invokeSecureRpc<SecureEnrolleeRow[]>('nmis_get_enrollee_detail', { p_enrollee_id: id });
+  return rows[0] ? mapSecureEnrolleeRow(rows[0]) : undefined;
 }
 
 export async function insertEnrollee(record: EnrolleeRecord, actor?: { id: string; email: string }): Promise<EnrolleeRecord> {
