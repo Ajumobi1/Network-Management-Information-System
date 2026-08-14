@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, FileSpreadsheet, MapPin, RefreshCcw, Upload } from 'lucide-react';
+import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, FileSpreadsheet, Hospital, MapPin, RefreshCcw, Upload } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useAuth } from '../../contexts/AuthContext';
@@ -389,7 +389,40 @@ export default function EnrolmentUploadPage() {
 
       {!isAnalyzing && step === 'identify' && <Panel title="Identify reporting period" description="Use the workbook values where available, then confirm the month that this list represents."><div className="grid gap-4 md:grid-cols-2"><label className="text-sm font-semibold text-slate-700">Reporting year<input className="mt-2 w-full rounded-xl border-slate-200" inputMode="numeric" value={reportingYear} onChange={event => setReportingYear(event.target.value.replace(/[^0-9]/g, '').slice(0, 4))} placeholder="2026" /></label><label className="text-sm font-semibold text-slate-700">Reporting month<select className="mt-2 w-full rounded-xl border-slate-200" value={reportingMonth} onChange={event => setReportingMonth(event.target.value)}><option value="">Select month</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={String(index + 1)}>{new Date(2020, index, 1).toLocaleString('en', { month: 'long' })}</option>)}</select></label></div><div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">The reporting period is independent from CATEGORY and SECTOR. CATEGORY is preserved from the source, while SECTOR is derived only from <strong>/C/</strong> or <strong>/D/</strong> in the policy number.</div><Actions onBack={() => setStep('inspect')} onNext={continueToMap} /></Panel>}
 
-      {!isAnalyzing && step === 'map' && <Panel title="Map source columns" description="Map each source column once. The AI handler automatically detects variations in naming and structure."><div className="space-y-3">{mappings.map((mapping, index) => <div key={`${mapping.excelField}-${index}`} className="grid gap-3 rounded-2xl border border-slate-100 p-3 md:grid-cols-[1fr_1.3fr_auto] md:items-center"><div><p className="font-semibold text-slate-800">{mapping.excelField}</p><p className="text-xs text-slate-400">Method: {mapping.confidenceScore > 0.9 ? 'AI Handler' : 'Manual'}</p></div><select className="rounded-xl border-slate-200 text-sm" value={mapping.enrolmentField} onChange={event => updateMapping(index, event.target.value as EnrolmentField | 'ignored')}>{mappingOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select><Badge variant={mapping.confidence === 'HIGH' ? 'success' : mapping.confidence === 'MEDIUM' ? 'warning' : 'error'}>{mapping.confidence === 'HIGH' ? 'AI SUGGESTED' : mapping.confidence}</Badge></div>)}</div><div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">Required mappings: <strong>policy number, CATEGORY, first name, last name, gender, and facility name</strong>. Provider code, LGA, state, and senatorial district improve traceability but remain optional.</div><Actions onBack={() => setStep('identify')} onNext={continueToClassify} /></Panel>}
+      {!isAnalyzing && step === 'map' && (
+        <Panel title="Map source columns" description="Map each source column once. The AI handler automatically detects variations in naming and structure.">
+          {extractedContext.facilityName && (
+            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+              <Hospital className="h-5 w-5" />
+              <div>
+                <p className="font-bold">AI Detected Facility Context</p>
+                <p className="text-xs">Workbook header: <strong>{extractedContext.facilityName}</strong> {extractedContext.lga ? `(${extractedContext.lga} LGA)` : ''}</p>
+              </div>
+            </div>
+          )}
+          <div className="space-y-3">
+            {mappings.map((mapping, index) => (
+              <div key={`${mapping.excelField}-${index}`} className="grid gap-3 rounded-2xl border border-slate-100 p-3 md:grid-cols-[1fr_1.3fr_auto] md:items-center">
+                <div>
+                  <p className="font-semibold text-slate-800">{mapping.excelField}</p>
+                  <p className="text-xs text-slate-400">Method: {mapping.confidenceScore >= 0.8 ? 'AI Handler' : 'Manual'}</p>
+                </div>
+                <select className="rounded-xl border-slate-200 text-sm" value={mapping.enrolmentField} onChange={event => updateMapping(index, event.target.value as EnrolmentField | 'ignored')}>
+                  {mappingOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <Badge variant={mapping.confidence === 'HIGH' ? 'success' : mapping.confidence === 'MEDIUM' ? 'warning' : 'error'}>
+                  {mapping.confidence === 'HIGH' ? 'AI SUGGESTED' : mapping.confidence}
+                </Badge>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+            Required mappings: <strong>policy number, CATEGORY, first name, last name, and gender</strong>. 
+            {extractedContext.facilityName ? ' Facility name was detected in the header.' : ' Facility name is required.'}
+          </div>
+          <Actions onBack={() => setStep('identify')} onNext={continueToClassify} />
+        </Panel>
+      )}
 
       {!isAnalyzing && step === 'classify' && <Panel title="Classify records" description="Review the classification rules before the system matches facilities and generates a record preview."><div className="grid gap-4 md:grid-cols-2"><Rule title="CATEGORY" text="Copied from the workbook as PRINCIPAL or DEPENDANT. It is never reconstructed from the policy number." /><Rule title="SECTOR" text="Derived from policy numbers containing /C/ (formal) or /D/ (informal). Unrecognized policy formats require review." /></div><div className="mt-5 flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800"><FileSpreadsheet className="h-5 w-5" /><span>{rawRows.length.toLocaleString()} source rows will be classified for period <strong>{period}</strong>.</span></div><Actions onBack={() => setStep('map')} onNext={startMatching} nextLabel="Match facilities" /></Panel>}
 

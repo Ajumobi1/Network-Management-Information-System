@@ -211,7 +211,7 @@ export const financialDataService = {
           })),
           confidence: top ? top.match_score / 100 : 0,
           matchType: top?.match_reason.toLowerCase().includes('code') ? 'exact' : 'normalized',
-          status: candidates.length === 1 && top.match_score >= 85 ? 'confirmed' : 'pending',
+          status: candidates.length === 1 && top.match_score >= 75 ? 'confirmed' : 'pending',
         };
       } catch (err) {
         // Fallback to local matching if live RPC fails or returns secure unavailable
