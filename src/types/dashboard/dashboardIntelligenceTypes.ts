@@ -69,6 +69,8 @@ export interface Dashboard2Intelligence {
     topFacilities: DashboardBreakdown[];
     monthlyTrend: DashboardBreakdown[];
     growthPercentage?: number;
+    capitationRate?: number;
+    capitationExpenditure?: number;
   };
   financial: {
     totalExpenditure: number;
