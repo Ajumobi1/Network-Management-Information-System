@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchProviderDirectory, fetchProviderProfile, fetchProviderRegistrationDraft, registerNewProvider, editDirectoryProvider, changeProviderStatus } from '../../services/providers/providersService';
+import { fetchProviderDirectory, fetchProviderProfile, fetchProviderRegistrationDraft, registerNewProvider, editDirectoryProvider, changeProviderStatus, removeDirectoryProvider } from '../../services/providers/providersService';
 import { ProviderDirectoryFilters, ProviderLifecycleStatus } from '../../types/providers/providerTypes';
 import type { ProviderOperationalUpdate, ProviderRegistrationCommand } from '../../repositories/providers/providersRepository';
 
@@ -60,6 +60,16 @@ export function useUpdateProviderStatus() {
     mutationFn: ({ id, status }: { id: string; status: ProviderLifecycleStatus }) => changeProviderStatus(id, status),
     onSuccess: (_, variables) => {
       invalidateProviderIntelligence(queryClient, variables.id);
+    },
+  });
+}
+
+export function useDeleteProvider() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => removeDirectoryProvider(id),
+    onSuccess: (_, id) => {
+      invalidateProviderIntelligence(queryClient, id);
     },
   });
 }

@@ -35,6 +35,10 @@ export async function changeProviderStatus(id: string, status: ProviderLifecycle
   return providersRepository.setProviderLifecycleStatus(id, status) as unknown as ProviderDirectoryItem;
 }
 
+export async function removeDirectoryProvider(id: string): Promise<boolean> {
+  return providersRepository.deleteDirectoryProvider(id);
+}
+
 export async function fetchProviderContacts(providerId: string) {
   return providersRepository.getProviderContacts(providerId);
 }

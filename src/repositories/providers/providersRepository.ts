@@ -313,6 +313,12 @@ export async function setProviderLifecycleStatus(id: string, status: ProviderLif
   return invokeProviderAdmin({ command: 'change_lifecycle', providerId: id, payload: { status } });
 }
 
+export async function deleteDirectoryProvider(id: string): Promise<boolean> {
+  if (useMockData) return true;
+  await invokeProviderAdmin({ command: 'delete_provider', providerId: id, payload: {} });
+  return true;
+}
+
 export async function findSafeProviderMatchCandidates(query: string, limit = 10): Promise<ProviderDirectoryItem[]> {
   const normalizedQuery = query.trim();
   if (!normalizedQuery) return [];

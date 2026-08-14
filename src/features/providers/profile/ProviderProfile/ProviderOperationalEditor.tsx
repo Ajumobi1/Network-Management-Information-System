@@ -1,10 +1,10 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Button from '../../../../components/ui/Button';
-import { useUpdateProvider } from '../../hooks';
+import { useUpdateProvider, useUpdateProviderStatus, useDeleteProvider } from '../../hooks';
 import type { ProviderProfile } from '../../types';
+import { ProviderCategory, ProviderOwnership, ProviderLifecycleStatus } from '../../types';
 import { isSecureContractError } from '../../../../lib/security/secureContracts';
-
-import { ProviderCategory, ProviderOwnership } from '../../types';
 
 type OperationalForm = {
   providerName: string;
@@ -23,13 +23,30 @@ type OperationalForm = {
 };
 
 function workflowMessage(error: unknown): string {
-  if (isSecureContractError(error)) return error.message;
-  return 'The provider update was not completed. No details were changed.';
+  if (isSecureContractError(error)) return (error as any).message;
+  if (error instanceof Error) return error.message;
+  return 'The provider action was not completed. Please verify constraints.';
 }
 
+const statusOptions: { label: string; value: ProviderLifecycleStatus }[] = [
+  { label: 'Active', value: ProviderLifecycleStatus.Active },
+  { label: 'Pending Review', value: ProviderLifecycleStatus.Pending },
+  { label: 'Suspended', value: ProviderLifecycleStatus.Suspended },
+  { label: 'Inactive', value: ProviderLifecycleStatus.Inactive },
+  { label: 'Expired', value: ProviderLifecycleStatus.Expired },
+  { label: 'Blacklisted', value: ProviderLifecycleStatus.Blacklisted },
+];
+
 export default function ProviderOperationalEditor({ provider }: { provider: ProviderProfile }) {
+  const navigate = useNavigate();
   const updateProvider = useUpdateProvider();
+  const updateStatus = useUpdateProviderStatus();
+  const deleteProvider = useDeleteProvider();
+
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<ProviderLifecycleStatus>(provider.status);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const [form, setForm] = useState<OperationalForm>({
     providerName: provider.providerName,
     category: provider.category,
@@ -45,6 +62,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
     accountName: provider.accountName || '',
     accountNumber: provider.accountNumber || '',
   });
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -75,7 +93,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
       { id: provider.id, payload: form },
       {
         onSuccess: () => {
-          setSuccessMessage('Provider record was updated through the trusted provider workflow.');
+          setSuccessMessage('Provider record was updated through the trusted workflow.');
           setIsEditing(false);
         },
         onError: error => setErrorMessage(workflowMessage(error)),
@@ -83,12 +101,70 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
     );
   }
 
+  function handleStatusChange(newStatus: ProviderLifecycleStatus) {
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setSelectedStatus(newStatus);
+    updateStatus.mutate(
+      { id: provider.id, status: newStatus },
+      {
+        onSuccess: () => {
+          setSuccessMessage(`Provider status successfully updated to ${newStatus}. Audit event recorded.`);
+        },
+        onError: error => setErrorMessage(workflowMessage(error)),
+      }
+    );
+  }
+
+  function handleDelete() {
+    setErrorMessage(null);
+    deleteProvider.mutate(provider.id, {
+      onSuccess: () => {
+        navigate('/providers');
+      },
+      onError: error => {
+        setShowDeleteConfirm(false);
+        setErrorMessage(workflowMessage(error));
+      },
+    });
+  }
+
   if (!isEditing) {
     return (
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="secondary" size="sm" onClick={() => setIsEditing(true)}>Edit provider record</Button>
-        <span className="text-xs text-brand-muted">Authorized users can update identity, location, ownership, contacts, and bank data.</span>
-        {successMessage && <p role="status" className="w-full text-sm text-emerald-700">{successMessage}</p>}
+      <div className="space-y-4 rounded-2xl border border-brand-divider bg-white p-5 shadow-soft">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="secondary" size="sm" onClick={() => setIsEditing(true)}>Edit provider record</Button>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500">Lifecycle status:</span>
+              <select
+                value={selectedStatus}
+                onChange={e => handleStatusChange(e.target.value as ProviderLifecycleStatus)}
+                disabled={updateStatus.isPending}
+                className="rounded-lg border border-brand-divider bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-800 focus:border-brand-blue focus:outline-none"
+              >
+                {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <Button variant="danger" size="sm" onClick={() => setShowDeleteConfirm(true)}>Trash / Delete Provider</Button>
+        </div>
+
+        {successMessage && <p role="status" className="text-xs font-semibold text-emerald-700">{successMessage}</p>}
+        {errorMessage && <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">{errorMessage}</p>}
+
+        {showDeleteConfirm && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50/80 p-4 space-y-3">
+            <p className="text-xs font-bold text-rose-900">Confirm Provider Deletion / Archive</p>
+            <p className="text-xs text-rose-700">Permanent deletion checks relational dependencies (inspections, financial records, enrollees, complaints). If historical records exist, deletion will be blocked to protect network integrity.</p>
+            <div className="flex items-center gap-2">
+              <Button variant="danger" size="sm" disabled={deleteProvider.isPending} onClick={handleDelete}>{deleteProvider.isPending ? 'Checking dependencies...' : 'Yes, Delete Provider'}</Button>
+              <Button variant="secondary" size="sm" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
