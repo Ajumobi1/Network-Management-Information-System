@@ -236,14 +236,29 @@ export async function createEnrolmentImportBatch(
   _actor?: { id: string; email: string },
 ): Promise<ImportBatch> {
   if (!useMockData) {
-    // Route through the secure commit RPC for live mode
-    const result = await invokeSecureRpc<ImportBatch>('nmis_commit_import_batch', {
+    // For live mode, we use chunked import to avoid statement timeouts with large workbooks
+    const batchId = await invokeSecureRpc<string>('nmis_init_import_batch', {
       p_file_name: batch.fileName,
       p_data_type: 'enrolment',
       p_period_covered: batch.periodCovered || null,
       p_total_rows: batch.totalRows,
-      p_records: records || [],
       p_metadata: batch.metadata || {},
+    });
+
+    // Chunk records (500 per chunk is a safe balance for Supabase timeouts)
+    const chunkSize = 500;
+    for (let i = 0; i < records.length; i += chunkSize) {
+      const chunk = records.slice(i, i + chunkSize);
+      await invokeSecureRpc('nmis_append_import_records', {
+        p_batch_id: batchId,
+        p_data_type: 'enrolment',
+        p_records: chunk,
+      });
+    }
+
+    // Finalize the batch
+    const result = await invokeSecureRpc<ImportBatch>('nmis_finalize_import_batch', {
+      p_batch_id: batchId,
     });
     return result;
   }
