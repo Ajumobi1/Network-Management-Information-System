@@ -190,8 +190,13 @@ export default function EnrolmentUploadPage() {
       const sheet = workbook.Sheets[sheetName];
       const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
       
-      // AI Context Extraction
-      const context = enrolmentService.extractWorkbookContext(matrix);
+      // AI Context Extraction, with the descriptive filename as a safe fallback
+      // for workbooks whose provider name is not present in a metadata row.
+      const workbookContext = enrolmentService.extractWorkbookContext(matrix);
+      const context = {
+        ...workbookContext,
+        facilityName: workbookContext.facilityName || enrolmentService.extractFacilityNameFromFilename(item.file.name),
+      };
       
       // Automatic Period Detection from filename or context
       let detectedYear = '';
@@ -287,12 +292,20 @@ export default function EnrolmentUploadPage() {
             state: stateField ? String(row[stateField] ?? '').trim() || undefined : undefined,
           });
         });
-        results = await Promise.all([...uniqueProviders.values()].map(provider => financialDataService.matchProvider(provider.name, provider.code, provider.lga, provider.state)));
-      } else if (extractedContext.facilityName) {
+        if (uniqueProviders.size > 0) {
+          results = await Promise.all([...uniqueProviders.values()].map(provider => financialDataService.matchProvider(provider.name, provider.code, provider.lga, provider.state)));
+        }
+      }
+
+      // If the mapped column was absent or empty, use the workbook context. This
+      // includes a descriptive facility filename such as an original provider workbook.
+      if (results.length === 0 && extractedContext.facilityName) {
         const match = await financialDataService.matchProvider(extractedContext.facilityName, undefined, extractedContext.lga, 'Ondo');
         results = [match];
-      } else {
-        throw new Error('Could not detect a facility/provider name.');
+      }
+
+      if (results.length === 0) {
+        throw new Error('Could not detect a facility/provider name. Add a provider name column or use a descriptive facility filename.');
       }
 
       updateActiveData({ matches: results });

@@ -165,6 +165,26 @@ export function extractWorkbookContext(matrix: unknown[][]): { facilityName?: st
   return { facilityName, lga, period };
 }
 
+/**
+ * Derive a facility context from a descriptive workbook filename when the
+ * worksheet does not include a provider/facility metadata row or column.
+ */
+export function extractFacilityNameFromFilename(fileName: string): string | undefined {
+  const baseName = fileName
+    .replace(/\.[^.]+$/, '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (baseName.length < 8) return undefined;
+
+  const facilityTerms = /\b(hospital|clinic|medical|med\.?|health|centre|center|maternity|diagnostic|community|pharmacy|laboratory)\b/i;
+  const genericOnly = /^(capitation|enrol?ment|enrollee|beneficiar(?:y|ies)|member|data|upload|workbook|sheet|file|list)(?:[ _-]*(?:list|data|upload|workbook|sheet|file|202[0-9]|20[0-9]{2}))?$/i;
+
+  if (genericOnly.test(baseName) || !facilityTerms.test(baseName)) return undefined;
+  return baseName;
+}
+
 export function suggestEnrolmentMappings(headers: string[]): EnrolmentColumnMapping[] {
   return headers.map(header => {
     const normalized = normalizeHeader(header).replace(/[^a-z0-9/ ]/g, '');
@@ -514,6 +534,7 @@ export const enrolmentService = {
   normalizeGender,
   buildEnrolleeFingerprint,
   extractWorkbookContext,
+  extractFacilityNameFromFilename,
   suggestEnrolmentMappings,
   normalizeEnrolmentRows,
   markDuplicateEnrollees,
