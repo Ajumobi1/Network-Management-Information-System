@@ -28,6 +28,7 @@ import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
+import { findProviderMatchCandidates } from '../../services/providers/providersService';
 import { enrolmentService } from '../../services/enrolment/enrolmentService';
 import { useCreateEnrolmentImportBatch } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField, EnrolmentValidationError } from '../../types/enrolment/enrolmentTypes';
@@ -89,6 +90,10 @@ export default function EnrolmentUploadPage() {
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [errorSearch, setErrorSearch] = useState('');
   const [errorTypeFilter, setErrorTypeFilter] = useState<string>('all');
+  const [providerSearchTerms, setProviderSearchTerms] = useState<Record<number, string>>({});
+  const [providerSearchResults, setProviderSearchResults] = useState<Record<number, NonNullable<ProviderMatch['candidates']>>>({});
+  const [providerSearchLoading, setProviderSearchLoading] = useState<number | null>(null);
+  const [providerSearchErrors, setProviderSearchErrors] = useState<Record<number, string>>({});
   const { session } = useAuth();
   const createBatch = useCreateEnrolmentImportBatch();
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
@@ -296,6 +301,67 @@ export default function EnrolmentUploadPage() {
       setErrorMessage(error instanceof Error ? error.message : 'Matching failed');
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const resolveProviderCandidate = async (matchIndex: number, match: ProviderMatch, candidate: NonNullable<ProviderMatch['candidates']>[number]) => {
+    if (!activeItem?.data) return;
+    try {
+      await financialDataService.resolveMatch(match, session?.user?.email, activeItem.id, candidate.id, match.excelName);
+      const newMatches = [...activeItem.data.matches];
+      newMatches[matchIndex] = {
+        ...match,
+        matchedProviderId: candidate.id,
+        matchedProviderName: candidate.name,
+        matchedProviderCode: candidate.code,
+        matchedProviderLga: candidate.lga,
+        matchedProviderState: candidate.state,
+        matchedProviderFacilityType: candidate.facilityType,
+        matchedProviderOwnership: candidate.ownership,
+        status: 'confirmed',
+        confidence: 1,
+        matchType: 'manual'
+      };
+      updateActiveData({ matches: newMatches });
+      setProviderSearchTerms(prev => ({ ...prev, [matchIndex]: '' }));
+      setProviderSearchResults(prev => ({ ...prev, [matchIndex]: [] }));
+    } catch (error) {
+      setProviderSearchErrors(prev => ({
+        ...prev,
+        [matchIndex]: error instanceof Error ? error.message : 'Provider resolution failed.'
+      }));
+    }
+  };
+
+  const searchProviderDirectory = async (matchIndex: number, query: string) => {
+    setProviderSearchTerms(prev => ({ ...prev, [matchIndex]: query }));
+    setProviderSearchErrors(prev => ({ ...prev, [matchIndex]: '' }));
+    if (query.trim().length < 2) {
+      setProviderSearchResults(prev => ({ ...prev, [matchIndex]: [] }));
+      return;
+    }
+
+    setProviderSearchLoading(matchIndex);
+    try {
+      const providers = await findProviderMatchCandidates(query.trim(), 25);
+      const candidates = providers.map(provider => ({
+        id: provider.id,
+        name: provider.providerName,
+        code: provider.providerCode,
+        lga: provider.lga,
+        state: provider.state,
+        facilityType: provider.category,
+        ownership: provider.ownership,
+      }));
+      setProviderSearchResults(prev => ({ ...prev, [matchIndex]: candidates }));
+    } catch (error) {
+      setProviderSearchErrors(prev => ({
+        ...prev,
+        [matchIndex]: error instanceof Error ? error.message : 'Provider directory search failed.'
+      }));
+      setProviderSearchResults(prev => ({ ...prev, [matchIndex]: [] }));
+    } finally {
+      setProviderSearchLoading(current => current === matchIndex ? null : current);
     }
   };
 
@@ -672,34 +738,75 @@ export default function EnrolmentUploadPage() {
                           </div>
                         </div>
                         
-                        {match.status !== 'confirmed' && match.candidates && (
+                        {match.status !== 'confirmed' && (
                           <div className="mt-4 border-t border-slate-50 pt-4">
-                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Authoritative Provider to resolve & learn alias</label>
-                            <select 
-                              className="mt-2 w-full rounded-xl border-slate-200 text-sm"
-                              onChange={async (e) => {
-                                const candidate = match.candidates?.find(c => c.id === e.target.value);
-                                if (!candidate) return;
-                                
-                                // Resolve and trigger learning mechanism
-                                await financialDataService.resolveMatch(match, session?.user?.email, activeItem.id, candidate.id, match.excelName);
-                                
-                                const newMatches = [...activeItem.data!.matches];
-                                newMatches[idx] = {
-                                  ...match,
-                                  matchedProviderId: candidate.id,
-                                  matchedProviderName: candidate.name,
-                                  matchedProviderCode: candidate.code,
-                                  status: 'confirmed',
-                                  confidence: 1,
-                                  matchType: 'manual'
-                                };
-                                updateActiveData({ matches: newMatches });
-                              }}
-                            >
-                              <option value="">Search directory...</option>
-                              {match.candidates.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code}) - {c.lga}</option>)}
-                            </select>
+                            <label htmlFor={`provider-search-${idx}`} className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                              Search Provider Directory to resolve &amp; learn alias
+                            </label>
+                            <div className="relative mt-2">
+                              <Search className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-slate-400" aria-hidden="true" />
+                              <input
+                                id={`provider-search-${idx}`}
+                                type="search"
+                                value={providerSearchTerms[idx] || ''}
+                                onChange={event => searchProviderDirectory(idx, event.target.value)}
+                                placeholder="Type provider name, code, or LGA..."
+                                autoComplete="off"
+                                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-10 text-sm text-slate-800 outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
+                              />
+                              {providerSearchLoading === idx && (
+                                <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-blue" aria-label="Searching provider directory" />
+                              )}
+                            </div>
+                            <p className="mt-1 text-[10px] text-slate-400">Type at least 2 characters to search all authoritative providers.</p>
+
+                            {providerSearchErrors[idx] && (
+                              <p className="mt-2 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                                {providerSearchErrors[idx]}
+                              </p>
+                            )}
+
+                            {providerSearchResults[idx]?.length > 0 && (
+                              <div className="mt-2 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+                                {providerSearchResults[idx].map(candidate => (
+                                  <button
+                                    key={candidate.id}
+                                    type="button"
+                                    onClick={() => resolveProviderCandidate(idx, match, candidate)}
+                                    className="flex w-full items-start justify-between gap-3 border-b border-slate-100 px-3 py-3 text-left last:border-b-0 hover:bg-slate-50"
+                                  >
+                                    <span>
+                                      <span className="block text-sm font-semibold text-slate-800">{candidate.name}</span>
+                                      <span className="mt-0.5 block text-[10px] text-slate-500">{candidate.code} · {candidate.lga} · {candidate.ownership || 'Ownership unavailable'}</span>
+                                    </span>
+                                    <span className="shrink-0 text-[10px] font-bold uppercase text-brand-blue">Use provider</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {providerSearchTerms[idx]?.trim().length >= 2 && !providerSearchLoading && providerSearchResults[idx]?.length === 0 && !providerSearchErrors[idx] && (
+                              <p className="mt-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">No authoritative provider matched that search.</p>
+                            )}
+
+                            {match.candidates && match.candidates.length > 0 && (
+                              <div className="mt-3">
+                                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Suggested candidates</p>
+                                <select
+                                  className="w-full rounded-xl border-slate-200 text-sm"
+                                  value=""
+                                  onChange={event => {
+                                    const candidate = match.candidates?.find(c => c.id === event.target.value);
+                                    if (candidate) void resolveProviderCandidate(idx, match, candidate);
+                                  }}
+                                >
+                                  <option value="">Select a suggested provider...</option>
+                                  {match.candidates.map(candidate => (
+                                    <option key={candidate.id} value={candidate.id}>{candidate.name} ({candidate.code}) - {candidate.lga}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
