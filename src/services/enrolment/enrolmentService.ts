@@ -142,11 +142,11 @@ export function extractWorkbookContext(matrix: unknown[][]): { facilityName?: st
     }
 
     // Detect Facility Name (contains Hospital, Clinic, Medical, Healthcare, Health Center)
-    if (upper.includes('HOSPITAL') || upper.includes('CLINIC') || upper.includes('MEDICAL') || upper.includes('HEALTH CENTER') || upper.includes('HEALTH CENTRE')) {
+    if (upper.includes('HOSPITAL') || upper.includes('HOSP') || upper.includes('CLINIC') || upper.includes('MEDICAL') || upper.includes('HEALTH CENTER') || upper.includes('HEALTH CENTRE')) {
       for (const cell of row) {
         const text = String(cell ?? '').trim();
         const uText = text.toUpperCase();
-        if (uText.length > 5 && (uText.includes('HOSPITAL') || uText.includes('CLINIC') || uText.includes('MEDICAL') || uText.includes('CENTER') || uText.includes('CENTRE'))) {
+        if (uText.length > 5 && (uText.includes('HOSPITAL') || uText.includes('HOSP') || uText.includes('CLINIC') || uText.includes('MEDICAL') || uText.includes('CENTER') || uText.includes('CENTRE'))) {
           facilityName = text.replace(/^["']|["']$/g, '').trim();
           break;
         }
@@ -178,7 +178,7 @@ export function extractFacilityNameFromFilename(fileName: string): string | unde
 
   if (baseName.length < 8) return undefined;
 
-  const facilityTerms = /\b(hospital|clinic|medical|med\.?|health|centre|center|maternity|diagnostic|community|pharmacy|laboratory)\b/i;
+  const facilityTerms = /(hospital|hosp|clinic|medical|med\.?|health|centre|center|maternity|diagnostic|community|pharmacy|laboratory)/i;
   const genericOnly = /^(capitation|enrol?ment|enrollee|beneficiar(?:y|ies)|member|data|upload|workbook|sheet|file|list)(?:[ _-]*(?:list|data|upload|workbook|sheet|file|202[0-9]|20[0-9]{2}))?$/i;
 
   if (genericOnly.test(baseName) || !facilityTerms.test(baseName)) return undefined;
