@@ -41,6 +41,7 @@ interface FileQueueItem {
   matched: number;
   review: number;
   errors: number;
+  duplicates: number;
   message?: string;
   // Stored processing state for this specific file
   data?: {
@@ -122,7 +123,8 @@ export default function EnrolmentUploadPage() {
       rows: 0,
       matched: 0,
       review: 0,
-      errors: 0
+      errors: 0,
+      duplicates: 0
     }));
 
     setQueue(prev => [...prev, ...newItems]);
@@ -273,11 +275,17 @@ export default function EnrolmentUploadPage() {
     });
     
     const reviewCount = records.filter(r => r.recordStatus === 'match-review-required').length;
-    updateQueueItem(activeItem.id, { 
-      status: reviewCount > 0 ? 'review' : 'ready',
+    const errorCount = records.filter(r => r.recordStatus === 'error').length;
+    const duplicateCount = records.filter(r => r.recordStatus === 'duplicate').length;
+    const readyCount = records.filter(r => r.recordStatus === 'valid').length;
+
+    updateQueueItem(activeFileId!, {
+      status: (reviewCount > 0) ? 'review' : (errorCount > 0 ? 'error' : 'ready'),
       review: reviewCount,
-      errors: errors.length,
-      matched: records.filter(r => r.recordStatus === 'valid').length
+      errors: errorCount,
+      matched: readyCount,
+      duplicates: duplicateCount,
+      rows: records.length
     });
     
     setStep('preview');
@@ -315,15 +323,18 @@ export default function EnrolmentUploadPage() {
       setCommitMessage(`Successfully imported ${activeItem.rows} records from ${activeItem.file.name}`);
       
       // Check if there are more files in queue
-      const nextPending = queue.find(item => item.id !== activeItem.id && item.status === 'pending');
-      if (nextPending) {
-        processFile(nextPending);
-      } else {
-        setStep('commit');
-      }
+      setQueue(currentQueue => {
+        const nextPending = currentQueue.find(item => item.id !== activeItem.id && item.status === 'pending');
+        if (nextPending) {
+          setTimeout(() => processFile(nextPending), 0);
+        } else {
+          setStep('commit');
+        }
+        return currentQueue;
+      });
+      setIsAnalyzing(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Commit failed');
-    } finally {
       setIsAnalyzing(false);
     }
   };
@@ -670,6 +681,10 @@ export default function EnrolmentUploadPage() {
                     <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100">
                       <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">ERRORS</p>
                       <p className="mt-1 text-xl font-bold text-rose-700">{activeItem.errors.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">DUPLICATES</p>
+                      <p className="mt-1 text-xl font-bold text-slate-700">{activeItem.duplicates?.toLocaleString() || 0}</p>
                     </div>
                   </div>
 

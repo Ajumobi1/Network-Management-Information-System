@@ -40,6 +40,7 @@ interface FileQueueItem {
   matched: number;
   review: number;
   errors: number;
+  duplicates?: number;
   message?: string;
   data?: {
     workbook: XLSX.WorkBook;
@@ -239,12 +240,17 @@ export default function DataUploadCentrePage() {
     updateActiveData({ normalizedRecords: records, validationErrors: [...new Set(errors)] });
     
     const reviewCount = records.filter(r => !r.providerId).length;
+    const errorCount = records.filter(r => (r.validationErrors?.length || 0) > 0).length;
+    const readyCount = records.filter(r => r.providerId && (!r.validationErrors || r.validationErrors.length === 0)).length;
+
     updateQueueItem(activeItem.id, { 
-      status: reviewCount > 0 ? 'review' : 'ready',
+      status: (reviewCount > 0) ? 'review' : (errorCount > 0 ? 'error' : 'ready'),
       review: reviewCount,
-      errors: errors.length,
-      matched: records.filter(r => Boolean(r.providerId)).length,
-      period: records[0]?.period
+      errors: errorCount,
+      matched: readyCount,
+      duplicates: 0,
+      period: records[0]?.period,
+      rows: records.length
     });
     
     setStep('preview');
@@ -280,10 +286,14 @@ export default function DataUploadCentrePage() {
       setCommitMessage(`Successfully imported ${activeItem.rows} records from ${activeItem.file.name}`);
       
       const nextPending = queue.find(item => item.id !== activeItem.id && item.status === 'pending');
-      if (nextPending) processFile(nextPending); else setStep('commit');
+      if (nextPending) {
+        await processFile(nextPending);
+      } else {
+        setStep('commit');
+        setIsAnalyzing(false);
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Commit failed');
-    } finally {
       setIsAnalyzing(false);
     }
   };
@@ -513,6 +523,14 @@ export default function DataUploadCentrePage() {
                     <div className="rounded-2xl bg-emerald-50 p-4 border border-emerald-100">
                       <p className="text-[10px] font-bold text-emerald-600 uppercase">READY</p>
                       <p className="mt-1 text-xl font-bold text-emerald-700">{activeItem.matched.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-2xl bg-amber-50 p-4 border border-amber-100">
+                      <p className="text-[10px] font-bold text-amber-600 uppercase">REVIEW</p>
+                      <p className="mt-1 text-xl font-bold text-amber-700">{activeItem.review.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100">
+                      <p className="text-[10px] font-bold text-rose-600 uppercase">ERRORS</p>
+                      <p className="mt-1 text-xl font-bold text-rose-700">{activeItem.errors.toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="overflow-x-auto rounded-2xl border border-slate-100">
