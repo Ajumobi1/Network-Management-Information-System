@@ -14,7 +14,7 @@ import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
 import { isSecureContractError } from '../../lib/security/secureContracts';
 import ExportEnrolmentDialog from './ExportEnrolmentDialog';
 
-type SortField = 'policyNumber' | 'beneficiary' | 'providerName' | 'lga' | 'period';
+type SortField = 'policyNumber' | 'beneficiary' | 'providerName' | 'lga' | 'period' | 'gender' | 'category' | 'sector' | 'district';
 
 export default function EnrolmentRegisterPage() {
   const [search, setSearch] = useState('');
@@ -97,7 +97,31 @@ export default function EnrolmentRegisterPage() {
         <KpiCard title="Dependants" value={isAnalyticsLoading ? '...' : dependantCount.toLocaleString()} subtitle="Source CATEGORY" tone="neutral" />
       </section>
 	    <FilterBar primaryFilters={<><label className="relative min-w-[240px] flex-[2]"><span className="nmis-label">Search records</span><Search className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-brand-subtle" /><Input aria-label="Search policy, beneficiary, facility, or LGA" placeholder="Policy, beneficiary, facility, LGA..." value={search} onChange={event => setSearch(event.target.value)} className="pl-9" /></label><Select label="Sector" value={sector || 'all'} onChange={value => setSector(value as EnrolmentFilters['sector'])} options={['all', 'formal', 'informal']} /><Select label="Category" value={category || 'all'} onChange={value => setCategory(value as EnrolmentFilters['category'])} options={['all', 'principal', 'dependant']} /><Select label="Period" value={period} onChange={setPeriod} options={['all', ...options.periods]} /></>} advancedFilters={<><Select label="Gender" value={gender} onChange={setGender} options={['all', 'male', 'female', 'other']} /><Select label="State" value={state} onChange={setState} options={['all', ...options.states]} /><Select label="LGA" value={lga} onChange={setLga} options={['all', ...options.lgas]} /><Select label="Senatorial district" value={district} onChange={setDistrict} options={['all', ...options.districts]} /><label><span className="nmis-label">Facility</span><select className="nmis-control" value={providerId} onChange={event => setProviderId(event.target.value)}><option value="all">All facilities</option>{options.providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label></>} activeFilters={<ActiveFilterChips chips={activeFilterChips} onRemove={removeFilter} onClear={clearFilters} />} onReset={clearFilters} />
-	    <section className="nmis-table-wrap"><div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="nmis-section-title">Normalized beneficiary records</h2><p className="nmis-section-subtitle">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p></div><div className="flex items-center gap-2 text-xs text-brand-muted"><span>Sort by</span><select className="nmis-control min-h-8 py-1.5 text-xs" value={sortField} onChange={event => setSortField(event.target.value as SortField)}><option value="policyNumber">Policy number</option><option value="beneficiary">Beneficiary</option><option value="providerName">Facility</option><option value="lga">LGA</option><option value="period">Period</option></select><button type="button" className="rounded-control border border-brand-border bg-brand-card px-2 py-1 font-bold text-brand-secondary" onClick={() => setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc')}>{sortDirection === 'asc' ? 'A–Z' : 'Z–A'}</button></div></div><div className="overflow-x-auto"><table className="nmis-table min-w-[1250px]"><thead><tr><SortableHead label="Policy number" field="policyNumber" active={sortField} onClick={toggleSort} /><SortableHead label="Category" /><SortableHead label="Sector" /><SortableHead label="Beneficiary" field="beneficiary" active={sortField} onClick={toggleSort} /><SortableHead label="Gender" /><SortableHead label="Facility" field="providerName" active={sortField} onClick={toggleSort} /><SortableHead label="LGA" field="lga" active={sortField} onClick={toggleSort} /><SortableHead label="Senatorial district" /><SortableHead label="Period" field="period" active={sortField} onClick={toggleSort} /><SortableHead label="Status" /></tr></thead><tbody>{isLoading || allLoading ? <LoadingRows /> : records.length === 0 ? <EmptyRow /> : records.map(record => <RegisterRow key={record.id} record={record} onSelect={() => setSelectedId(record.id)} />)}</tbody></table></div><div className="flex items-center justify-between border-t border-brand-divider px-5 py-4 text-sm"><p className="text-brand-muted">Page {page} of {totalPages}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(current => current - 1)}>Previous</Button><Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(current => current + 1)}>Next</Button></div></div></section>
+	    <section className="nmis-table-wrap"><div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="nmis-section-title">Normalized beneficiary records</h2><p className="nmis-section-subtitle">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p></div><div className="flex items-center gap-2 text-xs text-brand-muted">
+  <span>Sort by</span>
+  <select
+    className="nmis-control min-h-8 py-1.5 text-xs"
+    value={sortField}
+    onChange={event => setSortField(event.target.value as SortField)}
+  >
+    <option value="policyNumber">Policy number</option>
+    <option value="beneficiary">Beneficiary</option>
+    <option value="providerName">Facility</option>
+    <option value="lga">LGA</option>
+    <option value="district">Senatorial district</option>
+    <option value="period">Period</option>
+    <option value="gender">Gender</option>
+    <option value="category">Category</option>
+    <option value="sector">Sector</option>
+  </select>
+  <button
+    type="button"
+    className="inline-flex min-w-[3.5rem] items-center justify-center gap-1 rounded-control border border-brand-border bg-brand-card px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-brand-secondary hover:bg-brand-surface transition-colors"
+    onClick={() => setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc')}
+  >
+    {sortDirection === 'asc' ? 'A-Z' : 'Z-A'}
+  </button>
+</div></div><div className="overflow-x-auto"><table className="nmis-table min-w-[1250px]"><thead><tr><SortableHead label="Policy number" field="policyNumber" active={sortField} onClick={toggleSort} /><SortableHead label="Category" /><SortableHead label="Sector" /><SortableHead label="Beneficiary" field="beneficiary" active={sortField} onClick={toggleSort} /><SortableHead label="Gender" /><SortableHead label="Facility" field="providerName" active={sortField} onClick={toggleSort} /><SortableHead label="LGA" field="lga" active={sortField} onClick={toggleSort} /><SortableHead label="Senatorial district" /><SortableHead label="Period" field="period" active={sortField} onClick={toggleSort} /><SortableHead label="Status" /></tr></thead><tbody>{isLoading || allLoading ? <LoadingRows /> : records.length === 0 ? <EmptyRow /> : records.map(record => <RegisterRow key={record.id} record={record} onSelect={() => setSelectedId(record.id)} />)}</tbody></table></div><div className="flex items-center justify-between border-t border-brand-divider px-5 py-4 text-sm"><p className="text-brand-muted">Page {page} of {totalPages}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(current => current - 1)}>Previous</Button><Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(current => current + 1)}>Next</Button></div></div></section>
     {selectedId && <DetailDrawer record={selectedRecord} onClose={() => setSelectedId(null)} />}
     {isExportDialogOpen && (
       <ExportEnrolmentDialog
@@ -116,5 +140,9 @@ function SortableHead({ label, field, active, onClick }: { label: string; field?
 function LoadingRows() { return <tr><td colSpan={10} className="px-5 py-16 text-center text-brand-muted">Loading enrolment records...</td></tr>; }
 function EmptyRow() { return <tr><td colSpan={10} className="px-5 py-16 text-center"><FileText className="mx-auto h-10 w-10 text-slate-200" /><p className="mt-3 font-semibold text-brand-secondary">No enrolment records match the current filters.</p><p className="mt-1 text-sm text-brand-muted">Adjust the filters or upload a normalized capitation list.</p></td></tr>; }
 function unique(values: string[]) { return Array.from(new Set(values.filter(Boolean))).sort(); }
-function sortValue(record: EnrolleeRecord, field: SortField) { return field === 'beneficiary' ? `${record.firstName} ${record.lastName}`.toLowerCase() : String(record[field] || '').toLowerCase(); }
+function sortValue(record: EnrolleeRecord, field: SortField) {
+  if (field === 'beneficiary') return `${record.firstName} ${record.lastName}`.toLowerCase();
+  if (field === 'district') return (record.senatorialDistrict || '').toLowerCase();
+  return String(record[field as keyof EnrolleeRecord] || '').toLowerCase();
+}
 function csvCell(value: unknown) { const text = value === undefined || value === null ? '' : String(value); return `"${text.replace(/"/g, '""')}"`; }
