@@ -7,7 +7,6 @@ import Card from '../components/ui/Card';
 import KpiCard from '../components/ui/KpiCard';
 import ProviderFilters from '../features/providers/components/ProviderFilters';
 import ProviderTable from '../features/providers/components/ProviderTable';
-import ProviderRegistrationWizard from '../features/providers/registration/ProviderRegistrationWizard';
 import { useProviderDirectory } from '../features/providers/hooks';
 import { ProviderDirectoryFilters } from '../features/providers/types';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
@@ -80,7 +79,7 @@ export default function ProviderPage() {
               <Button variant="secondary" className="gap-2" onClick={() => navigate('/financial/upload?type=provider-network')}>
                 <Upload size={16} /> Import Directory
               </Button>
-              <Button to="/provider-registration" className="gap-2">
+              <Button onClick={() => navigate('/providers/new')} className="gap-2">
                 <UserPlus size={16} /> Register Provider
               </Button>
             </div>
@@ -114,23 +113,11 @@ export default function ProviderPage() {
           />
         )}
 
-        <ProviderRegistrationWizard />
-
         <Card className="bg-brand-soft/30 border-brand-blue/10">
           <SectionHeader
-            title="Operational Extensions"
-            subtitle="Prepared integration points for network management automation."
-            actions={
-              <div className="flex gap-2">
-                <Button variant="secondary" size="sm">Export CSV</Button>
-                <Button variant="secondary" size="sm">Export PDF</Button>
-                <Button size="sm" className="gap-2"><UserPlus size={14} /> Invite Officer</Button>
-              </div>
-            }
+            title="Master Register Integrity"
+            subtitle="All 80 authoritative Ondo State providers are permanently indexed. New registrations automatically receive secure UUIDs and occupy their correct alphabetical position."
           />
-          <p className="mt-4 text-sm text-brand-secondary leading-relaxed">
-            The provider register is synchronized with secure Supabase RPC contracts. All facility records maintain strict audit attribution and least-privilege access control.
-          </p>
         </Card>
       </div>
     </main>

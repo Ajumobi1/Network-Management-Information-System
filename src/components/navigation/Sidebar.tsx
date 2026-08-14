@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, Bell, Building2, ChevronDown, ClipboardCheck, ClipboardList, FileChartColumn, FileText, Grid, Layers, LogOut, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, UploadCloud, Users, X, Zap } from 'lucide-react';
+import { Activity, Bell, Building2, ChevronDown, ClipboardCheck, ClipboardList, FileChartColumn, FileText, Grid, Layers, LogOut, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, UploadCloud, Users, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
@@ -13,34 +13,27 @@ const sections: Section[] = [
   { label: 'Dashboard', path: '/dashboard', icon: Grid, end: true, visible: true },
   { label: 'Provider Network', icon: Building2, visible: true, children: [
     { label: 'Provider Directory', path: '/providers', icon: Users },
-    { label: 'Provider Registration', path: '/provider-registration', icon: ClipboardList },
+    { label: 'Register Provider', path: '/providers/new', icon: ClipboardList },
     { label: 'Credentialing', path: '/credentialing', icon: ShieldCheck },
     { label: 'Contracts', path: '/contracts', icon: FileText },
+    { label: 'Performance Monitoring', path: '/performance', icon: Activity },
+  ] },
+  { label: 'Population & Enrolment', icon: Users, visible: true, children: [
+    { label: 'Enrolment Register', path: '/population/enrolment/register', icon: Users },
+    { label: 'Population Overview', path: '/population/enrolment', icon: Grid },
+    { label: 'Upload Capitation List', path: '/population/enrolment/upload', icon: UploadCloud },
   ] },
   { label: 'Financial Management', icon: FileChartColumn, visible: true, children: [
     { label: 'Financial Overview', path: '/financial/dashboard', icon: Grid },
     { label: 'Claims', path: '/financial/claims', icon: FileText },
     { label: 'Capitation', path: '/financial/capitation', icon: FileChartColumn },
     { label: 'Fee-for-Service', path: '/financial/ffs', icon: FileText },
+    { label: 'Financial Intelligence', path: '/analytics/financial-intelligence', icon: FileChartColumn },
     { label: 'Data Upload Centre', path: '/financial/upload', icon: UploadCloud },
     { label: 'Import History', path: '/financial/history', icon: ClipboardCheck },
   ] },
-  { label: 'Population & Enrolment', icon: Users, visible: true, children: [
-    { label: 'Population Overview', path: '/population/enrolment', icon: Grid },
-    { label: 'Enrolment Register', path: '/population/enrolment/register', icon: Users },
-    { label: 'Monthly Analysis', path: '/population/enrolment', icon: FileChartColumn },
-    { label: 'Upload Capitation List', path: '/population/enrolment/upload', icon: UploadCloud },
-  ] },
-  { label: 'Analytics & Reports', icon: Zap, visible: true, children: [
-    { label: 'Executive Analytics', path: '/dashboard', icon: Grid },
-    { label: 'Financial Intelligence', path: '/analytics/financial-intelligence', icon: FileChartColumn },
-    { label: 'Provider Analytics', path: '/providers', icon: Building2 },
-    { label: 'Enrolment Analytics', path: '/population/enrolment', icon: Users },
-    { label: 'Reports Centre', path: '/reports', icon: FileText },
-  ] },
   { label: 'Quality & Compliance', icon: ShieldCheck, visible: true, children: [
     { label: 'Inspections', path: '/inspections', icon: ClipboardCheck },
-    { label: 'Performance Monitoring', path: '/performance', icon: Activity },
     { label: 'Complaints', path: '/complaints', icon: Bell },
   ] },
   { label: 'Communication', icon: Bell, visible: true, children: [
@@ -48,7 +41,7 @@ const sections: Section[] = [
   ] },
   { label: 'Administration', icon: Settings, visible: true, children: [
     { label: 'User Management', path: '/admin/users', icon: Users },
-    { label: 'Roles & Permissions', path: '/admin/users', icon: ShieldCheck },
+    { label: 'Reports Centre', path: '/reports', icon: FileText },
     { label: 'System Settings', path: '/settings', icon: Settings },
   ] },
 ];
