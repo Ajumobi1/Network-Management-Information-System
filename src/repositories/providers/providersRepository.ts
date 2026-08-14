@@ -55,21 +55,6 @@ type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
 
 type ProviderDirectoryRpcResult = ProviderDirectoryRpcRow[] | { items: ProviderDirectoryRpcRow[] };
 
-const providerWorkflowCodes = [
-  'UNAUTHORIZED',
-  'AAL_REQUIRED',
-  'VALIDATION_ERROR',
-  'DUPLICATE_PROVIDER',
-  'PROVIDER_NOT_FOUND',
-  'INVALID_LIFECYCLE_TRANSITION',
-  'DEPENDENCY_CONFLICT',
-  'TRUSTED_OPERATION_REQUIRED',
-  'AUDIT_FAILURE',
-  'INTERNAL_ERROR',
-] as const;
-
-type ProviderWorkflowCode = (typeof providerWorkflowCodes)[number];
-
 function directoryRows(result: ProviderDirectoryRpcResult): ProviderDirectoryRpcRow[] {
   return Array.isArray(result) ? result : result.items;
 }
@@ -123,33 +108,17 @@ function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
 }
 
 async function invokeProviderAdmin(args: { command: string; providerId?: string | null; payload: Record<string, unknown> }): Promise<ProviderDirectoryItem> {
-  const { data, error } = await invokeSecureRpc<any>('nmis_provider_admin_write', {
+  const result = await invokeSecureRpc<any>('nmis_provider_admin_write', {
     p_command: args.command,
     p_provider_id: args.providerId || null,
     p_payload: args.payload,
   });
 
-  if (error) {
-    let code: ProviderWorkflowCode = 'INTERNAL_ERROR';
-    const message = (error as any).message || '';
-    
-    if (message.includes('UNAUTHORIZED')) code = 'UNAUTHORIZED';
-    else if (message.includes('AAL_REQUIRED')) code = 'AAL_REQUIRED';
-    else if (message.includes('VALIDATION_ERROR')) code = 'VALIDATION_ERROR';
-    else if (message.includes('DUPLICATE_PROVIDER')) code = 'DUPLICATE_PROVIDER';
-    else if (message.includes('PROVIDER_NOT_FOUND')) code = 'PROVIDER_NOT_FOUND';
-    else if (message.includes('INVALID_LIFECYCLE_TRANSITION')) code = 'INVALID_LIFECYCLE_TRANSITION';
-    else if (message.includes('DEPENDENCY_CONFLICT')) code = 'DEPENDENCY_CONFLICT';
-    else if (message.includes('AUDIT_FAILURE')) code = 'AUDIT_FAILURE';
-    
-    throw providerWorkflowError(code);
-  }
-
   if (args.command === 'delete_provider') {
     return {} as ProviderDirectoryItem;
   }
 
-  const row = data?.provider;
+  const row = result?.provider;
   if (!row) throw providerWorkflowError('INTERNAL_ERROR');
   return mapDirectoryRow(row);
 }
