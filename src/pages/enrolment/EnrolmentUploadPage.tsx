@@ -73,7 +73,9 @@ export default function EnrolmentUploadPage() {
     ? `${reportingYear}-${reportingMonth.padStart(2, '0')}`
     : '';
   const mappingFields = useMemo(() => new Set(mappings.map(mapping => mapping.enrolmentField)), [mappings]);
-  const missingRequiredMappings = ['policyNumber', 'category', 'firstName', 'lastName', 'gender', 'providerName']
+  const [extractedContext, setExtractedContext] = useState<{ facilityName?: string; lga?: string; period?: string }>({});
+
+  const missingRequiredMappings = ['policyNumber', 'category', 'firstName', 'lastName', 'gender']
     .filter(field => !mappingFields.has(field as EnrolmentField));
   const matchSummary = useMemo(() => ({
     matched: matches.filter(match => match.status === 'confirmed' && Boolean(match.matchedProviderId)).length,
@@ -92,8 +94,10 @@ export default function EnrolmentUploadPage() {
     
     // AI Context Extraction from header rows above the table
     const context = enrolmentService.extractWorkbookContext(matrix);
-    if (context.lga) {
-      // Pre-fill or store context if needed
+    setExtractedContext(context);
+    if (context.period) {
+      const yearMatch = context.period.match(/20\d\d/);
+      if (yearMatch) setReportingYear(yearMatch[0]);
     }
     
     const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
@@ -166,22 +170,31 @@ export default function EnrolmentUploadPage() {
       const providerCodeField = mappings.find(mapping => mapping.enrolmentField === 'providerCode')?.excelField;
       const lgaField = mappings.find(mapping => mapping.enrolmentField === 'lga')?.excelField;
       const stateField = mappings.find(mapping => mapping.enrolmentField === 'state')?.excelField;
-      if (!providerField) throw new Error('Map the facility/provider name before matching.');
 
-      const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
-      rawRows.forEach(row => {
-        const name = String(row[providerField] ?? '').trim();
-        if (!name || isSummaryRow(name)) return;
-        const key = `${name.toLowerCase()}|${String(row[providerCodeField || ''] ?? '').trim().toLowerCase()}`;
-        uniqueProviders.set(key, {
-          name,
-          code: providerCodeField ? String(row[providerCodeField] ?? '').trim() || undefined : undefined,
-          lga: lgaField ? String(row[lgaField] ?? '').trim() || undefined : undefined,
-          state: stateField ? String(row[stateField] ?? '').trim() || undefined : undefined,
+      let results: ProviderMatch[] = [];
+
+      if (providerField) {
+        const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
+        rawRows.forEach(row => {
+          const name = String(row[providerField] ?? '').trim();
+          if (!name || isSummaryRow(name)) return;
+          const key = `${name.toLowerCase()}|${String(row[providerCodeField || ''] ?? '').trim().toLowerCase()}`;
+          uniqueProviders.set(key, {
+            name,
+            code: providerCodeField ? String(row[providerCodeField] ?? '').trim() || undefined : undefined,
+            lga: lgaField ? String(row[lgaField] ?? '').trim() || undefined : undefined,
+            state: stateField ? String(row[stateField] ?? '').trim() || undefined : undefined,
+          });
         });
-      });
+        results = await Promise.all([...uniqueProviders.values()].map(provider => financialDataService.matchProvider(provider.name, provider.code, provider.lga, provider.state)));
+      } else if (extractedContext.facilityName) {
+        // Use extracted context facility name from header rows
+        const match = await financialDataService.matchProvider(extractedContext.facilityName, undefined, extractedContext.lga, 'Ondo');
+        results = [match];
+      } else {
+        throw new Error('Could not detect a facility/provider name in the column mappings or workbook header.');
+      }
 
-      const results = await Promise.all([...uniqueProviders.values()].map(provider => financialDataService.matchProvider(provider.name, provider.code, provider.lga, provider.state)));
       setMatches(results);
       setStep('match');
     } catch (error) {

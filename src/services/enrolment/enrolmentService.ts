@@ -229,8 +229,10 @@ export function normalizeEnrolmentRows(
   const matchByName = new Map(matches.map(match => [match.excelName.trim().toLowerCase(), match]));
   const [periodYear, periodMonth] = period.split('-').map(Number);
 
+  const fallbackMatch = matches[0];
+
   const normalized = rows.filter(row => {
-    const sourceProviderName = normalizeText(readMappedValue(row, mappings, 'providerName'));
+    const sourceProviderName = normalizeText(readMappedValue(row, mappings, 'providerName')) || (fallbackMatch ? fallbackMatch.excelName : '');
     return sourceProviderName && !isSummaryRow(sourceProviderName);
   }).map((row, index) => {
     const policyNumber = normalizeText(readMappedValue(row, mappings, 'policyNumber')).toUpperCase().replace(/\s+/g, '');
@@ -239,11 +241,15 @@ export function normalizeEnrolmentRows(
     const firstName = normalizeText(readMappedValue(row, mappings, 'firstName'));
     const lastName = normalizeText(readMappedValue(row, mappings, 'lastName'));
     const gender = normalizeGender(readMappedValue(row, mappings, 'gender'));
-    const sourceProviderName = normalizeText(readMappedValue(row, mappings, 'providerName'));
+    const rawAge = readMappedValue(row, mappings, 'age');
+    const age = rawAge !== undefined && rawAge !== '' ? Number(rawAge) : undefined;
+    
+    const sourceProviderName = normalizeText(readMappedValue(row, mappings, 'providerName')) || (fallbackMatch ? fallbackMatch.excelName : '');
     const sourceProviderCode = normalizeText(readMappedValue(row, mappings, 'providerCode'));
     const sourceLga = normalizeText(readMappedValue(row, mappings, 'lga'));
     const sourceState = normalizeText(readMappedValue(row, mappings, 'state'));
-    const match = matchByName.get(sourceProviderName.toLowerCase());
+    
+    const match = matchByName.get(sourceProviderName.toLowerCase()) || fallbackMatch;
     const errors: string[] = [];
 
     if (!policyNumber) errors.push('Policy number is required.');
@@ -277,6 +283,7 @@ export function normalizeEnrolmentRows(
       firstName,
       lastName,
       gender: gender || 'other',
+      age: Number.isInteger(age) ? age : undefined,
       phoneNumber: normalizeText(readMappedValue(row, mappings, 'phoneNumber')) || undefined,
       providerId: match?.matchedProviderId,
       providerCode: providerCode || undefined,
