@@ -70,7 +70,7 @@ export const authService = {
   async signIn(email: string, password: string, remember: boolean): Promise<AuthResult<AuthSession>> {
     if (useMockData) return mockAuth.signIn(email, password, remember);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error || !data.session) return mapAuthError(error?.message ?? 'No session was returned.');
 
     const mapped = mapSession(data.session);
@@ -97,7 +97,7 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<AuthResult<null>> {
     if (useMockData) return mockAuth.forgotPassword(email);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) return mapAuthError(error.message);

@@ -59,6 +59,14 @@ function directoryRows(result: ProviderDirectoryRpcResult): ProviderDirectoryRpc
   return Array.isArray(result) ? result : result.items;
 }
 
+function canonicalLgaFilter(value: unknown): string | null {
+  if (typeof value !== 'string' || value === 'all') return null;
+  return value
+    .replace(/[‐‑‒–—-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function normalizedLifecycleStatus(status: string): ProviderLifecycleStatus {
   return status.trim().toLowerCase() as ProviderLifecycleStatus;
 }
@@ -158,7 +166,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
   const rpcFilters = {
     p_search: filters.search || null,
     p_state: null,
-    p_lga: filters.lga === 'all' ? null : filters.lga,
+    p_lga: canonicalLgaFilter(filters.lga),
     p_category: filters.category === 'all' ? null : filters.category,
     p_ownership: filters.ownership === 'all' ? null : filters.ownership,
     p_status: filters.status === 'all' ? null : filters.status,

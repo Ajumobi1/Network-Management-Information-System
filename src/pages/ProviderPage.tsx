@@ -45,7 +45,7 @@ export default function ProviderPage() {
 
   const categories = useMemo(() => ['all', 'Hospital', 'Primary Health Centre (PHC)', 'Clinic', 'Diagnostic Centre', 'Pharmacy'], []);
   const ownerships = useMemo(() => ['all', 'Government', 'Private'], []);
-  const lgas = useMemo(() => ['all', 'Akoko North-East', 'Akoko North-West', 'Akoko South-East', 'Akoko South-West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'], []);
+  const lgas = useMemo(() => ['all', 'Akoko North East', 'Akoko North West', 'Akoko South East', 'Akoko South West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'], []);
 
   const stats = useMemo(() => ({
     total: totalCount,
