@@ -60,10 +60,25 @@ function readMappedValue(row: Record<string, unknown>, mappings: EnrolmentColumn
   return mapping ? row[mapping.excelField] : undefined;
 }
 
+export function detectHeaderRowIndex(matrix: unknown[][]): number {
+  for (let i = 0; i < Math.min(matrix.length, 10); i++) {
+    const row = matrix[i];
+    if (!row) continue;
+    const rowText = row.map(cell => String(cell ?? '').toLowerCase()).join(' ');
+    if ((rowText.includes('policy') || rowText.includes('member') || rowText.includes('number') || rowText.includes('s/n')) && 
+        (rowText.includes('name') || rowText.includes('beneficiary') || rowText.includes('first') || rowText.includes('surname'))) {
+      return i;
+    }
+  }
+  return 0;
+}
+
 export function deriveSectorFromPolicy(policyNumber: string): EnrolmentSector | undefined {
   const normalized = policyNumber.replace(/\s+/g, '').toUpperCase();
   if (/\/C(?:\/|$)/.test(normalized)) return 'formal';
   if (/\/D(?:\/|$)/.test(normalized)) return 'informal';
+  // Fallback: default to formal if policy number is valid but lacks explicit /C/ or /D/
+  if (normalized.length > 3) return 'formal';
   return undefined;
 }
 
@@ -340,6 +355,7 @@ export function markDuplicateEnrollees(records: EnrolleeRecord[]): EnrolleeRecor
 }
 
 export const enrolmentService = {
+  detectHeaderRowIndex,
   deriveSectorFromPolicy,
   normalizeEnrolmentCategory,
   normalizeGender,

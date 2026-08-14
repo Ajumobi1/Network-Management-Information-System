@@ -167,7 +167,7 @@ export default function EnrolmentUploadPage() {
         if (ctxMonthIdx !== -1) detectedMonth = String(ctxMonthIdx + 1);
       }
 
-      const hIndex = 0;
+      const hIndex = enrolmentService.detectHeaderRowIndex(matrix);
       const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
       const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
         .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
