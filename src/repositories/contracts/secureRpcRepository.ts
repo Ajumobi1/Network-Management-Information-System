@@ -23,7 +23,11 @@ function mapRpcError(contract: string, error: RpcError): SecureContractError {
     return secureContractUnavailable(contract);
   }
 
-  return secureContractUnavailable(contract, `Secure contract '${contract}' could not be used in the current environment.`);
+  if (code === 'P0001' && message) {
+    return new SecureContractError('VALIDATION_ERROR', message, contract);
+  }
+
+  return secureContractUnavailable(contract, message ? message : `Secure contract '${contract}' could not be used in the current environment.`);
 }
 
 /**
