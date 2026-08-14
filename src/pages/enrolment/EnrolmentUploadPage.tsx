@@ -94,6 +94,7 @@ export default function EnrolmentUploadPage() {
   const [providerSearchResults, setProviderSearchResults] = useState<Record<number, NonNullable<ProviderMatch['candidates']>>>({});
   const [providerSearchLoading, setProviderSearchLoading] = useState<number | null>(null);
   const [providerSearchErrors, setProviderSearchErrors] = useState<Record<number, string>>({});
+  const providerSearchTimers = useRef<Record<number, number>>({});
   const { session } = useAuth();
   const createBatch = useCreateEnrolmentImportBatch();
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
@@ -309,6 +310,15 @@ export default function EnrolmentUploadPage() {
       }
 
       updateActiveData({ matches: results });
+      setProviderSearchTerms(prev => {
+        const next = { ...prev };
+        results.forEach((match, index) => {
+          if (match.status !== 'confirmed') next[index] = match.excelName;
+        });
+        return next;
+      });
+      setProviderSearchResults({});
+      setProviderSearchErrors({});
       setStep('match');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Matching failed');
@@ -346,36 +356,53 @@ export default function EnrolmentUploadPage() {
     }
   };
 
-  const searchProviderDirectory = async (matchIndex: number, query: string) => {
+  const searchProviderDirectory = (matchIndex: number, query: string) => {
     setProviderSearchTerms(prev => ({ ...prev, [matchIndex]: query }));
     setProviderSearchErrors(prev => ({ ...prev, [matchIndex]: '' }));
+    if (providerSearchTimers.current[matchIndex]) {
+      window.clearTimeout(providerSearchTimers.current[matchIndex]);
+    }
+
     if (query.trim().length < 2) {
+      setProviderSearchLoading(current => current === matchIndex ? null : current);
       setProviderSearchResults(prev => ({ ...prev, [matchIndex]: [] }));
       return;
     }
 
-    setProviderSearchLoading(matchIndex);
-    try {
-      const providers = await findProviderMatchCandidates(query.trim(), 25);
-      const candidates = providers.map(provider => ({
-        id: provider.id,
-        name: provider.providerName,
-        code: provider.providerCode,
-        lga: provider.lga,
-        state: provider.state,
-        facilityType: provider.category,
-        ownership: provider.ownership,
-      }));
-      setProviderSearchResults(prev => ({ ...prev, [matchIndex]: candidates }));
-    } catch (error) {
-      setProviderSearchErrors(prev => ({
-        ...prev,
-        [matchIndex]: error instanceof Error ? error.message : 'Provider directory search failed.'
-      }));
-      setProviderSearchResults(prev => ({ ...prev, [matchIndex]: [] }));
-    } finally {
-      setProviderSearchLoading(current => current === matchIndex ? null : current);
-    }
+    providerSearchTimers.current[matchIndex] = window.setTimeout(async () => {
+      setProviderSearchLoading(matchIndex);
+      try {
+        const providers = await findProviderMatchCandidates(query.trim(), 25);
+        const candidates = providers.map(provider => ({
+          id: provider.id,
+          name: provider.providerName,
+          code: provider.providerCode,
+          lga: provider.lga,
+          state: provider.state,
+          facilityType: provider.category,
+          ownership: provider.ownership,
+        }));
+        setProviderSearchResults(prev => ({ ...prev, [matchIndex]: candidates }));
+      } catch (error) {
+        setProviderSearchErrors(prev => ({
+          ...prev,
+          [matchIndex]: error instanceof Error ? error.message : 'Provider directory search failed.'
+        }));
+        setProviderSearchResults(prev => ({ ...prev, [matchIndex]: [] }));
+      } finally {
+        setProviderSearchLoading(current => current === matchIndex ? null : current);
+      }
+    }, 300);
+  };
+
+  const getProviderCandidatesForDisplay = (matchIndex: number, match: ProviderMatch) => {
+    const candidates = [
+      ...(providerSearchResults[matchIndex] || []),
+      ...(match.candidates || []),
+    ];
+    return candidates
+      .filter((candidate, index, all) => all.findIndex(item => item.id === candidate.id) === index)
+      .slice(0, 5);
   };
 
   const generatePreview = () => {
@@ -763,7 +790,7 @@ export default function EnrolmentUploadPage() {
                                 type="search"
                                 value={providerSearchTerms[idx] || ''}
                                 onChange={event => searchProviderDirectory(idx, event.target.value)}
-                                placeholder="Type provider name, code, or LGA..."
+                                placeholder="Type the full provider name, code, or LGA..."
                                 autoComplete="off"
                                 className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-10 text-sm text-slate-800 outline-none transition focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/15"
                               />
@@ -771,7 +798,7 @@ export default function EnrolmentUploadPage() {
                                 <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-brand-blue" aria-label="Searching provider directory" />
                               )}
                             </div>
-                            <p className="mt-1 text-[10px] text-slate-400">Type at least 2 characters to search all authoritative providers.</p>
+                            <p className="mt-1 text-[10px] text-slate-400">The workbook name is prefilled. Edit or replace it to narrow to the closest authoritative provider.</p>
 
                             {providerSearchErrors[idx] && (
                               <p className="mt-2 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-xs text-rose-700">
@@ -802,22 +829,35 @@ export default function EnrolmentUploadPage() {
                               <p className="mt-2 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-700">No authoritative provider matched that search.</p>
                             )}
 
-                            {match.candidates && match.candidates.length > 0 && (
+                            {getProviderCandidatesForDisplay(idx, match).length > 0 && (
                               <div className="mt-3">
-                                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">Suggested candidates</p>
-                                <select
-                                  className="w-full rounded-xl border-slate-200 text-sm"
-                                  value=""
-                                  onChange={event => {
-                                    const candidate = match.candidates?.find(c => c.id === event.target.value);
-                                    if (candidate) void resolveProviderCandidate(idx, match, candidate);
-                                  }}
-                                >
-                                  <option value="">Select a suggested provider...</option>
-                                  {match.candidates.map(candidate => (
-                                    <option key={candidate.id} value={candidate.id}>{candidate.name} ({candidate.code}) - {candidate.lga}</option>
+                                <div className="mb-2 flex items-center justify-between gap-3">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                                    {providerSearchResults[idx]?.length ? 'Closest matches' : 'Suggested closest matches'}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400">Showing up to 5</span>
+                                </div>
+                                <div className="space-y-2">
+                                  {getProviderCandidatesForDisplay(idx, match).map((candidate, candidateIndex) => (
+                                    <button
+                                      key={candidate.id}
+                                      type="button"
+                                      onClick={() => resolveProviderCandidate(idx, match, candidate)}
+                                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-left transition hover:border-brand-blue hover:bg-brand-soft/30"
+                                    >
+                                      <span className="min-w-0">
+                                        <span className="flex items-center gap-2">
+                                          <span className="truncate text-sm font-semibold text-slate-800">{candidate.name}</span>
+                                          {candidateIndex === 0 && <Badge variant="success" className="shrink-0 text-[9px]">Closest</Badge>}
+                                        </span>
+                                        <span className="mt-1 block text-[10px] text-slate-500">
+                                          {candidate.code} · {candidate.lga || 'LGA unavailable'} · {candidate.ownership || 'Ownership unavailable'}
+                                        </span>
+                                      </span>
+                                      <span className="shrink-0 text-[10px] font-bold uppercase text-brand-blue">Use provider</span>
+                                    </button>
                                   ))}
-                                </select>
+                                </div>
                               </div>
                             )}
                           </div>
