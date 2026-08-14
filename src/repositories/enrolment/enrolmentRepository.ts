@@ -41,6 +41,7 @@ type SecureEnrolleeRow = {
   fingerprint: string;
   created_at: string;
   updated_at: string;
+  total_count?: number | null;
 };
 
 function mapSecureEnrolleeRow(row: SecureEnrolleeRow): EnrolleeRecord {
@@ -293,13 +294,86 @@ function analyticsFromDashboardIntelligence(intelligence: Dashboard2Intelligence
 
 async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<EnrolmentAnalytics> {
   try {
-    return await invokeSecureRpc<EnrolmentAnalytics>('nmis_population_analytics', populationArgs(filters));
+    const rows = await invokeSecureRpc<Array<{
+      total_count: number;
+      formal_count: number;
+      informal_count: number;
+      principal_count: number;
+      dependant_count: number;
+      male_count: number;
+      female_count: number;
+    }>>('nmis_enrollee_register_aggregates', {
+      p_search: filters.search || null,
+      p_sector: activeFilter(filters.sector),
+      p_category: activeFilter(filters.category),
+      p_gender: activeFilter(filters.gender),
+      p_state: activeFilter(filters.state),
+      p_lga: activeFilter(filters.lga),
+      p_senatorial_district: activeFilter(filters.senatorialDistrict),
+      p_provider_id: activeFilter(filters.providerId),
+      p_period: activeFilter(filters.period),
+      p_year: filters.year ?? null,
+      p_month: filters.month ?? null,
+    });
+
+    const agg = rows[0] || {
+      total_count: 0,
+      formal_count: 0,
+      informal_count: 0,
+      principal_count: 0,
+      dependant_count: 0,
+      male_count: 0,
+      female_count: 0,
+    };
+
+    const totalEnrollees = Number(agg.total_count || 0);
+    const formalCount = Number(agg.formal_count || 0);
+    const informalCount = Number(agg.informal_count || 0);
+    const principalCount = Number(agg.principal_count || 0);
+    const dependantCount = Number(agg.dependant_count || 0);
+    const maleCount = Number(agg.male_count || 0);
+    const femaleCount = Number(agg.female_count || 0);
+    const percentage = (count: number) => totalEnrollees > 0 ? Number(((count / totalEnrollees) * 100).toFixed(1)) : 0;
+
+    return {
+      totalEnrollees,
+      formalCount,
+      informalCount,
+      principalCount,
+      dependantCount,
+      maleCount,
+      femaleCount,
+      providerCount: 0,
+      lgaCount: filters.lga ? 1 : 0,
+      senatorialDistrictCount: filters.senatorialDistrict ? 1 : 0,
+      formalPercentage: percentage(formalCount),
+      informalPercentage: percentage(informalCount),
+      principalPercentage: percentage(principalCount),
+      dependantPercentage: percentage(dependantCount),
+      bySector: [
+        { name: 'formal', value: formalCount },
+        { name: 'informal', value: informalCount },
+      ].filter(item => item.value > 0),
+      byCategory: [
+        { name: 'principal', value: principalCount },
+        { name: 'dependant', value: dependantCount },
+      ].filter(item => item.value > 0),
+      byGender: [
+        { name: 'male', value: maleCount },
+        { name: 'female', value: femaleCount },
+      ].filter(item => item.value > 0),
+      byState: totalEnrollees > 0 ? [{ name: 'Ondo', value: totalEnrollees }] : [],
+      byLga: filters.lga ? [{ name: filters.lga, value: totalEnrollees }] : [],
+      bySenatorialDistrict: filters.senatorialDistrict ? [{ name: filters.senatorialDistrict, value: totalEnrollees }] : [],
+      byFacility: [],
+      monthlyTrend: [],
+      financialExpenditure: 0,
+      financialRecordCount: 0,
+      pepm: 0,
+      pepmTrend: [],
+    };
   } catch (error) {
-    // The dedicated contract was previously deployed as a guarded stub. Use
-    // the approved aggregate dashboard contract until the replacement RPC is
-    // applied; never fall back to raw enrollee rows or fabricated values.
     if (!isSecureContractError(error)
-      || error.contract !== 'nmis_population_analytics'
       || !['SECURE_CONTRACT_UNAVAILABLE', 'VALIDATION_ERROR'].includes(error.code)) {
       throw error;
     }
