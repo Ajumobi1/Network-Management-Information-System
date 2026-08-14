@@ -1,6 +1,5 @@
 import { ReactNode, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider } from './ThemeProvider';
 import { AuthProvider } from '../contexts/AuthContext';
 
@@ -22,7 +21,6 @@ export function RootProviders({ children }: { children: ReactNode }) {
       <AuthProvider>
         <ThemeProvider>{children}</ThemeProvider>
       </AuthProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   );
 }
