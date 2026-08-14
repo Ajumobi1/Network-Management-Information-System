@@ -143,9 +143,19 @@ export default function EnrolmentUploadPage() {
         const wb = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
         const sheet = wb.Sheets[wb.SheetNames[0]];
         const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-        const hIdx = enrolmentService.detectHeaderRowIndex(matrix);
-        const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIdx, defval: '', raw: false })
+        let hIdx = enrolmentService.detectHeaderRowIndex(matrix);
+        let rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIdx, defval: '', raw: false })
           .filter(r => Object.values(r).some(v => String(v).trim() !== ''));
+
+        // Fallback for pre-inspection
+        if (rows.length === 0 && matrix.length > 0) {
+          const fallbackIdx = matrix.findIndex(r => Array.isArray(r) && r.filter(c => String(c ?? '').trim() !== '').length >= 3);
+          if (fallbackIdx !== -1) {
+            hIdx = fallbackIdx;
+            rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIdx, defval: '', raw: false })
+              .filter(r => Object.values(r).some(v => String(v).trim() !== ''));
+          }
+        }
         updateQueueItem(item.id, { rows: rows.length });
       } catch (e) {
         // ignore pre-inspect error
@@ -200,9 +210,13 @@ export default function EnrolmentUploadPage() {
       // Robust Fallback: If no rows found with detected header, look for first row with at least 3 columns of data
       if (rows.length === 0 && matrix.length > 0) {
         const fallbackIndex = matrix.findIndex(r => Array.isArray(r) && r.filter(c => String(c ?? '').trim() !== '').length >= 3);
-        if (fallbackIndex !== -1 && fallbackIndex !== hIndex) {
+        if (fallbackIndex !== -1) {
           hIndex = fallbackIndex;
-          detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
+          detectedHeaders = (matrix[hIndex] || []).map(value => {
+            const v = String(value ?? '').trim();
+            return v || `Column_${Math.random().toString(36).substring(7)}`;
+          }).filter(Boolean);
+          
           rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
             .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
         }

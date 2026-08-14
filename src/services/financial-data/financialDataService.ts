@@ -34,14 +34,26 @@ const buildFingerprint = (record: FinancialRecord) => [
 
 export const isSummaryRow = (providerName: string): boolean => {
   const normalized = providerName.trim().toUpperCase();
-  return (
-    normalized === 'TOTAL' ||
-    normalized === 'GRAND TOTAL' ||
-    normalized === 'SUBTOTAL' ||
-    normalized.startsWith('TOTAL ') ||
-    normalized.startsWith('GRAND TOTAL ') ||
-    normalized.startsWith('SUBTOTAL ')
-  );
+  // Exact matches for summary keywords
+  const exactKeywords = ['TOTAL', 'GRAND TOTAL', 'SUBTOTAL', 'SUMMARY', 'TOTALS'];
+  if (exactKeywords.includes(normalized)) return true;
+  
+  // Check for "TOTAL" followed by common summary labels, but exclude valid provider name parts
+  // We avoid startsWith('TOTAL ') because it catches "Total Care", "Total Health", etc.
+  const summaryPrefixes = ['TOTAL ', 'GRAND TOTAL ', 'SUBTOTAL '];
+  const summaryLabels = ['AMOUNT', 'COUNT', 'RECORDS', 'ENROLLEES', 'BENEFICIARIES', 'PAYABLE', 'GROSS', 'NET'];
+  
+  for (const prefix of summaryPrefixes) {
+    if (normalized.startsWith(prefix)) {
+      const remainder = normalized.substring(prefix.length).trim();
+      // If the remainder is just a summary label or a number/punctuation, it's a summary row
+      if (summaryLabels.includes(remainder) || /^[0-9#,\.\-\/ ]+$/.test(remainder)) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 };
 
 /**
