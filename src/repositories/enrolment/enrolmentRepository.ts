@@ -145,6 +145,8 @@ function analyticsFromRecords(records: EnrolleeRecord[]): EnrolmentAnalytics {
     monthlyTrend: groupBy(records, record => record.period).sort((a, b) => a.name.localeCompare(b.name)),
     financialExpenditure: 0,
     financialRecordCount: 0,
+    capitationRate: 750,
+    capitationExpenditure: totalEnrollees * 750,
     pepm: 0,
     pepmTrend: [],
   };
@@ -315,6 +317,8 @@ function analyticsFromDashboardIntelligence(intelligence: Dashboard2Intelligence
     monthlyTrend: population.monthlyTrend || [],
     financialExpenditure: Number(intelligence.financial.totalExpenditure || 0),
     financialRecordCount: Number(intelligence.matchedFinancialRecords || 0),
+    capitationRate: 750,
+    capitationExpenditure: totalEnrollees * 750,
     pepm: Number(intelligence.efficiency.networkPepm || 0),
     pepmTrend: intelligence.efficiency.trend || [],
   };
@@ -361,6 +365,13 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
     const dependantCount = Number(agg.dependant_count || 0);
     const maleCount = Number(agg.male_count || 0);
     const femaleCount = Number(agg.female_count || 0);
+    let capitationRate = 750;
+    try {
+      const capitationSettings = await invokeSecureRpc<{ rate?: number }>('nmis_get_capitation_settings');
+      capitationRate = Number(capitationSettings.rate || 750);
+    } catch {
+      // Keep the approved default for analytics if the settings read is temporarily unavailable.
+    }
     const percentage = (count: number) => totalEnrollees > 0 ? Number(((count / totalEnrollees) * 100).toFixed(1)) : 0;
 
     return {
@@ -397,6 +408,8 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       monthlyTrend: [],
       financialExpenditure: 0,
       financialRecordCount: 0,
+      capitationRate,
+      capitationExpenditure: totalEnrollees * capitationRate,
       pepm: 0,
       pepmTrend: [],
     };

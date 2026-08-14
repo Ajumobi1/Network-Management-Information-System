@@ -47,10 +47,18 @@ function formatNaira(value: number): string {
 export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
   if (!useMockData) {
     const intelligence = await fetchDashboardIntelligence();
+    let capitationRate = 750;
+    try {
+      const settings = await invokeSecureRpc<{ rate?: number }>('nmis_get_capitation_settings');
+      capitationRate = Number(settings.rate || 750);
+    } catch {
+      // Keep the approved default if the settings read is temporarily unavailable.
+    }
     return [
       { id: 'total-providers', label: 'Total providers', value: intelligence.provider.total.toLocaleString(), delta: 'Secure aggregate', trend: 'steady', color: 'indigo', icon: 'Users', subtitle: 'Provider network' },
       { id: 'active-providers', label: 'Active providers', value: intelligence.provider.active.toLocaleString(), delta: 'Secure aggregate', trend: 'steady', color: 'emerald', icon: 'ShieldCheck', subtitle: 'Active provider network' },
       { id: 'total-enrollees', label: 'Total enrollees', value: intelligence.population.total.toLocaleString(), delta: 'Secure aggregate', trend: 'steady', color: 'sky', icon: 'Users', subtitle: 'Population aggregate' },
+      { id: 'monthly-capitation', label: 'Monthly capitation due', value: formatNaira(intelligence.population.total * capitationRate), delta: `₦${capitationRate.toLocaleString('en-NG')} per enrollee`, trend: 'steady', color: 'indigo', icon: 'CurrencyNaira', subtitle: 'Current configured capitation' },
       { id: 'network-expenditure', label: 'Network expenditure', value: formatNaira(intelligence.financial.totalExpenditure), delta: 'Secure aggregate', trend: 'steady', color: 'emerald', icon: 'CurrencyNaira', subtitle: 'Financial aggregate' },
       { id: 'pepm', label: 'Expenditure per enrollee', value: formatNaira(intelligence.efficiency.networkPepm), delta: 'Secure aggregate', trend: 'steady', color: 'rose', icon: 'CurrencyNaira', subtitle: 'PEPM analytical view' },
     ];
@@ -110,6 +118,16 @@ export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
       color: 'amber',
       icon: 'Users',
       subtitle: 'Policy numbers containing /D/',
+    },
+    {
+      id: 'monthly-capitation',
+      label: 'Monthly capitation due',
+      value: formatNaira(population.capitationExpenditure),
+      delta: `₦${population.capitationRate.toLocaleString('en-NG')} per enrollee`,
+      trend: 'steady',
+      color: 'indigo',
+      icon: 'CurrencyNaira',
+      subtitle: 'Current configured capitation',
     },
     {
       id: 'network-expenditure',

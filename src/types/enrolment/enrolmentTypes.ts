@@ -156,6 +156,8 @@ export interface EnrolmentAnalytics {
   monthlyTrend: Array<{ name: string; value: number }>;
   financialExpenditure: number;
   financialRecordCount: number;
+  capitationRate: number;
+  capitationExpenditure: number;
   pepm: number;
   pepmTrend: Array<{ name: string; value: number }>;
 }

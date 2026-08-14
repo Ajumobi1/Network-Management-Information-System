@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { ArrowUpRight, Building2, FileSpreadsheet, MapPin, Users, Upload, LayoutGrid, UserPlus } from 'lucide-react';
+import { ArrowUpRight, Building2, FileSpreadsheet, MapPin, Users, Upload, LayoutGrid, UserPlus, WalletCards } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import KpiCard from '../../components/ui/KpiCard';
@@ -86,11 +86,12 @@ export default function PopulationOverviewPage() {
           <KpiCard title="Dependants" value={analytics.dependantCount.toLocaleString()} subtitle={`${analytics.dependantPercentage}% ratio`} tone="neutral" icon={<Users size={20} />} />
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <KpiCard title="Facilities covered" value={analytics.providerCount.toLocaleString()} subtitle="Matched providers" tone="info" icon={<Building2 size={20} />} />
           <KpiCard title="LGAs covered" value={analytics.lgaCount.toLocaleString()} subtitle="Geographic spread" tone="success" icon={<MapPin size={20} />} />
           <KpiCard title="Districts" value={analytics.senatorialDistrictCount.toLocaleString()} subtitle="Political coverage" tone="warning" icon={<MapPin size={20} />} />
           <KpiCard title="Linked expenditure" value={formatNaira(analytics.financialExpenditure)} subtitle="Matched by period" tone="primary" icon={<FileSpreadsheet size={20} />} />
+          <KpiCard title="Monthly capitation" value={formatNaira(analytics.capitationExpenditure)} subtitle={`₦${analytics.capitationRate.toLocaleString('en-NG')} per enrollee`} tone="success" icon={<WalletCards size={20} />} />
           <KpiCard title="PEPM" value={formatNaira(analytics.pepm)} subtitle="Avg cost per enrollee" tone="neutral" icon={<ArrowUpRight size={20} />} />
         </section>
 
@@ -195,10 +196,15 @@ export default function PopulationOverviewPage() {
             <p className="text-sm leading-relaxed text-brand-secondary">
               PEPM (Expenditure per Enrollee per Month) is an analytical view. NMIS links normalized population counts to expenditure by reporting period without altering historical financial records.
             </p>
-            <div className="mt-8 grid grid-cols-2 gap-8">
+            <div className="mt-8 grid gap-6 sm:grid-cols-3">
               <div>
                 <p className="nmis-label">Linked Expenditure</p>
                 <p className="nmis-number text-xl font-black text-brand-navy">{formatNaira(analytics.financialExpenditure)}</p>
+              </div>
+              <div>
+                <p className="nmis-label">Monthly Capitation</p>
+                <p className="nmis-number text-xl font-black text-brand-navy">{formatNaira(analytics.capitationExpenditure)}</p>
+                <p className="mt-1 text-xs text-brand-muted">₦{analytics.capitationRate.toLocaleString('en-NG')} per enrollee</p>
               </div>
               <div>
                 <p className="nmis-label">Current PEPM</p>
