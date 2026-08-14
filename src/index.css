@@ -258,8 +258,12 @@ select:focus-visible {
   }
 
   .nmis-kpi-value {
-    @apply text-2xl font-black tracking-tight sm:text-3xl;
+    @apply text-2xl font-black tracking-tight tabular-nums whitespace-nowrap sm:text-3xl;
     color: var(--color-foreground);
+  }
+
+  .nmis-number {
+    @apply tabular-nums whitespace-nowrap;
   }
 
   .nmis-kpi-label {

@@ -136,7 +136,7 @@ export default function ClaimsAnalyticsPage() {
 }
 
 function MetricCard({ label, value, icon: Icon }: { label: string; value: string; icon: React.ComponentType<{ className?: string }> }) {
-  return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</span><Icon className="h-5 w-5 text-brand-blue" /></div><p className="mt-4 text-2xl font-black text-slate-900">{value}</p></div>;
+  return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-center justify-between"><span className="text-xs font-bold uppercase tracking-wider text-slate-400">{label}</span><Icon className="h-5 w-5 text-brand-blue" /></div><p className="nmis-number mt-4 text-2xl font-black text-slate-900">{value}</p></div>;
 }
 
 function ChartCard({ title, className = '', children }: { title: string; className?: string; children: React.ReactNode }) {
@@ -145,7 +145,7 @@ function ChartCard({ title, className = '', children }: { title: string; classNa
 
 function RankingCard({ title, data, formatValue }: { title: string; data: Array<{ name: string; value: number }>; formatValue: (value: number) => string }) {
   const max = data[0]?.value || 1;
-  return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-slate-900">{title}</h2><div className="mt-5 space-y-4">{data.slice(0, 6).map((item, index) => <div key={item.name}><div className="flex items-center justify-between gap-4 text-sm"><span className="truncate font-semibold text-slate-700">{index + 1}. {item.name}</span><span className="shrink-0 font-black text-slate-900">{formatValue(item.value)}</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-brand-blue" style={{ width: `${Math.max((item.value / max) * 100, 4)}%` }} /></div></div>)}</div></div>;
+  return <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><h2 className="text-lg font-bold text-slate-900">{title}</h2><div className="mt-5 space-y-4">{data.slice(0, 6).map((item, index) => <div key={item.name}><div className="flex items-center justify-between gap-4 text-sm"><span className="truncate font-semibold text-slate-700">{index + 1}. {item.name}</span><span className="nmis-number shrink-0 font-black text-slate-900">{formatValue(item.value)}</span></div><div className="mt-2 h-2 rounded-full bg-slate-100"><div className="h-full rounded-full bg-brand-blue" style={{ width: `${Math.max((item.value / max) * 100, 4)}%` }} /></div></div>)}</div></div>;
 }
 
 function formatNaira(amount: number) { return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number.isFinite(amount) ? amount : 0); }

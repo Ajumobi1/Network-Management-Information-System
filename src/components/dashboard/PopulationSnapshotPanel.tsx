@@ -31,22 +31,22 @@ export default function PopulationSnapshotPanel() {
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <Users className="h-5 w-5 text-brand-blue" />
-              <p className="mt-3 text-2xl font-semibold text-slate-900">{data.totalEnrollees.toLocaleString()}</p>
+              <p className="nmis-number mt-3 text-2xl font-semibold text-slate-900">{data.totalEnrollees.toLocaleString()}</p>
               <p className="mt-1 text-xs text-slate-500">Total enrollees</p>
             </div>
             <div className="rounded-2xl bg-emerald-50 p-4">
               <Users className="h-5 w-5 text-emerald-700" />
-              <p className="mt-3 text-2xl font-semibold text-slate-900">{data.formalCount.toLocaleString()}</p>
+              <p className="nmis-number mt-3 text-2xl font-semibold text-slate-900">{data.formalCount.toLocaleString()}</p>
               <p className="mt-1 text-xs text-slate-500">Formal · {data.formalPercentage}%</p>
             </div>
             <div className="rounded-2xl bg-amber-50 p-4">
               <Users className="h-5 w-5 text-amber-700" />
-              <p className="mt-3 text-2xl font-semibold text-slate-900">{data.informalCount.toLocaleString()}</p>
+              <p className="nmis-number mt-3 text-2xl font-semibold text-slate-900">{data.informalCount.toLocaleString()}</p>
               <p className="mt-1 text-xs text-slate-500">Informal · {data.informalPercentage}%</p>
             </div>
             <div className="rounded-2xl bg-sky-50 p-4">
               <MapPin className="h-5 w-5 text-sky-700" />
-              <p className="mt-3 text-2xl font-semibold text-slate-900">{data.providerCount}</p>
+              <p className="nmis-number mt-3 text-2xl font-semibold text-slate-900">{data.providerCount.toLocaleString()}</p>
               <p className="mt-1 text-xs text-slate-500">Facilities covered</p>
             </div>
           </div>
@@ -67,7 +67,7 @@ export default function PopulationSnapshotPanel() {
                   <div key={item.name}>
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="capitalize text-slate-600">{label}</span>
-                      <span className="font-semibold text-slate-900">{item.value}</span>
+                      <span className="nmis-number font-semibold text-slate-900">{item.value.toLocaleString()}</span>
                     </div>
                     <div className="h-2 rounded-full bg-slate-100"><div className={`h-2 rounded-full ${item.name === 'formal' ? 'bg-brand-blue' : 'bg-amber-500'}`} style={{ width: `${percentage}%` }} /></div>
                   </div>
@@ -86,12 +86,12 @@ export default function PopulationSnapshotPanel() {
               <WalletCards className="h-5 w-5 text-slate-400" />
             </div>
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Linked expenditure</p><p className="mt-1 text-lg font-semibold text-slate-900">{formatNaira(data.financialExpenditure)}</p></div>
-              <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">PEPM</p><p className="mt-1 text-lg font-semibold text-slate-900">{formatNaira(data.pepm)}</p></div>
+              <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">Linked expenditure</p><p className="nmis-number mt-1 text-lg font-semibold text-slate-900">{formatNaira(data.financialExpenditure)}</p></div>
+              <div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">PEPM</p><p className="nmis-number mt-1 text-lg font-semibold text-slate-900">{formatNaira(data.pepm)}</p></div>
             </div>
             <div className="mt-5 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Top enrolment LGAs</p>
-              {data.byLga.slice(0, 4).map(item => <div key={item.name} className="flex items-center justify-between text-sm"><span className="truncate pr-3 text-slate-600">{item.name}</span><span className="font-semibold text-slate-900">{item.value}</span></div>)}
+              {data.byLga.slice(0, 4).map(item => <div key={item.name} className="flex items-center justify-between text-sm"><span className="truncate pr-3 text-slate-600">{item.name}</span><span className="nmis-number font-semibold text-slate-900">{item.value.toLocaleString()}</span></div>)}
             </div>
           </div>
         </div>

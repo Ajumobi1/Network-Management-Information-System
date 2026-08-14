@@ -198,11 +198,11 @@ export default function PopulationOverviewPage() {
             <div className="mt-8 grid grid-cols-2 gap-8">
               <div>
                 <p className="nmis-label">Linked Expenditure</p>
-                <p className="text-xl font-black text-brand-navy">{formatNaira(analytics.financialExpenditure)}</p>
+                <p className="nmis-number text-xl font-black text-brand-navy">{formatNaira(analytics.financialExpenditure)}</p>
               </div>
               <div>
                 <p className="nmis-label">Current PEPM</p>
-                <p className="text-xl font-black text-brand-navy">{formatNaira(analytics.pepm)}</p>
+                <p className="nmis-number text-xl font-black text-brand-navy">{formatNaira(analytics.pepm)}</p>
               </div>
             </div>
           </Card>
