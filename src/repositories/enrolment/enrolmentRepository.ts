@@ -186,8 +186,11 @@ export async function fetchEnrollees(filters: EnrolmentFilters = {}): Promise<En
     p_page_size: pageSize,
     p_sort: filters.sortField === 'providerName' ? 'provider_name' :
             filters.sortField === 'policyNumber' ? 'policy_number' :
-            filters.sortField === 'beneficiary' ? 'first_name' :
+            filters.sortField === 'beneficiary' ? 'beneficiary' :
             filters.sortField === 'district' ? 'senatorial_district' :
+            filters.sortField === 'gender' ? 'gender' :
+            filters.sortField === 'category' ? 'category' :
+            filters.sortField === 'sector' ? 'sector' :
             filters.sortField || 'policy_number',
     p_sort_direction: filters.sortDirection || 'asc',
   });
