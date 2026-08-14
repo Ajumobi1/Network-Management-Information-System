@@ -283,13 +283,23 @@ export const financialDataService = {
     if (locationMatches.length === 1) return confirmed(locationMatches[0], 0.93, 'location');
     if (locationMatches.length > 1) return pending(locationMatches, 0.93, 'location');
 
-    // 4. Normalized/Fuzzy Match
+    // 4. Normalized/Fuzzy Match (with auto-confirm for single substring match)
     const fuzzyMatches = providers.filter(provider => {
-      const providerName = normalizeText(provider.providerName);
-      return providerName.includes(normalizedName) || normalizedName.includes(providerName);
+      const pName = normalizeText(provider.providerName);
+      // Remove common legal/suffix words to compare core name
+      const cleanTarget = normalizedName.replace(/hospital|memorial|clinic|health|center|centre|akungba|akure|ondo/g, '').trim();
+      const cleanProvider = pName.replace(/hospital|memorial|clinic|health|center|centre|akungba|akure|ondo/g, '').trim();
+      return pName.includes(normalizedName) || normalizedName.includes(pName) || (cleanTarget.length > 3 && cleanProvider.includes(cleanTarget));
     });
-    if (fuzzyMatches.length === 1) return pending(fuzzyMatches, 0.82, 'normalized');
+    if (fuzzyMatches.length === 1) return confirmed(fuzzyMatches[0], 0.88, 'normalized');
     if (fuzzyMatches.length > 1) return pending(fuzzyMatches, 0.7, 'normalized');
+
+    // 5. Absolute Fallback: if any provider contains part of the name
+    if (providers.length > 0) {
+      const firstWords = normalizedName.split(' ')[0];
+      const partialMatches = providers.filter(p => normalizeText(p.providerName).includes(firstWords));
+      if (partialMatches.length === 1) return confirmed(partialMatches[0], 0.75, 'normalized');
+    }
 
     return { excelName: name, confidence: 0, matchType: 'none', status: 'pending' };
   },
