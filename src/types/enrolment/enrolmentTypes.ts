@@ -105,6 +105,7 @@ export interface EnrolleeRecord {
 
   createdAt: string;
   updatedAt: string;
+  totalCount?: number;
   metadata?: Record<string, any>;
 }
 
@@ -120,6 +121,10 @@ export interface EnrolmentFilters {
   period?: string | 'all';
   year?: number;
   month?: number;
+  page?: number;
+  pageSize?: number;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 export interface EnrolmentAnalytics {

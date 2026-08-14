@@ -79,6 +79,7 @@ export interface FinancialRecord {
 
   createdAt: string;
   updatedAt: string;
+  totalCount?: number;
 }
 
 export interface ImportBatch {

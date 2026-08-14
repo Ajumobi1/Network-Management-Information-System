@@ -44,6 +44,7 @@ type SecureFinancialRow = {
   fingerprint?: string | null;
   created_at: string;
   updated_at: string;
+  total_count?: number | null;
 };
 
 function mapSecureFinancialRow(row: SecureFinancialRow): FinancialRecord {
@@ -75,6 +76,7 @@ function mapSecureFinancialRow(row: SecureFinancialRow): FinancialRecord {
     fingerprint: row.fingerprint || undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    totalCount: row.total_count ? Number(row.total_count) : undefined,
   };
 }
 
@@ -94,6 +96,10 @@ export interface FinancialFilters {
   maxAmount?: number;
   status?: RecordValidationStatus;
   search?: string;
+  page?: number;
+  pageSize?: number;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
 }
 
 function applyMockFilters(records: FinancialRecord[], filters: FinancialFilters): FinancialRecord[] {
@@ -139,6 +145,11 @@ function reportingArgs(filters: FinancialFilters): Record<string, unknown> {
 /** Read-only financial rows are returned through the role-gated register contract. */
 export async function fetchFinancialRecords(filters: FinancialFilters = {}): Promise<FinancialRecord[]> {
   if (useMockData) return applyMockFilters(mockFinancialRecords, filters);
+
+  const page = filters.page ?? 1;
+  const pageSize = filters.pageSize ?? 50000;
+  const offset = (page - 1) * pageSize;
+
   const rows = await invokeSecureRpc<SecureFinancialRow[]>('nmis_list_financial_register', {
     p_data_type: filters.dataType ?? null,
     p_year: filters.year ?? null,
@@ -152,8 +163,8 @@ export async function fetchFinancialRecords(filters: FinancialFilters = {}): Pro
     p_claims_category: filters.claimsCategory ?? null,
     p_status: filters.status ?? null,
     p_search: filters.search ?? null,
-    p_offset: 0,
-    p_page_size: 50000,
+    p_offset: offset,
+    p_page_size: pageSize,
   });
   return rows.map(mapSecureFinancialRow);
 }

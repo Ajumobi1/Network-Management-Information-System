@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BarChart3, Building2, Calendar, Download, FileText, Filter, Search, Users, ChevronLeft, ChevronRight, ArrowDownUp } from 'lucide-react';
 import { ProviderCategory, ProviderOwnership } from '../../constants/providerNetwork';
 import Badge from '../../components/ui/Badge';
@@ -43,6 +43,8 @@ export default function FinancialRegisterPage({ type }: Props) {
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   const filters = useMemo<FinancialFilters>(() => ({
     dataType: type,
@@ -56,10 +58,17 @@ export default function FinancialRegisterPage({ type }: Props) {
     claimsCategory: isClaims && claimsCategory ? claimsCategory : undefined,
     minAmount: minAmount ? Number(minAmount) : undefined,
     maxAmount: maxAmount ? Number(maxAmount) : undefined,
-  }), [claimsCategory, facilityType, isClaims, lga, maxAmount, minAmount, month, ownership, search, state, type, year]);
+    page,
+    pageSize,
+  }), [claimsCategory, facilityType, isClaims, lga, maxAmount, minAmount, month, ownership, search, state, type, year, page]);
 
   const { data: records = [], isLoading, isError, error, refetch } = useFinancialRecords(filters);
   const { data: summary, isLoading: isSummaryLoading } = useFinancialRegisterSummary(filters);
+
+  const totalMatching = summary?.totalRecords ?? records[0]?.totalCount ?? records.length;
+  const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
+
+  useEffect(() => setPage(1), [search, year, month, facilityType, ownership, state, lga, claimsCategory, minAmount, maxAmount, type]);
 
   const title = type === 'claims' ? 'Claims Register' : type === 'capitation' ? 'Capitation Analysis' : type === 'ffs' ? 'FFS Register' : 'Enrolment Financials';
 
@@ -160,9 +169,9 @@ export default function FinancialRegisterPage({ type }: Props) {
         <div className="nmis-table-wrap">
           <div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-black text-brand-foreground">{isClaims ? 'Claims Register' : `${type.toUpperCase()} Register`}</h2>
-              <p className="nmis-helper">{records.length.toLocaleString()} matching records in current context.</p>
-            </div>
+<h2 className="text-lg font-black text-brand-foreground">{isClaims ? 'Claims Register' : `${type.toUpperCase()} Register`}</h2>
+	              <p className="nmis-helper">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p>
+	            </div>
             <Badge variant="info" className="w-fit">Source Traceable</Badge>
           </div>
 
@@ -217,13 +226,13 @@ export default function FinancialRegisterPage({ type }: Props) {
             </table>
           </div>
 
-          <div className="flex items-center justify-between p-4 border-t border-brand-divider">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-brand-muted">Register View 1.0</p>
-            <div className="flex gap-2">
-              <Button variant="secondary" size="sm" disabled><ChevronLeft size={16} /></Button>
-              <Button variant="secondary" size="sm" disabled><ChevronRight size={16} /></Button>
-            </div>
-          </div>
+<div className="flex items-center justify-between p-4 border-t border-brand-divider">
+	            <p className="text-sm text-brand-muted">Page {page} of {totalPages}</p>
+	            <div className="flex gap-2">
+	              <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft size={16} /></Button>
+	              <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight size={16} /></Button>
+	            </div>
+	          </div>
         </div>
       </div>
     </main>

@@ -8,7 +8,7 @@ import FilterBar from '../../components/ui/FilterBar';
 import Input from '../../components/ui/Input';
 import KpiCard from '../../components/ui/KpiCard';
 import PageHeader from '../../components/ui/PageHeader';
-import { useEnrollee, useEnrollees } from '../../hooks/enrolment';
+import { useEnrollee, useEnrollees, useEnrolmentAnalytics } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
 import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
 import { isSecureContractError } from '../../lib/security/secureContracts';
@@ -30,15 +30,32 @@ export default function EnrolmentRegisterPage() {
   const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const pageSize = 15;
+
   const allRecordsQuery = useEnrollees();
   const allRecords = allRecordsQuery.data ?? [];
   const allLoading = allRecordsQuery.isLoading;
-  const filters = useMemo<EnrolmentFilters>(() => ({ search, sector, category, gender, state, lga, senatorialDistrict: district, providerId, period }), [category, district, gender, lga, period, providerId, search, sector, state]);
-  const recordsQuery = useEnrollees(filters);
+
+  const filters = useMemo<EnrolmentFilters>(() => ({
+    search, sector, category, gender, state, lga, senatorialDistrict: district, providerId, period
+  }), [category, district, gender, lga, period, providerId, search, sector, state]);
+
+  const analyticsQuery = useEnrolmentAnalytics(filters);
+  const analytics = analyticsQuery.data;
+  const isAnalyticsLoading = analyticsQuery.isLoading;
+
+  const recordsQuery = useEnrollees({
+    ...filters,
+    page,
+    pageSize,
+    sortField,
+    sortDirection
+  });
   const records = recordsQuery.data ?? [];
   const isLoading = recordsQuery.isLoading;
+
   const { data: selectedRecord } = useEnrollee(selectedId);
-  const secureError = [allRecordsQuery.error, recordsQuery.error].find(isSecureContractError);
+  const secureError = [allRecordsQuery.error, recordsQuery.error, analyticsQuery.error].find(isSecureContractError);
+
   useEffect(() => setPage(1), [search, sector, category, gender, state, lga, district, providerId, period]);
 
   const options = useMemo(() => ({
@@ -49,29 +66,47 @@ export default function EnrolmentRegisterPage() {
     providers: Array.from(new Map(allRecords.map(record => [record.providerId || record.providerName, { id: record.providerId || record.providerName, name: record.providerName }])).values()).sort((a, b) => a.name.localeCompare(b.name)),
   }), [allRecords]);
 
-  const sortedRecords = useMemo(() => [...records].sort((a, b) => sortValue(a, sortField).localeCompare(sortValue(b, sortField)) * (sortDirection === 'asc' ? 1 : -1)), [records, sortDirection, sortField]);
-  const totalPages = Math.max(1, Math.ceil(sortedRecords.length / pageSize));
-  const visibleRecords = sortedRecords.slice((page - 1) * pageSize, page * pageSize);
+  const totalMatching = analytics?.totalEnrollees ?? records[0]?.totalCount ?? records.length;
+  const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
+
   const clearFilters = () => { setSearch(''); setSector('all'); setCategory('all'); setGender('all'); setState('all'); setLga('all'); setDistrict('all'); setProviderId('all'); setPeriod('all'); };
   const activeFilterChips = [search ? { id: 'search', label: 'Search', value: search } : null, sector !== 'all' ? { id: 'sector', label: 'Sector', value: sector || '' } : null, category !== 'all' ? { id: 'category', label: 'Category', value: category || '' } : null, gender !== 'all' ? { id: 'gender', label: 'Gender', value: gender } : null, state !== 'all' ? { id: 'state', label: 'State', value: state } : null, lga !== 'all' ? { id: 'lga', label: 'LGA', value: lga } : null, district !== 'all' ? { id: 'district', label: 'District', value: district } : null, providerId !== 'all' ? { id: 'providerId', label: 'Facility', value: options.providers.find(provider => provider.id === providerId)?.name || providerId } : null, period !== 'all' ? { id: 'period', label: 'Period', value: period } : null].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
   const removeFilter = (id: string) => { if (id === 'search') setSearch(''); if (id === 'sector') setSector('all'); if (id === 'category') setCategory('all'); if (id === 'gender') setGender('all'); if (id === 'state') setState('all'); if (id === 'lga') setLga('all'); if (id === 'district') setDistrict('all'); if (id === 'providerId') setProviderId('all'); if (id === 'period') setPeriod('all'); };
   const toggleSort = (field: SortField) => { if (sortField === field) setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDirection('asc'); } };
-  const exportCsv = () => { if (sortedRecords.length === 0) return; const headers = ['Policy Number', 'Category', 'Sector', 'First Name', 'Last Name', 'Gender', 'Phone', 'Facility', 'Provider Code', 'LGA', 'State', 'Senatorial District', 'Period', 'Status']; const rows = sortedRecords.map(record => [record.policyNumber, record.category, record.sector, record.firstName, record.lastName, record.gender, record.phoneNumber, record.providerName, record.providerCode, record.lga, record.state, record.senatorialDistrict, record.period, record.recordStatus]); const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n'); const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' })); const link = document.createElement('a'); link.href = url; link.download = `nmis-enrolment-register-${period === 'all' ? 'all-periods' : period}.csv`; link.click(); URL.revokeObjectURL(url); };
 
-  const formalCount = records.filter(record => record.sector === 'formal').length;
-  const informalCount = records.filter(record => record.sector === 'informal').length;
-  const principalCount = records.filter(record => record.category === 'principal').length;
-  const dependantCount = records.filter(record => record.category === 'dependant').length;
+  const exportCsv = () => {
+    if (records.length === 0) return;
+    const headers = ['Policy Number', 'Category', 'Sector', 'First Name', 'Last Name', 'Gender', 'Phone', 'Facility', 'Provider Code', 'LGA', 'State', 'Senatorial District', 'Period', 'Status'];
+    const rows = records.map(record => [record.policyNumber, record.category, record.sector, record.firstName, record.lastName, record.gender, record.phoneNumber, record.providerName, record.providerCode, record.lga, record.state, record.senatorialDistrict, record.period, record.recordStatus]);
+    const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `nmis-enrolment-register-${period === 'all' ? 'all-periods' : period}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const formalCount = analytics?.formalCount ?? 0;
+  const informalCount = analytics?.informalCount ?? 0;
+  const principalCount = analytics?.principalCount ?? 0;
+  const dependantCount = analytics?.dependantCount ?? 0;
 
   if (secureError) {
     return <div className="space-y-6"><PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Individual beneficiary records require an explicitly approved PII access contract." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link></>} /><Card className="border-amber-200 bg-amber-50"><div className="space-y-2 p-5"><p className="font-semibold text-amber-900">Secure access unavailable</p><p className="text-sm text-amber-800">This user does not have an approved browser contract for enrollee register, detail, or export access. No records were loaded.</p><p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{secureError.code}</p></div></Card></div>;
   }
 
   return <div className="space-y-6">
-    <PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={exportCsv} disabled={sortedRecords.length === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
-    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5"><KpiCard title="Matching records" value={records.length.toLocaleString()} subtitle="Current filter context" tone="primary" /><KpiCard title="Formal" value={formalCount.toLocaleString()} subtitle="/C/ policy sector" tone="success" /><KpiCard title="Informal" value={informalCount.toLocaleString()} subtitle="/D/ policy sector" tone="warning" /><KpiCard title="Principals" value={principalCount.toLocaleString()} subtitle="Source CATEGORY" tone="info" /><KpiCard title="Dependants" value={dependantCount.toLocaleString()} subtitle="Source CATEGORY" tone="neutral" /></section>
-    <FilterBar primaryFilters={<><label className="relative min-w-[240px] flex-[2]"><span className="nmis-label">Search records</span><Search className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-brand-subtle" /><Input aria-label="Search policy, beneficiary, facility, or LGA" placeholder="Policy, beneficiary, facility, LGA..." value={search} onChange={event => setSearch(event.target.value)} className="pl-9" /></label><Select label="Sector" value={sector || 'all'} onChange={value => setSector(value as EnrolmentFilters['sector'])} options={['all', 'formal', 'informal']} /><Select label="Category" value={category || 'all'} onChange={value => setCategory(value as EnrolmentFilters['category'])} options={['all', 'principal', 'dependant']} /><Select label="Period" value={period} onChange={setPeriod} options={['all', ...options.periods]} /></>} advancedFilters={<><Select label="Gender" value={gender} onChange={setGender} options={['all', 'male', 'female', 'other']} /><Select label="State" value={state} onChange={setState} options={['all', ...options.states]} /><Select label="LGA" value={lga} onChange={setLga} options={['all', ...options.lgas]} /><Select label="Senatorial district" value={district} onChange={setDistrict} options={['all', ...options.districts]} /><label><span className="nmis-label">Facility</span><select className="nmis-control" value={providerId} onChange={event => setProviderId(event.target.value)}><option value="all">All facilities</option>{options.providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label></>} activeFilters={<ActiveFilterChips chips={activeFilterChips} onRemove={removeFilter} onClear={clearFilters} />} onReset={clearFilters} />
-    <section className="nmis-table-wrap"><div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="nmis-section-title">Normalized beneficiary records</h2><p className="nmis-section-subtitle">Showing {visibleRecords.length.toLocaleString()} of {sortedRecords.length.toLocaleString()} matching records.</p></div><div className="flex items-center gap-2 text-xs text-brand-muted"><span>Sort by</span><select className="nmis-control min-h-8 py-1.5 text-xs" value={sortField} onChange={event => setSortField(event.target.value as SortField)}><option value="policyNumber">Policy number</option><option value="beneficiary">Beneficiary</option><option value="providerName">Facility</option><option value="lga">LGA</option><option value="period">Period</option></select><button type="button" className="rounded-control border border-brand-border bg-brand-card px-2 py-1 font-bold text-brand-secondary" onClick={() => setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc')}>{sortDirection === 'asc' ? 'A–Z' : 'Z–A'}</button></div></div><div className="overflow-x-auto"><table className="nmis-table min-w-[1250px]"><thead><tr><SortableHead label="Policy number" field="policyNumber" active={sortField} onClick={toggleSort} /><SortableHead label="Category" /><SortableHead label="Sector" /><SortableHead label="Beneficiary" field="beneficiary" active={sortField} onClick={toggleSort} /><SortableHead label="Gender" /><SortableHead label="Facility" field="providerName" active={sortField} onClick={toggleSort} /><SortableHead label="LGA" field="lga" active={sortField} onClick={toggleSort} /><SortableHead label="Senatorial district" /><SortableHead label="Period" field="period" active={sortField} onClick={toggleSort} /><SortableHead label="Status" /></tr></thead><tbody>{isLoading || allLoading ? <LoadingRows /> : visibleRecords.length === 0 ? <EmptyRow /> : visibleRecords.map(record => <RegisterRow key={record.id} record={record} onSelect={() => setSelectedId(record.id)} />)}</tbody></table></div><div className="flex items-center justify-between border-t border-brand-divider px-5 py-4 text-sm"><p className="text-brand-muted">Page {page} of {totalPages}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(current => current - 1)}>Previous</Button><Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(current => current + 1)}>Next</Button></div></div></section>
+<PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={exportCsv} disabled={records.length === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
+	    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <KpiCard title="Matching records" value={isAnalyticsLoading ? '...' : totalMatching.toLocaleString()} subtitle="Current filter context" tone="primary" />
+        <KpiCard title="Formal" value={isAnalyticsLoading ? '...' : formalCount.toLocaleString()} subtitle="/C/ policy sector" tone="success" />
+        <KpiCard title="Informal" value={isAnalyticsLoading ? '...' : informalCount.toLocaleString()} subtitle="/D/ policy sector" tone="warning" />
+        <KpiCard title="Principals" value={isAnalyticsLoading ? '...' : principalCount.toLocaleString()} subtitle="Source CATEGORY" tone="info" />
+        <KpiCard title="Dependants" value={isAnalyticsLoading ? '...' : dependantCount.toLocaleString()} subtitle="Source CATEGORY" tone="neutral" />
+      </section>
+	    <FilterBar primaryFilters={<><label className="relative min-w-[240px] flex-[2]"><span className="nmis-label">Search records</span><Search className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-brand-subtle" /><Input aria-label="Search policy, beneficiary, facility, or LGA" placeholder="Policy, beneficiary, facility, LGA..." value={search} onChange={event => setSearch(event.target.value)} className="pl-9" /></label><Select label="Sector" value={sector || 'all'} onChange={value => setSector(value as EnrolmentFilters['sector'])} options={['all', 'formal', 'informal']} /><Select label="Category" value={category || 'all'} onChange={value => setCategory(value as EnrolmentFilters['category'])} options={['all', 'principal', 'dependant']} /><Select label="Period" value={period} onChange={setPeriod} options={['all', ...options.periods]} /></>} advancedFilters={<><Select label="Gender" value={gender} onChange={setGender} options={['all', 'male', 'female', 'other']} /><Select label="State" value={state} onChange={setState} options={['all', ...options.states]} /><Select label="LGA" value={lga} onChange={setLga} options={['all', ...options.lgas]} /><Select label="Senatorial district" value={district} onChange={setDistrict} options={['all', ...options.districts]} /><label><span className="nmis-label">Facility</span><select className="nmis-control" value={providerId} onChange={event => setProviderId(event.target.value)}><option value="all">All facilities</option>{options.providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label></>} activeFilters={<ActiveFilterChips chips={activeFilterChips} onRemove={removeFilter} onClear={clearFilters} />} onReset={clearFilters} />
+	    <section className="nmis-table-wrap"><div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="nmis-section-title">Normalized beneficiary records</h2><p className="nmis-section-subtitle">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p></div><div className="flex items-center gap-2 text-xs text-brand-muted"><span>Sort by</span><select className="nmis-control min-h-8 py-1.5 text-xs" value={sortField} onChange={event => setSortField(event.target.value as SortField)}><option value="policyNumber">Policy number</option><option value="beneficiary">Beneficiary</option><option value="providerName">Facility</option><option value="lga">LGA</option><option value="period">Period</option></select><button type="button" className="rounded-control border border-brand-border bg-brand-card px-2 py-1 font-bold text-brand-secondary" onClick={() => setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc')}>{sortDirection === 'asc' ? 'A–Z' : 'Z–A'}</button></div></div><div className="overflow-x-auto"><table className="nmis-table min-w-[1250px]"><thead><tr><SortableHead label="Policy number" field="policyNumber" active={sortField} onClick={toggleSort} /><SortableHead label="Category" /><SortableHead label="Sector" /><SortableHead label="Beneficiary" field="beneficiary" active={sortField} onClick={toggleSort} /><SortableHead label="Gender" /><SortableHead label="Facility" field="providerName" active={sortField} onClick={toggleSort} /><SortableHead label="LGA" field="lga" active={sortField} onClick={toggleSort} /><SortableHead label="Senatorial district" /><SortableHead label="Period" field="period" active={sortField} onClick={toggleSort} /><SortableHead label="Status" /></tr></thead><tbody>{isLoading || allLoading ? <LoadingRows /> : records.length === 0 ? <EmptyRow /> : records.map(record => <RegisterRow key={record.id} record={record} onSelect={() => setSelectedId(record.id)} />)}</tbody></table></div><div className="flex items-center justify-between border-t border-brand-divider px-5 py-4 text-sm"><p className="text-brand-muted">Page {page} of {totalPages}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(current => current - 1)}>Previous</Button><Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(current => current + 1)}>Next</Button></div></div></section>
     {selectedId && <DetailDrawer record={selectedRecord} onClose={() => setSelectedId(null)} />}
   </div>;
 }

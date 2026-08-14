@@ -72,6 +72,7 @@ function mapSecureEnrolleeRow(row: SecureEnrolleeRow): EnrolleeRecord {
     fingerprint: row.fingerprint,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    totalCount: row.total_count ? Number(row.total_count) : undefined,
   };
 }
 
@@ -164,6 +165,11 @@ function populationArgs(filters: EnrolmentFilters): Record<string, unknown> {
 
 export async function fetchEnrollees(filters: EnrolmentFilters = {}): Promise<EnrolleeRecord[]> {
   if (useMockData) return (await getEnrolleesMock()).filter(record => matchesFilter(record, filters));
+
+  const page = filters.page ?? 1;
+  const pageSize = filters.pageSize ?? 50000;
+  const offset = (page - 1) * pageSize;
+
   const rows = await invokeSecureRpc<SecureEnrolleeRow[]>('nmis_list_enrollee_register', {
     p_search: filters.search || null,
     p_sector: activeFilter(filters.sector),
@@ -176,10 +182,12 @@ export async function fetchEnrollees(filters: EnrolmentFilters = {}): Promise<En
     p_period: activeFilter(filters.period),
     p_year: filters.year ?? null,
     p_month: filters.month ?? null,
-    p_offset: 0,
-    p_page_size: 50000,
-    p_sort: 'policy_number',
-    p_sort_direction: 'asc',
+    p_offset: offset,
+    p_page_size: pageSize,
+    p_sort: filters.sortField === 'providerName' ? 'provider_name' :
+            filters.sortField === 'policyNumber' ? 'policy_number' :
+            filters.sortField || 'policy_number',
+    p_sort_direction: filters.sortDirection || 'asc',
   });
   return rows.map(mapSecureEnrolleeRow);
 }
