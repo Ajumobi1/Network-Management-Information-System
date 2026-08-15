@@ -35,6 +35,7 @@ import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField, EnrolmentValida
 import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
+import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type RawRow = Record<string, unknown>;
@@ -65,6 +66,7 @@ interface FileQueueItem {
     normalizedRecords: EnrolleeRecord[];
     validationErrors: string[];
     extractedContext: { facilityName?: string; lga?: string; period?: string };
+    periodDetection: DetectedPeriod;
   };
 }
 
@@ -212,24 +214,10 @@ export default function EnrolmentUploadPage() {
         facilityName: workbookContext.facilityName || enrolmentService.extractFacilityNameFromFilename(item.file.name),
       };
       
-      // Automatic Period Detection from filename or context
-      let detectedYear = '';
-      let detectedMonth = '';
-      
-      const fileName = item.file.name.toLowerCase();
-      const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-      const monthIdx = monthNames.findIndex(m => fileName.includes(m));
-      if (monthIdx !== -1) detectedMonth = String(monthIdx + 1);
-      
-      const yearMatch = fileName.match(/202[4-6]/);
-      if (yearMatch) detectedYear = yearMatch[0];
-
-      if (context.period) {
-        const ctxYearMatch = context.period.match(/202[4-6]/);
-        if (ctxYearMatch) detectedYear = ctxYearMatch[0];
-        const ctxMonthIdx = monthNames.findIndex(m => context.period?.toLowerCase().includes(m));
-        if (ctxMonthIdx !== -1) detectedMonth = String(ctxMonthIdx + 1);
-      }
+      // Automatic Period Detection from filename, sheet metadata, and headers
+      const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
+      const detectedYear = detectedPeriod.year;
+      const detectedMonth = detectedPeriod.month;
 
       let hIndex = enrolmentService.detectHeaderRowIndex(matrix);
       let detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
@@ -254,6 +242,7 @@ export default function EnrolmentUploadPage() {
       updateQueueItem(item.id, {
         status: 'processing',
         rows: rows.length,
+        period: detectedYear && detectedMonth ? `${detectedYear}-${detectedMonth.padStart(2, '0')}` : undefined,
         data: {
           workbook,
           sourceSheet: sheetName,
@@ -262,15 +251,17 @@ export default function EnrolmentUploadPage() {
           headers: detectedHeaders,
           rawRows: rows,
           mappings: enrolmentService.suggestEnrolmentMappings(detectedHeaders),
-          reportingYear: detectedYear,
-          reportingMonth: detectedMonth,
+          reportingYear: detectedYear || '',
+          reportingMonth: detectedMonth || '',
           matches: [],
           normalizedRecords: [],
           validationErrors: [],
-          extractedContext: context
+          extractedContext: context,
+          periodDetection: detectedPeriod
         }
       });
-      setStep('inspect');
+      // Skip manual period selection only when both month and year were found.
+      setStep(detectedYear && detectedMonth ? 'map' : 'identify');
     } catch (error) {
       updateQueueItem(item.id, { status: 'error', message: error instanceof Error ? error.message : 'Inspection failed' });
       setErrorMessage(error instanceof Error ? error.message : 'The workbook could not be inspected.');
@@ -662,7 +653,11 @@ export default function EnrolmentUploadPage() {
               )}
 
               {step === 'identify' && activeItem?.data && (
-                <Panel title="Reporting Period" description="The AI has attempted to detect the period from the filename and workbook headers.">
+                <Panel title="Reporting Period" description="The workbook did not contain a complete reporting month and year. Confirm or enter the missing period before continuing.">
+                  <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    <p className="font-semibold">Manual period confirmation required</p>
+                    <p className="mt-1 text-xs">NMIS will not invent a reporting period. Any month or year that was detected is prefilled below; enter the missing value only when it is not written in the workbook.</p>
+                  </div>
                   <div className="grid gap-6 md:grid-cols-2">
                     <div>
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reporting Year</label>
@@ -691,7 +686,20 @@ export default function EnrolmentUploadPage() {
                     <Clock className="h-4 w-4 shrink-0" />
                     <p>Historical imports must be mapped to the correct month to ensure accurate capitation and FFS comparative analytics.</p>
                   </div>
-                  <Actions onBack={() => setStep('inspect')} onNext={() => setStep('map')} />
+                  <Actions
+                    onBack={() => setStep('inspect')}
+                    onNext={() => {
+                      const year = activeItem.data?.reportingYear.trim();
+                      const month = Number(activeItem.data?.reportingMonth);
+                      if (!/^20\d{2}$/.test(year || '') || !Number.isInteger(month) || month < 1 || month > 12) {
+                        setErrorMessage('Enter a valid reporting year and month before continuing.');
+                        return;
+                      }
+                      setErrorMessage('');
+                      updateQueueItem(activeItem.id, { period: `${year}-${String(month).padStart(2, '0')}` });
+                      setStep('map');
+                    }}
+                  />
                 </Panel>
               )}
 

@@ -343,7 +343,8 @@ export const financialDataService = {
     dataType: FinancialDataType,
     batchId: string,
     fileName: string,
-    sourceSheet?: string
+    sourceSheet?: string,
+    periodOverride?: { reportingYear: number; reportingMonth: number }
   ): FinancialRecord[] {
     const records: FinancialRecord[] = [];
     const now = new Date().toISOString();
@@ -386,6 +387,35 @@ export const financialDataService = {
           (baseData as any)[mapping.nmisField] = normalizedValue;
         }
       });
+
+      // Apply the shared workbook/file detection or the manual fallback selected by the user.
+      if (periodOverride) {
+        baseData.reportingYear = periodOverride.reportingYear;
+        baseData.reportingMonth = periodOverride.reportingMonth;
+      }
+
+      // Last-resort filename detection for callers outside the uploader UI.
+      // Never substitute the current date when the workbook has no period.
+      if (!baseData.reportingYear || !baseData.reportingMonth) {
+        const lowerName = fileName.toLowerCase();
+        const monthNamesList = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+        const mIdx = monthNamesList.findIndex(m => lowerName.includes(m) || lowerName.includes(m.slice(0, 3)));
+        const yMatch = lowerName.match(/20\d{2}/);
+        if (!baseData.reportingMonth && mIdx !== -1) baseData.reportingMonth = mIdx + 1;
+        if (!baseData.reportingYear && yMatch) baseData.reportingYear = Number(yMatch[0]);
+      }
+
+      const hasValidPeriod = Number.isInteger(baseData.reportingYear) && Number(baseData.reportingYear) >= 2000 && Number(baseData.reportingYear) <= 2100
+        && Number.isInteger(baseData.reportingMonth) && Number(baseData.reportingMonth) >= 1 && Number(baseData.reportingMonth) <= 12;
+      if (hasValidPeriod) {
+        baseData.period = baseData.period || `${baseData.reportingYear}-${Number(baseData.reportingMonth).toString().padStart(2, '0')}`;
+      } else {
+        baseData.reportingYear = 0;
+        baseData.reportingMonth = 0;
+        baseData.period = '';
+        baseData.recordStatus = 'error';
+        baseData.validationErrors = [...(baseData.validationErrors || []), 'Reporting month and year are required.'];
+      }
 
       // Handle horizontal months if present
       if (monthColumns.length > 0) {

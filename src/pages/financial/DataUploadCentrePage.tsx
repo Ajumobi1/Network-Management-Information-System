@@ -27,8 +27,9 @@ import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from
 import { useCheckDuplicateBatch, useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
 import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
+import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
 
-type UploadStep = 'upload' | 'inspect' | 'map' | 'match' | 'preview' | 'commit';
+type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'match' | 'preview' | 'commit';
 type RawRow = Record<string, unknown>;
 
 interface FileQueueItem {
@@ -54,13 +55,17 @@ interface FileQueueItem {
     matches: ProviderMatch[];
     normalizedRecords: FinancialRecord[];
     validationErrors: string[];
+    reportingYear?: string;
+    reportingMonth?: string;
+    periodDetection: DetectedPeriod;
   };
 }
 
-const steps: UploadStep[] = ['upload', 'inspect', 'map', 'match', 'preview', 'commit'];
+const steps: UploadStep[] = ['upload', 'inspect', 'identify', 'map', 'match', 'preview', 'commit'];
 const stepLabels: Record<UploadStep, string> = {
   upload: 'Upload',
   inspect: 'Inspect',
+  identify: 'Period',
   map: 'Map',
   match: 'Match',
   preview: 'Preview',
@@ -177,6 +182,7 @@ export default function DataUploadCentrePage() {
       const sheetName = workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+      const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
       
       const hIndex = 0;
       const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
@@ -196,10 +202,14 @@ export default function DataUploadCentrePage() {
           mappings: financialDataService.suggestMappings(detectedHeaders, item.dataType),
           matches: [],
           normalizedRecords: [],
-          validationErrors: []
+          validationErrors: [],
+          reportingYear: detectedPeriod.year,
+          reportingMonth: detectedPeriod.month,
+          periodDetection: detectedPeriod
         }
       });
-      setStep('inspect');
+      // Only open manual period selection when the workbook did not provide both values.
+      setStep(detectedPeriod.year && detectedPeriod.month ? 'inspect' : 'identify');
     } catch (error) {
       updateQueueItem(item.id, { status: 'error', message: error instanceof Error ? error.message : 'Inspection failed' });
       setErrorMessage(error instanceof Error ? error.message : 'Inspection failed');
@@ -247,9 +257,17 @@ export default function DataUploadCentrePage() {
 
   const generatePreview = () => {
     if (!activeItem?.data) return;
-    const { rawRows, mappings, matches } = activeItem.data;
+    const { rawRows, mappings, matches, reportingYear, reportingMonth } = activeItem.data;
     
-    const records = financialDataService.normalizeData(rawRows, mappings, activeItem.dataType, activeItem.id, activeItem.file.name, activeItem.data.sourceSheet);
+    const records = financialDataService.normalizeData(
+      rawRows,
+      mappings,
+      activeItem.dataType,
+      activeItem.id,
+      activeItem.file.name,
+      activeItem.data.sourceSheet,
+      reportingYear && reportingMonth ? { reportingYear: Number(reportingYear), reportingMonth: Number(reportingMonth) } : undefined,
+    );
     const errors = records.flatMap(r => (r.validationErrors || []).map(e => `Row ${r.sourceRow}: ${e}`));
     
     updateActiveData({ normalizedRecords: records, validationErrors: [...new Set(errors)] });
@@ -459,7 +477,57 @@ export default function DataUploadCentrePage() {
                       </table>
                     </div>
                   </div>
-                  <Actions onBack={reset} onNext={() => setStep('map')} />
+                  <Actions
+                    onBack={reset}
+                    onNext={() => setStep(activeItem.data?.reportingYear && activeItem.data?.reportingMonth ? 'map' : 'identify')}
+                  />
+                </Panel>
+              )}
+
+              {step === 'identify' && activeItem?.data && (
+                <Panel title="Reporting Period" description="The workbook did not contain a complete reporting month and year. Confirm or enter the missing period before continuing.">
+                  <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    <p className="font-semibold">Manual period confirmation required</p>
+                    <p className="mt-1 text-xs">NMIS will not invent a reporting period. Any value detected from the filename, worksheet name, or workbook metadata is prefilled below.</p>
+                  </div>
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reporting Year</label>
+                      <input
+                        className="mt-2 w-full rounded-xl border-slate-200 font-semibold"
+                        value={activeItem.data.reportingYear ?? ''}
+                        onChange={event => updateActiveData({ reportingYear: event.target.value })}
+                        placeholder="e.g. 2026"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Reporting Month</label>
+                      <select
+                        className="mt-2 w-full rounded-xl border-slate-200 font-semibold"
+                        value={activeItem.data.reportingMonth ?? ''}
+                        onChange={event => updateActiveData({ reportingMonth: event.target.value })}
+                      >
+                        <option value="">Select Month</option>
+                        {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map((month, index) => (
+                          <option key={month} value={String(index + 1)}>{month}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <Actions
+                    onBack={() => setStep('inspect')}
+                    onNext={() => {
+                      const year = activeItem.data?.reportingYear?.trim();
+                      const month = Number(activeItem.data?.reportingMonth);
+                      if (!/^20\d{2}$/.test(year || '') || !Number.isInteger(month) || month < 1 || month > 12) {
+                        setErrorMessage('Enter a valid reporting year and month before continuing.');
+                        return;
+                      }
+                      setErrorMessage('');
+                      updateQueueItem(activeItem.id, { period: `${year}-${String(month).padStart(2, '0')}` });
+                      setStep('map');
+                    }}
+                  />
                 </Panel>
               )}
 
