@@ -318,6 +318,17 @@ function sumDashboardAmount(records: FinancialRecord[]): number {
   return records.reduce((total, record) => total + amountForDashboardRecord(record), 0);
 }
 
+function latestPeriodFromRecords(records: Array<{ reportingYear?: number; reportingMonth?: number; period?: string }>): { year: number; month: number; period: string } | undefined {
+  return records
+    .filter(record => Number.isInteger(record.reportingYear) && Number.isInteger(record.reportingMonth) && Number(record.reportingYear) > 0 && Number(record.reportingMonth) > 0)
+    .map(record => ({
+      year: Number(record.reportingYear),
+      month: Number(record.reportingMonth),
+      period: record.period || `${record.reportingYear}-${String(record.reportingMonth).padStart(2, '0')}`,
+    }))
+    .sort((a, b) => (b.year - a.year) || (b.month - a.month))[0];
+}
+
 function formatActivityLabel(dataType: ImportBatch['dataType']): string {
   if (dataType === 'enrolment') return 'Enrolment dataset imported';
   if (dataType === 'claims') return 'Claims dataset imported';
@@ -421,11 +432,17 @@ export async function fetchDashboardIntelligence(filters: DashboardFilters = {})
     fetchAuditLogs(),
   ]);
 
-  const scopedEnrolmentRecords = filterByProviderDirectory(allEnrolmentRecords, providerKeys, shouldScopeToDirectory);
+  const scopedEnrolmentHistory = filterByProviderDirectory(allEnrolmentRecords, providerKeys, shouldScopeToDirectory);
+  const scopedFinancialHistory = filterByProviderDirectory(financialRecords, providerKeys, shouldScopeToDirectory);
+  const hasExplicitPeriod = Boolean(filters.year || filters.month || (filters as DashboardFilters & { period?: string }).period);
+  const latestPeriod = hasExplicitPeriod ? undefined : latestPeriodFromRecords([...scopedEnrolmentHistory, ...scopedFinancialHistory]);
+  const isCurrentSnapshot = (record: { reportingYear?: number; reportingMonth?: number }) => !latestPeriod
+    || (record.reportingYear === latestPeriod.year && record.reportingMonth === latestPeriod.month);
+  const scopedEnrolmentRecords = scopedEnrolmentHistory.filter(isCurrentSnapshot);
+  const scopedFinancialRecords = scopedFinancialHistory.filter(isCurrentSnapshot);
   const selectedEnrolmentRecords = filters.sector && filters.sector !== 'all'
     ? scopedEnrolmentRecords.filter(record => record.sector === filters.sector)
     : scopedEnrolmentRecords;
-  const scopedFinancialRecords = filterByProviderDirectory(financialRecords, providerKeys, shouldScopeToDirectory);
   const selectedSector = filters.sector && filters.sector !== 'all' ? filters.sector : undefined;
   const allocatedFinancialRecords = allocateFinancialRecordsBySector(scopedFinancialRecords, scopedEnrolmentRecords, selectedSector);
   const scopedProviders = providerDirectory.filter(provider => {
@@ -445,8 +462,8 @@ export async function fetchDashboardIntelligence(filters: DashboardFilters = {})
   const dependantCount = selectedEnrolmentRecords.filter(record => record.category === 'dependant').length;
   const totalExpenditure = sumDashboardAmount(allocatedFinancialRecords);
   const financialByType = groupDashboardValues(allocatedFinancialRecords, record => record.dataType, amountForDashboardRecord);
-  const financialMonthlyTrend = sortPeriods(groupDashboardValues(allocatedFinancialRecords, record => record.period, amountForDashboardRecord));
-  const populationMonthlyTrend = sortPeriods(groupDashboardValues(selectedEnrolmentRecords, record => record.period));
+  const financialMonthlyTrend = sortPeriods(groupDashboardValues(scopedFinancialHistory, record => record.period, amountForDashboardRecord));
+  const populationMonthlyTrend = sortPeriods(groupDashboardValues(scopedEnrolmentHistory, record => record.period));
   const allFinancialProviderKeys = new Set(providerDirectory.flatMap(provider => recordProviderKeys({ providerId: provider.id, providerCode: provider.providerCode, providerName: provider.providerName })));
   const unmatchedProviderCount = new Set(scopedFinancialRecords.filter(record => !providerMatchesDirectory(record, allFinancialProviderKeys)).flatMap(record => recordProviderKeys(record))).size;
   const networkPepm = selectedEnrolmentRecords.length > 0 ? totalExpenditure / selectedEnrolmentRecords.length : 0;
@@ -478,13 +495,17 @@ export async function fetchDashboardIntelligence(filters: DashboardFilters = {})
     }),
   ].sort((a, b) => b.timestamp.localeCompare(a.timestamp)).slice(0, 8);
   const timestamps = [
-    ...scopedEnrolmentRecords.flatMap(record => [record.updatedAt, record.createdAt]),
-    ...scopedFinancialRecords.flatMap(record => [record.updatedAt, record.createdAt]),
+    ...scopedEnrolmentHistory.flatMap(record => [record.updatedAt, record.createdAt]),
+    ...scopedFinancialHistory.flatMap(record => [record.updatedAt, record.createdAt]),
     ...importBatches.map(batch => batch.uploadedAt),
     ...auditLogs.flatMap(log => log.createdAt ? [log.createdAt] : []),
   ].filter(Boolean).sort();
   const periodCandidates = [...populationMonthlyTrend, ...financialMonthlyTrend].map(item => item.name).sort();
-  const reportingPeriod = filters.year && filters.month ? `${filters.year}-${String(filters.month).padStart(2, '0')}` : filters.year ? String(filters.year) : periodCandidates[periodCandidates.length - 1] || 'All periods';
+  const reportingPeriod = filters.year && filters.month
+    ? `${filters.year}-${String(filters.month).padStart(2, '0')}`
+    : filters.year
+      ? String(filters.year)
+      : latestPeriod?.period || periodCandidates[periodCandidates.length - 1] || 'No reporting period';
   const filterOptions: Dashboard2Intelligence['filterOptions'] = {
     years: Array.from(new Set([...allEnrolmentRecords.map(record => record.reportingYear), ...financialRecords.map(record => record.reportingYear)].filter(Boolean))).sort((a, b) => b - a),
     months: Array.from(new Set([...allEnrolmentRecords.map(record => record.reportingMonth), ...financialRecords.map(record => record.reportingMonth)].filter(Boolean))).sort((a, b) => a - b),
