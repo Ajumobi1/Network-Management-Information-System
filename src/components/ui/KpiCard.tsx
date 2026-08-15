@@ -41,7 +41,7 @@ export default function KpiCard({ title, value, subtitle, icon, tone = 'primary'
             <p className="nmis-kpi-label truncate">{title}</p>
             {action}
           </div>
-          <p className={`nmis-kpi-value mt-3 break-words ${colors.value}`} title={typeof value === 'string' ? value : undefined}>{value}</p>
+          <p className={`nmis-kpi-value mt-3 ${colors.value}`} title={typeof value === 'string' ? value : undefined}>{value}</p>
           {subtitle ? <p className="nmis-helper mt-2 min-h-5 leading-5">{subtitle}</p> : null}
         </div>
         {icon ? <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-control ${colors.icon}`}>{icon}</span> : null}

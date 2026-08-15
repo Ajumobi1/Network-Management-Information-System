@@ -317,8 +317,8 @@ function analyticsFromDashboardIntelligence(intelligence: Dashboard2Intelligence
     monthlyTrend: population.monthlyTrend || [],
     financialExpenditure: Number(intelligence.financial.totalExpenditure || 0),
     financialRecordCount: Number(intelligence.matchedFinancialRecords || 0),
-    capitationRate: 750,
-    capitationExpenditure: totalEnrollees * 750,
+    capitationRate: Number(intelligence.population.capitationRate || 750),
+    capitationExpenditure: Number(intelligence.population.capitationExpenditure || 0),
     pepm: Number(intelligence.efficiency.networkPepm || 0),
     pepmTrend: intelligence.efficiency.trend || [],
   };
@@ -334,6 +334,8 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       dependant_count: number;
       male_count: number;
       female_count: number;
+      capitation_rate: number;
+      capitation_expenditure: number;
     }>>('nmis_enrollee_register_aggregates', {
       p_search: filters.search || null,
       p_sector: activeFilter(filters.sector),
@@ -356,6 +358,8 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       dependant_count: 0,
       male_count: 0,
       female_count: 0,
+      capitation_rate: 750,
+      capitation_expenditure: 0,
     };
 
     const totalEnrollees = Number(agg.total_count || 0);
@@ -365,13 +369,8 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
     const dependantCount = Number(agg.dependant_count || 0);
     const maleCount = Number(agg.male_count || 0);
     const femaleCount = Number(agg.female_count || 0);
-    let capitationRate = 750;
-    try {
-      const capitationSettings = await invokeSecureRpc<{ rate?: number }>('nmis_get_capitation_settings');
-      capitationRate = Number(capitationSettings.rate || 750);
-    } catch {
-      // Keep the approved default for analytics if the settings read is temporarily unavailable.
-    }
+    const capitationRate = Number(agg.capitation_rate || 750);
+    const capitationExpenditure = Number(agg.capitation_expenditure || 0);
     const percentage = (count: number) => totalEnrollees > 0 ? Number(((count / totalEnrollees) * 100).toFixed(1)) : 0;
 
     return {
@@ -406,11 +405,11 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       bySenatorialDistrict: filters.senatorialDistrict ? [{ name: filters.senatorialDistrict, value: totalEnrollees }] : [],
       byFacility: [],
       monthlyTrend: [],
-      financialExpenditure: 0,
+      financialExpenditure: 0, // In this path, we don't have linked finance yet
       financialRecordCount: 0,
       capitationRate,
-      capitationExpenditure: totalEnrollees * capitationRate,
-      pepm: 0,
+      capitationExpenditure,
+      pepm: totalEnrollees > 0 ? Number((capitationExpenditure / totalEnrollees).toFixed(2)) : 0,
       pepmTrend: [],
     };
   } catch (error) {

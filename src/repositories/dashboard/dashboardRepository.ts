@@ -513,7 +513,7 @@ export async function fetchDashboardIntelligence(filters: DashboardFilters = {})
       informal: informalCount,
       principal: principalCount,
       dependant: dependantCount,
-      capitationRate: 750, // Default for fallback; live mode uses the RPC
+      capitationRate: 750, // This is mock/fallback; live mode uses the RPC
       capitationExpenditure: selectedEnrolmentRecords.length * 750,
       bySector: groupDashboardValues(selectedEnrolmentRecords, record => record.sector),
       byCategory: groupDashboardValues(selectedEnrolmentRecords, record => record.category),
