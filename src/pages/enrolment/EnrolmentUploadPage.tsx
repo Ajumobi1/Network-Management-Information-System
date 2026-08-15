@@ -34,6 +34,7 @@ import { useCreateEnrolmentImportBatch } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField, EnrolmentValidationError } from '../../types/enrolment/enrolmentTypes';
 import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
+import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type RawRow = Record<string, unknown>;
@@ -128,14 +129,17 @@ export default function EnrolmentUploadPage() {
     setIsErrorModalOpen(true);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
+  const handleSelectedFiles = async (files: File[]) => {
+    const supportedFiles = filterSupportedUploadFiles(files);
+    if (supportedFiles.length === 0) {
+      setErrorMessage('No supported workbook files were found. Select XLSX, XLS, or CSV files.');
+      return;
+    }
 
     setErrorMessage('');
     setCommitMessage('');
-    
-    const newItems: FileQueueItem[] = files.map(file => ({
+
+    const newItems: FileQueueItem[] = supportedFiles.map(file => ({
       id: Math.random().toString(36).substring(7),
       file,
       status: 'pending',
@@ -148,7 +152,7 @@ export default function EnrolmentUploadPage() {
 
     setQueue(prev => [...prev, ...newItems]);
 
-    // Pre-inspect all files to get row counts
+    // Pre-inspect every selected workbook, including files discovered inside a folder.
     for (const item of newItems) {
       try {
         const wb = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
@@ -158,7 +162,6 @@ export default function EnrolmentUploadPage() {
         let rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIdx, defval: '', raw: false })
           .filter(r => Object.values(r).some(v => String(v).trim() !== ''));
 
-        // Fallback for pre-inspection
         if (rows.length === 0 && matrix.length > 0) {
           const fallbackIdx = matrix.findIndex(r => Array.isArray(r) && r.filter(c => String(c ?? '').trim() !== '').length >= 3);
           if (fallbackIdx !== -1) {
@@ -169,14 +172,24 @@ export default function EnrolmentUploadPage() {
         }
         updateQueueItem(item.id, { rows: rows.length });
       } catch (e) {
-        // ignore pre-inspect error
+        updateQueueItem(item.id, { status: 'error', message: 'Workbook could not be inspected.' });
       }
     }
 
-    // Auto-process first file if nothing active
     if (!activeFileId && newItems.length > 0) {
       processFile(newItems[0]);
     }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    await handleSelectedFiles(filterSupportedUploadFiles(Array.from(event.target.files || [])));
+    event.target.value = '';
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await handleSelectedFiles(await collectFilesFromDrop(event.dataTransfer));
   };
 
   const processFile = async (item: FileQueueItem) => {
@@ -593,7 +606,7 @@ export default function EnrolmentUploadPage() {
           ) : (
             <>
               {step === 'upload' && (
-                <section className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
+                <section onDragOver={event => event.preventDefault()} onDrop={handleDrop} className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue">
                     <FileUp className="h-7 w-7" />
                   </div>
@@ -601,7 +614,7 @@ export default function EnrolmentUploadPage() {
                   <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Drag and drop files or folders here. The system supports bulk processing of monthly enrollee workbooks from January 2025 onwards.</p>
                   <label className="mt-7 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
                     <Upload className="h-4 w-4" /> Choose Files / Folders
-                    <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+                    <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
                   </label>
                 </section>
               )}

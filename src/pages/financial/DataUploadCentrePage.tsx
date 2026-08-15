@@ -26,6 +26,7 @@ import { financialDataService, isSummaryRow } from '../../services/financial-dat
 import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from '../../types/financial-data';
 import { useCheckDuplicateBatch, useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
 import { useMockData } from '../../repositories/common';
+import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 
 type UploadStep = 'upload' | 'inspect' | 'map' | 'match' | 'preview' | 'commit';
 type RawRow = Record<string, unknown>;
@@ -129,14 +130,17 @@ export default function DataUploadCentrePage() {
     workbookRef.current = null;
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
+  const handleSelectedFiles = async (files: File[]) => {
+    const supportedFiles = filterSupportedUploadFiles(files);
+    if (supportedFiles.length === 0) {
+      setErrorMessage('No supported workbook files were found. Select XLSX, XLS, or CSV files.');
+      return;
+    }
 
     setErrorMessage('');
     setCommitMessage('');
-    
-    const newItems: FileQueueItem[] = files.map(file => ({
+
+    const newItems: FileQueueItem[] = supportedFiles.map(file => ({
       id: Math.random().toString(36).substring(7),
       file,
       status: 'pending',
@@ -149,6 +153,17 @@ export default function DataUploadCentrePage() {
 
     setQueue(prev => [...prev, ...newItems]);
     if (!activeFileId) processFile(newItems[0]);
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    await handleSelectedFiles(filterSupportedUploadFiles(Array.from(event.target.files || [])));
+    event.target.value = '';
+  };
+
+  const handleDrop = async (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await handleSelectedFiles(await collectFilesFromDrop(event.dataTransfer));
   };
 
   const processFile = async (item: FileQueueItem) => {
@@ -386,7 +401,7 @@ export default function DataUploadCentrePage() {
           ) : (
             <>
               {step === 'upload' && (
-                <section className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
+                <section onDragOver={event => event.preventDefault()} onDrop={handleDrop} className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue">
                     <Coins className="h-7 w-7" />
                   </div>
@@ -407,7 +422,7 @@ export default function DataUploadCentrePage() {
 
                   <label className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
                     <Upload className="h-4 w-4" /> Choose Files
-                    <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+                    <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
                   </label>
                 </section>
               )}
