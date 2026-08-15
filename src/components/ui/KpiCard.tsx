@@ -37,8 +37,8 @@ export default function KpiCard({ title, value, subtitle, icon, tone = 'primary'
       <span className={`absolute inset-x-0 top-0 h-0.5 ${colors.accent}`} aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <div className="flex items-center justify-between gap-3">
-            <p className="nmis-kpi-label">{title}</p>
+          <div className="flex items-start justify-between gap-3">
+            <p className="nmis-kpi-label leading-tight">{title}</p>
             {action}
           </div>
           <p className={`nmis-kpi-value mt-3 ${colors.value}`} title={typeof value === 'string' ? value : undefined}>{value}</p>

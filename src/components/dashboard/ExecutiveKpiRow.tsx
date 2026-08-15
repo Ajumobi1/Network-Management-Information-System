@@ -21,5 +21,5 @@ export default function ExecutiveKpiRow({ intelligence }: ExecutiveKpiRowProps) 
     { title: 'Network expenditure', value: formatNaira(intelligence.financial.totalExpenditure), subtitle: `${intelligence.matchedFinancialRecords.toLocaleString()} linked financial records`, icon: <CircleDollarSign className="h-5 w-5" />, tone: 'neutral' as const, trend: `${Math.abs(financialGrowth)}%`, trendDirection: financialGrowth >= 0 ? 'up' as const : 'down' as const },
     { title: 'PEPM', value: formatNaira(intelligence.efficiency.networkPepm), subtitle: 'Expenditure per enrollee', icon: <Gauge className="h-5 w-5" />, tone: 'danger' as const },
   ];
-  return <section aria-label="Executive key performance indicators" className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-4">{cards.map(card => <KpiCard key={card.title} {...card} />)}</section>;
+  return <section aria-label="Executive key performance indicators" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{cards.map(card => <KpiCard key={card.title} {...card} />)}</section>;
 }

@@ -18,8 +18,22 @@ export default function FinancialDashboardPage() {
   const formatNaira = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amount);
   
   const isLoading = isAnalyticsLoading || isIntelligenceLoading;
+  const isError = !analytics || !intelligence;
   
   if (isLoading) return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><div className="h-32 animate-pulse rounded-card bg-slate-200" /><div className="h-32 animate-pulse rounded-card bg-slate-200" /><div className="h-32 animate-pulse rounded-card bg-slate-200" /><div className="h-32 animate-pulse rounded-card bg-slate-200" /></div>;
+
+  if (isError) return (
+    <div className="flex min-h-[400px] flex-col items-center justify-center rounded-panel border border-dashed border-slate-300 bg-slate-50 p-12 text-center">
+      <div className="mb-4 rounded-full bg-red-100 p-3 text-red-600">
+        <DollarSign className="h-6 w-6" />
+      </div>
+      <h3 className="text-lg font-bold text-slate-900">Financial data unavailable</h3>
+      <p className="mt-2 max-w-sm text-sm text-slate-500">
+        The system could not retrieve the financial intelligence summary. This may be due to insufficient permissions or a temporary connection issue.
+      </p>
+      <Button variant="secondary" className="mt-6" onClick={() => window.location.reload()}>Retry dashboard</Button>
+    </div>
+  );
 
   return <div className="space-y-6">
     <PageHeader 

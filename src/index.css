@@ -258,7 +258,7 @@ select:focus-visible {
   }
 
   .nmis-kpi-value {
-    @apply text-xl font-black tracking-tight tabular-nums whitespace-nowrap sm:text-2xl lg:text-3xl;
+    @apply text-lg font-black tracking-tight tabular-nums whitespace-nowrap sm:text-xl md:text-2xl lg:text-3xl;
     color: var(--color-foreground);
     /* Ensure long numbers can display fully by allowing horizontal scroll if absolutely necessary, 
        but primarily by using responsive font sizes. */
