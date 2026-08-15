@@ -592,6 +592,10 @@ export default function EnrolmentUploadPage() {
               <Upload className="h-3.5 w-3.5" /> Add more files
               <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
             </label>
+            <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 py-3 text-xs font-semibold text-brand-blue hover:bg-blue-50 transition-colors">
+              <Upload className="h-3.5 w-3.5" /> Add folder
+              <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
+            </label>
           </div>
         </aside>
 
@@ -611,9 +615,9 @@ export default function EnrolmentUploadPage() {
                     <FileUp className="h-7 w-7" />
                   </div>
                   <h2 className="mt-5 text-xl font-bold text-slate-900">Select Historical Capitation Files</h2>
-                  <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Drag and drop files or folders here. The system supports bulk processing of monthly enrollee workbooks from January 2025 onwards.</p>
+                  <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Drop multiple files or folders here. The system supports bulk processing of monthly enrollee workbooks from January 2025 onwards.</p>
                   <label className="mt-7 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
-                    <Upload className="h-4 w-4" /> Choose Files / Folders
+                    <Upload className="h-4 w-4" /> Choose Files / Folder
                     <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
                   </label>
                 </section>

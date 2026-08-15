@@ -5,9 +5,16 @@ type DirectoryDataTransferItem = DataTransferItem & {
 };
 
 export function filterSupportedUploadFiles(files: File[]): File[] {
+  const seen = new Set<string>();
   return files.filter(file => {
     const name = (file.name || '').toLowerCase();
-    return SUPPORTED_EXTENSIONS.some(extension => name.endsWith(extension));
+    if (!SUPPORTED_EXTENSIONS.some(extension => name.endsWith(extension))) return false;
+
+    const relativePath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+    const identity = `${relativePath}|${file.size}|${file.lastModified}`;
+    if (seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
   });
 }
 

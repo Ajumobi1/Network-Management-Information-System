@@ -389,6 +389,10 @@ export default function DataUploadCentrePage() {
               <Upload className="h-3.5 w-3.5" /> Add more files
               <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
             </label>
+            <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 py-3 text-xs font-semibold text-brand-blue hover:bg-blue-50 transition-colors">
+              <Upload className="h-3.5 w-3.5" /> Add folder
+              <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
+            </label>
           </div>
         </aside>
 
@@ -406,7 +410,7 @@ export default function DataUploadCentrePage() {
                     <Coins className="h-7 w-7" />
                   </div>
                   <h2 className="mt-5 text-xl font-bold text-slate-900">Upload Financial Workbooks</h2>
-                  <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Select the data type below and upload your processed Excel files.</p>
+                  <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Select the data type below, then drop multiple folders or choose a folder of processed workbooks.</p>
                   
                   <div className="mt-6 flex justify-center gap-2">
                     {['claims', 'capitation', 'ffs'].map((type) => (
@@ -421,7 +425,7 @@ export default function DataUploadCentrePage() {
                   </div>
 
                   <label className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
-                    <Upload className="h-4 w-4" /> Choose Files
+                    <Upload className="h-4 w-4" /> Choose Files / Folder
                     <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
                   </label>
                 </section>
