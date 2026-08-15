@@ -22,6 +22,7 @@ type SecureEnrolleeRow = {
   first_name: string;
   last_name: string;
   gender: string;
+  age?: number | null;
   phone_number?: string | null;
   provider_id?: string | null;
   provider_code?: string | null;
@@ -53,6 +54,7 @@ function mapSecureEnrolleeRow(row: SecureEnrolleeRow): EnrolleeRecord {
     firstName: row.first_name,
     lastName: row.last_name,
     gender: row.gender as EnrolleeRecord['gender'],
+    age: row.age !== null && row.age !== undefined ? Number(row.age) : undefined,
     phoneNumber: row.phone_number || undefined,
     providerId: row.provider_id || undefined,
     providerCode: row.provider_code || undefined,

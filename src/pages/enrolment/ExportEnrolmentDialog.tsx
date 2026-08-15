@@ -64,13 +64,13 @@ export default function ExportEnrolmentDialog({ onClose, currentFilters, options
 
       const headers = [
         'Policy Number', 'Category', 'Sector', 'First Name', 'Last Name', 
-        'Gender', 'Phone', 'Facility', 'Provider Code', 'LGA', 'State', 
+        'Gender', 'Age', 'Phone', 'Facility', 'Provider Code', 'LGA', 'State', 
         'Senatorial District', 'Period', 'Status'
       ];
       
       const rows = records.map(record => [
         record.policyNumber, record.category, record.sector, record.firstName, record.lastName, 
-        record.gender, record.phoneNumber, record.providerName, record.providerCode, record.lga, 
+        record.gender, record.age, record.phoneNumber, record.providerName, record.providerCode, record.lga, 
         record.state, record.senatorialDistrict, record.period, record.recordStatus
       ]);
 
