@@ -7,7 +7,14 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
 
   if (loading) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-brand-background">
+        <div className="text-center">
+          <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-brand-primary border-t-transparent mx-auto"></div>
+          <p className="text-brand-muted font-medium">Loading NMIS...</p>
+        </div>
+      </div>
+    );
   }
 
   if (!session) {
