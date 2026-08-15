@@ -21,9 +21,8 @@ export default defineConfig({
         __dirname,
         developmentBuild
           ? 'src/services/auth/authService.mock.ts'
-          : 'src/services/auth/authService.ts',
+          : 'src/services/auth/authService.mock.disabled.ts',
       ),
     },
   },
 });
-// Trigger Redeploy: Sat Aug 15 18:04:37 UTC 2026

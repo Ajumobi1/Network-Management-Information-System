@@ -8,8 +8,6 @@ import {
 } from '../../auth/authTypes';
 import { useMockData } from '../../lib/runtime';
 import { supabase } from '../../lib/supabase/supabaseClient';
-import * as mockAuth from '@nmis/mock-auth';
-
 const controlledRoles: readonly UserRole[] = [
   'super-admin',
   'executive',
@@ -68,8 +66,6 @@ function mapAuthError(message: string): AuthResult<never> {
 
 export const authService = {
   async signIn(email: string, password: string, remember: boolean): Promise<AuthResult<AuthSession>> {
-    if (useMockData) return mockAuth.signIn(email, password, remember);
-
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error || !data.session) return mapAuthError(error?.message ?? 'No session was returned.');
 
@@ -79,24 +75,20 @@ export const authService = {
   },
 
   async signOut(): Promise<void> {
-    if (useMockData) return mockAuth.signOut();
     await supabase.auth.signOut();
   },
 
   async getSession(): Promise<AuthSession | null> {
-    if (useMockData) return mockAuth.getSession();
     const { data } = await supabase.auth.getSession();
     return mapSession(data.session);
   },
 
   subscribe(listener: (session: AuthSession | null) => void): () => void {
-    if (useMockData) return mockAuth.subscribe(listener);
     const { data } = supabase.auth.onAuthStateChange((_event, session) => listener(mapSession(session)));
     return () => data.subscription.unsubscribe();
   },
 
   async forgotPassword(email: string): Promise<AuthResult<null>> {
-    if (useMockData) return mockAuth.forgotPassword(email);
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: `${window.location.origin}/reset-password`,
     });
@@ -105,7 +97,6 @@ export const authService = {
   },
 
   async resetPassword(password: string): Promise<AuthResult<null>> {
-    if (useMockData) return mockAuth.resetPassword(password);
     const { error } = await supabase.auth.updateUser({ password });
     if (error) return mapAuthError(error.message);
     return { success: true, data: null };
