@@ -28,7 +28,7 @@ const mappingRules: Array<{ field: EnrolmentField | 'ignored'; keywords: string[
   { field: 'firstName', keywords: ['first name', 'firstname', 'given name', 'other names'], weight: 0.9 },
   { field: 'lastName', keywords: ['last name', 'lastname', 'surname', 'family name'], weight: 0.9 },
   { field: 'gender', keywords: ['gender', 'sex'], weight: 0.8 },
-  { field: 'age', keywords: ['age', 'years', 'dob', 'date of birth'], weight: 0.9 },
+  { field: 'age', keywords: ['age', 'years', 'yrs', 'dob', 'date of birth', 'dateofbirth'], weight: 1.0 },
   { field: 'phoneNumber', keywords: ['phone', 'telephone', 'mobile', 'phone number'], weight: 0.8 },
   { field: 'providerCode', keywords: ['provider code', 'facility code', 'facility id', 'provider id', 'hcp code'], weight: 0.9 },
   { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'health facility', 'facility name', 'name of facility', 'account name as it appears'], weight: 1.0 },
