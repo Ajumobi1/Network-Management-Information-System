@@ -78,7 +78,7 @@ export default function PopulationOverviewPage() {
         </div>
 
         {/* KPIs */}
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <section className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           <KpiCard title="Total enrollees" value={analytics.totalEnrollees.toLocaleString()} subtitle="Active beneficiaries" tone="primary" icon={<Users size={20} />} />
           <KpiCard title="Formal sector" value={analytics.formalCount.toLocaleString()} subtitle={`${analytics.formalPercentage}% of network`} tone="success" icon={<FileSpreadsheet size={20} />} />
           <KpiCard title="Informal sector" value={analytics.informalCount.toLocaleString()} subtitle={`${analytics.informalPercentage}% of network`} tone="warning" icon={<FileSpreadsheet size={20} />} />
@@ -86,7 +86,7 @@ export default function PopulationOverviewPage() {
           <KpiCard title="Dependants" value={analytics.dependantCount.toLocaleString()} subtitle={`${analytics.dependantPercentage}% ratio`} tone="neutral" icon={<Users size={20} />} />
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <section className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           <KpiCard title="Facilities covered" value={analytics.providerCount.toLocaleString()} subtitle="Matched providers" tone="info" icon={<Building2 size={20} />} />
           <KpiCard title="LGAs covered" value={analytics.lgaCount.toLocaleString()} subtitle="Geographic spread" tone="success" icon={<MapPin size={20} />} />
           <KpiCard title="Districts" value={analytics.senatorialDistrictCount.toLocaleString()} subtitle="Political coverage" tone="warning" icon={<MapPin size={20} />} />

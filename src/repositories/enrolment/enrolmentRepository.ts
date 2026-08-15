@@ -334,6 +334,9 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       dependant_count: number;
       male_count: number;
       female_count: number;
+      provider_count: number;
+      lga_count: number;
+      senatorial_district_count: number;
       capitation_rate: number;
       capitation_expenditure: number;
     }>>('nmis_enrollee_register_aggregates', {
@@ -358,6 +361,9 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       dependant_count: 0,
       male_count: 0,
       female_count: 0,
+      provider_count: 0,
+      lga_count: 0,
+      senatorial_district_count: 0,
       capitation_rate: 750,
       capitation_expenditure: 0,
     };
@@ -369,6 +375,9 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
     const dependantCount = Number(agg.dependant_count || 0);
     const maleCount = Number(agg.male_count || 0);
     const femaleCount = Number(agg.female_count || 0);
+    const providerCount = Number(agg.provider_count || 0);
+    const lgaCount = Number(agg.lga_count || 0);
+    const senatorialDistrictCount = Number(agg.senatorial_district_count || 0);
     const capitationRate = Number(agg.capitation_rate || 750);
     const capitationExpenditure = Number(agg.capitation_expenditure || 0);
     const percentage = (count: number) => totalEnrollees > 0 ? Number(((count / totalEnrollees) * 100).toFixed(1)) : 0;
@@ -381,9 +390,9 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       dependantCount,
       maleCount,
       femaleCount,
-      providerCount: 0,
-      lgaCount: filters.lga ? 1 : 0,
-      senatorialDistrictCount: filters.senatorialDistrict ? 1 : 0,
+      providerCount,
+      lgaCount,
+      senatorialDistrictCount,
       formalPercentage: percentage(formalCount),
       informalPercentage: percentage(informalCount),
       principalPercentage: percentage(principalCount),
