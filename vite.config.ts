@@ -21,7 +21,7 @@ export default defineConfig({
         __dirname,
         developmentBuild
           ? 'src/services/auth/authService.mock.ts'
-          : 'src/services/auth/authService.mock.disabled.ts',
+          : 'src/services/auth/authService.ts',
       ),
     },
   },
