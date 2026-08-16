@@ -11,12 +11,14 @@ const MONTHS = [
   'july', 'august', 'september', 'october', 'november', 'december',
 ];
 
-const MONTH_TOKEN = new RegExp(`\\b(${MONTHS.join('|')}|${MONTHS.map(month => month.slice(0, 3)).join('|')})\\b`, 'i');
+const MONTH_ALIASES = ['sept'];
+const MONTH_TOKEN = new RegExp(`\\b(${MONTHS.join('|')}|${MONTHS.map(month => month.slice(0, 3)).join('|')}|${MONTH_ALIASES.join('|')})\\b`, 'i');
 const YEAR_TOKEN = /\b(20\d{2})\b/;
 const NUMERIC_PERIOD_TOKEN = /\b(0?[1-9]|1[0-2])\s*[/.-]\s*(20\d{2})\b|\b(20\d{2})\s*[/.-]\s*(0?[1-9]|1[0-2])\b/;
 
 function monthNumber(value: string): string | undefined {
   const normalized = value.toLowerCase();
+  if (normalized === 'sept') return '9';
   const index = MONTHS.findIndex(month => month === normalized || month.slice(0, 3) === normalized);
   return index >= 0 ? String(index + 1) : undefined;
 }

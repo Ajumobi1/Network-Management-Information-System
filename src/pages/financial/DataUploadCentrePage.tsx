@@ -24,7 +24,7 @@ import Badge from '../../components/ui/Badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
 import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from '../../types/financial-data';
-import { useCheckDuplicateBatch, useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
+import { useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
 import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
@@ -43,6 +43,7 @@ interface FileQueueItem {
   review: number;
   errors: number;
   duplicates?: number;
+  importedRows?: number;
   message?: string;
   data?: {
     workbook: XLSX.WorkBook;
@@ -58,10 +59,15 @@ interface FileQueueItem {
     reportingYear?: string;
     reportingMonth?: string;
     periodDetection: DetectedPeriod;
+    horizontalSchedule: boolean;
   };
 }
 
 const steps: UploadStep[] = ['upload', 'inspect', 'identify', 'map', 'match', 'preview', 'commit'];
+const normalizeProviderKey = (value: unknown) => String(value ?? '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+const isMonthColumn = (value: string) => ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec', 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december'].includes(value.trim().toLowerCase());
+const amountMappingFields = new Set(['amount', 'amountSubmitted', 'amountClaimed', 'amountApproved', 'amountRejected', 'amountPaid', 'netAmountPaid', 'netAmount', 'grossAmount']);
+const amountForPreview = (record: FinancialRecord) => record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? record.amountClaimed ?? record.amountSubmitted ?? record.amount ?? 0;
 const stepLabels: Record<UploadStep, string> = {
   upload: 'Upload',
   inspect: 'Inspect',
@@ -76,6 +82,7 @@ const mappingOptions = [
   { value: 'ignored', label: 'Ignore this column' },
   { value: 'providerCode', label: 'Provider code' },
   { value: 'providerName', label: 'Provider / facility name' },
+  { value: 'dataType', label: 'Financial row type' },
   { value: 'facilityType', label: 'Facility type' },
   { value: 'ownership', label: 'Ownership' },
   { value: 'state', label: 'State' },
@@ -108,6 +115,7 @@ export default function DataUploadCentrePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [matchSearch, setMatchSearch] = useState<Record<string, string>>({});
   const { session } = useAuth();
   const createBatch = useCreateImportBatch();
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
@@ -171,23 +179,25 @@ export default function DataUploadCentrePage() {
     await handleSelectedFiles(await collectFilesFromDrop(event.dataTransfer));
   };
 
-  const processFile = async (item: FileQueueItem) => {
+  const processFile = async (item: FileQueueItem, requestedSheet?: string) => {
     setActiveFileId(item.id);
     setIsAnalyzing(true);
     try {
       const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
       if (workbook.SheetNames.length === 0) throw new Error('The workbook is empty.');
-      
+
       workbookRef.current = workbook;
-      const sheetName = workbook.SheetNames[0];
+      const sheetName = requestedSheet || item.data?.sourceSheet || workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
+      if (!sheet) throw new Error(`Worksheet "${sheetName}" could not be found.`);
       const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
       const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
-      
+
       const hIndex = 0;
-      const detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
-      const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
+      const detectedHeaders = (matrix[hIndex] || []).map((value, index) => String(value ?? '').trim() || `Column ${index + 1}`);
+      const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { header: detectedHeaders, range: hIndex + 1, defval: '', raw: false })
         .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
+      const horizontalSchedule = detectedHeaders.some(isMonthColumn);
 
       updateQueueItem(item.id, {
         status: 'processing',
@@ -199,17 +209,18 @@ export default function DataUploadCentrePage() {
           headerRowIndex: hIndex,
           headers: detectedHeaders,
           rawRows: rows,
-          mappings: financialDataService.suggestMappings(detectedHeaders, item.dataType),
+          mappings: financialDataService.suggestMappings(detectedHeaders, item.dataType, rows.slice(0, 50)),
           matches: [],
           normalizedRecords: [],
           validationErrors: [],
           reportingYear: detectedPeriod.year,
           reportingMonth: detectedPeriod.month,
-          periodDetection: detectedPeriod
+          periodDetection: detectedPeriod,
+          horizontalSchedule,
         }
       });
-      // Only open manual period selection when the workbook did not provide both values.
-      setStep(detectedPeriod.year && detectedPeriod.month ? 'inspect' : 'identify');
+      // Horizontal month-column schedules need only a year; ordinary files need both year and month.
+      setStep(detectedPeriod.year && (detectedPeriod.month || horizontalSchedule) ? 'inspect' : 'identify');
     } catch (error) {
       updateQueueItem(item.id, { status: 'error', message: error instanceof Error ? error.message : 'Inspection failed' });
       setErrorMessage(error instanceof Error ? error.message : 'Inspection failed');
@@ -220,8 +231,8 @@ export default function DataUploadCentrePage() {
 
   const startMatching = async () => {
     if (!activeItem?.data) return;
-    const { rawRows, mappings } = activeItem.data;
-    
+    const { rawRows, mappings, headers, horizontalSchedule } = activeItem.data;
+
     setErrorMessage('');
     setIsAnalyzing(true);
     try {
@@ -229,8 +240,13 @@ export default function DataUploadCentrePage() {
       const providerCodeField = mappings.find(m => m.nmisField === 'providerCode')?.excelField;
       const lgaField = mappings.find(m => m.nmisField === 'lga')?.excelField;
       const stateField = mappings.find(m => m.nmisField === 'state')?.excelField;
+      const hasAmountField = mappings.some(mapping => amountMappingFields.has(mapping.nmisField));
+      const lowConfidence = mappings.filter(mapping => mapping.nmisField !== 'ignored' && mapping.confidence === 'LOW');
 
-      if (!providerField) throw new Error('Facility name column is required.');
+      if (!providerField) throw new Error('Map a facility/provider name column before continuing.');
+      if (!hasAmountField && !horizontalSchedule) throw new Error('Map at least one financial amount column before continuing.');
+      if (lowConfidence.length > 0) throw new Error(`Review or ignore ${lowConfidence.length} low-confidence mapping${lowConfidence.length === 1 ? '' : 's'} before continuing.`);
+      if (!headers.some(header => header.trim())) throw new Error('The workbook does not contain usable headers.');
 
       const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
       rawRows.forEach(row => {
@@ -257,44 +273,88 @@ export default function DataUploadCentrePage() {
 
   const generatePreview = () => {
     if (!activeItem?.data) return;
-    const { rawRows, mappings, matches, reportingYear, reportingMonth } = activeItem.data;
-    
-    const records = financialDataService.normalizeData(
+    const { rawRows, mappings, matches, reportingYear, reportingMonth, horizontalSchedule } = activeItem.data;
+    const hasAmountField = mappings.some(mapping => amountMappingFields.has(mapping.nmisField));
+    const lowConfidence = mappings.filter(mapping => mapping.nmisField !== 'ignored' && mapping.confidence === 'LOW');
+    if (!mappings.some(mapping => mapping.nmisField === 'providerName')) {
+      setErrorMessage('Map the required facility/provider name field before continuing.');
+      return;
+    }
+    if (!hasAmountField && !horizontalSchedule) {
+      setErrorMessage('Map at least one financial amount field before continuing.');
+      return;
+    }
+    if (lowConfidence.length > 0) {
+      setErrorMessage(`Review or ignore ${lowConfidence.length} low-confidence mapping${lowConfidence.length === 1 ? '' : 's'} before generating preview.`);
+      return;
+    }
+
+    const rawRecords = financialDataService.normalizeData(
       rawRows,
       mappings,
       activeItem.dataType,
       activeItem.id,
       activeItem.file.name,
       activeItem.data.sourceSheet,
-      reportingYear && reportingMonth ? { reportingYear: Number(reportingYear), reportingMonth: Number(reportingMonth) } : undefined,
+      reportingYear && (reportingMonth || horizontalSchedule) ? { reportingYear: Number(reportingYear), reportingMonth: Number(reportingMonth || 1) } : undefined,
     );
-    const errors = records.flatMap(r => (r.validationErrors || []).map(e => `Row ${r.sourceRow}: ${e}`));
-    
-    updateActiveData({ normalizedRecords: records, validationErrors: [...new Set(errors)] });
-    
-    const reviewCount = records.filter(r => !r.providerId).length;
-    const errorCount = records.filter(r => (r.validationErrors?.length || 0) > 0).length;
-    const readyCount = records.filter(r => r.providerId && (!r.validationErrors || r.validationErrors.length === 0)).length;
+    const records = rawRecords.map(record => {
+      const match = matches.find(candidate => {
+        const sameName = normalizeProviderKey(candidate.excelName) === normalizeProviderKey(record.providerName);
+        const sameCode = !candidate.matchedProviderCode || !record.providerCode || normalizeProviderKey(candidate.matchedProviderCode) === normalizeProviderKey(record.providerCode);
+        return sameName && sameCode;
+      });
+      return match?.matchedProviderId ? {
+        ...record,
+        providerId: match.matchedProviderId,
+        providerName: match.matchedProviderName || record.providerName,
+        providerCode: match.matchedProviderCode || record.providerCode,
+        lga: match.matchedProviderLga || record.lga,
+        state: match.matchedProviderState || record.state,
+        facilityType: match.matchedProviderFacilityType || record.facilityType,
+        ownership: match.matchedProviderOwnership || record.ownership,
+      } : record;
+    });
 
-    updateQueueItem(activeItem.id, { 
-      status: (reviewCount > 0) ? 'review' : (errorCount > 0 ? 'error' : 'ready'),
+    const seenFingerprints = new Set<string>();
+    let duplicateCount = 0;
+    const classifiedRecords = records.map(record => {
+      const fingerprint = record.fingerprint || financialDataService.generateFingerprint(record);
+      const alreadySeen = seenFingerprints.has(fingerprint);
+      seenFingerprints.add(fingerprint);
+      if (alreadySeen) {
+        duplicateCount += 1;
+        return { ...record, fingerprint, recordStatus: 'duplicate' as const, validationErrors: [...(record.validationErrors || []), 'Duplicate row in this workbook.'] };
+      }
+      return { ...record, fingerprint };
+    });
+    const errors = classifiedRecords.flatMap(r => (r.validationErrors || []).map(e => `Row ${r.sourceRow}: ${e}`));
+    const reviewCount = classifiedRecords.filter(r => !r.providerId && !(r.validationErrors?.length)).length;
+    const errorCount = classifiedRecords.filter(r => (r.validationErrors?.length || 0) > 0).length;
+    const readyCount = classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0)).length;
+    const periods = [...new Set(classifiedRecords.map(record => record.period).filter(Boolean))].sort();
+    const period = periods.length === 1 ? periods[0] : periods.length > 1 ? `${periods[0]} to ${periods[periods.length - 1]}` : activeItem.period;
+
+    updateActiveData({ normalizedRecords: classifiedRecords, validationErrors: [...new Set(errors)] });
+    updateQueueItem(activeItem.id, {
+      status: (reviewCount > 0 || errorCount > 0) ? (reviewCount > 0 ? 'review' : 'error') : 'ready',
       review: reviewCount,
       errors: errorCount,
       matched: readyCount,
-      duplicates: 0,
-      period: records[0]?.period,
-      rows: records.length
+      duplicates: duplicateCount,
+      period,
+      rows: classifiedRecords.length,
     });
-    
+    setErrorMessage('');
     setStep('preview');
   };
 
   const handleCommit = async () => {
     if (!activeItem?.data || activeItem.status !== 'ready') return;
-    
+
     setIsAnalyzing(true);
     try {
-      await createBatch.mutateAsync({
+      const result = await createBatch.mutateAsync({
         batch: {
           fileName: activeItem.file.name,
           dataType: activeItem.dataType,
@@ -305,7 +365,7 @@ export default function DataUploadCentrePage() {
           importedRows: activeItem.matched,
           warningRows: 0,
           errorRows: activeItem.errors,
-          duplicateRows: 0,
+          duplicateRows: activeItem.duplicates || 0,
           unmatchedProviders: activeItem.review,
           metadata: {
             sourceSheet: activeItem.data.sourceSheet,
@@ -314,10 +374,24 @@ export default function DataUploadCentrePage() {
         },
         records: activeItem.data.normalizedRecords
       });
-      
-      updateQueueItem(activeItem.id, { status: 'imported' });
-      setCommitMessage(`Successfully imported ${activeItem.rows} records from ${activeItem.file.name}`);
-      
+
+      const importedRows = Number(result?.importedRows ?? 0);
+      const duplicateRows = Number(result?.duplicateRows ?? 0);
+      const rejectedRows = Number(result?.errorRows ?? 0);
+      const totalAccepted = importedRows + duplicateRows;
+      if (totalAccepted === 0 && rejectedRows === 0) {
+        throw new Error('The trusted import workflow returned no imported, duplicate, or rejected rows. No persistence result was recorded.');
+      }
+
+      updateQueueItem(activeItem.id, {
+        status: 'imported',
+        importedRows,
+        duplicates: duplicateRows,
+        errors: rejectedRows,
+        matched: importedRows,
+      });
+      setCommitMessage(`${activeItem.file.name}: imported ${importedRows.toLocaleString()}, duplicates ${duplicateRows.toLocaleString()}, rejected ${rejectedRows.toLocaleString()}.`);
+
       const nextPending = queue.find(item => item.id !== activeItem.id && item.status === 'pending');
       if (nextPending) {
         await processFile(nextPending);
@@ -381,7 +455,7 @@ export default function DataUploadCentrePage() {
               ) : queue.map(item => (
                 <div 
                   key={item.id} 
-                  onClick={() => item.status !== 'pending' && processFile(item)}
+                  onClick={() => processFile(item)}
                   className={`group relative cursor-pointer rounded-2xl border p-3 transition-all ${activeFileId === item.id ? 'border-brand-blue bg-blue-50/50' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -454,7 +528,7 @@ export default function DataUploadCentrePage() {
                   <div className="space-y-4">
                     <div>
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Worksheet</label>
-                      <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={activeItem.data.sourceSheet} onChange={e => processFile({ ...activeItem, data: { ...activeItem.data!, sourceSheet: e.target.value } } as any)}>
+                        <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={activeItem.data.sourceSheet} onChange={e => processFile(activeItem, e.target.value)}>
                         {activeItem.data.sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
                       </select>
                     </div>
@@ -519,12 +593,15 @@ export default function DataUploadCentrePage() {
                     onNext={() => {
                       const year = activeItem.data?.reportingYear?.trim();
                       const month = Number(activeItem.data?.reportingMonth);
-                      if (!/^20\d{2}$/.test(year || '') || !Number.isInteger(month) || month < 1 || month > 12) {
-                        setErrorMessage('Enter a valid reporting year and month before continuing.');
+                      const horizontalSchedule = activeItem.data?.horizontalSchedule;
+                      const validYear = /^20\d{2}$/.test(year || '');
+                      const validMonth = Number.isInteger(month) && month >= 1 && month <= 12;
+                      if (!validYear || (!horizontalSchedule && !validMonth)) {
+                        setErrorMessage(horizontalSchedule ? 'Enter a valid reporting year before continuing.' : 'Enter a valid reporting year and month before continuing.');
                         return;
                       }
                       setErrorMessage('');
-                      updateQueueItem(activeItem.id, { period: `${year}-${String(month).padStart(2, '0')}` });
+                      updateQueueItem(activeItem.id, { period: horizontalSchedule ? year : `${year}-${String(month).padStart(2, '0')}` });
                       setStep('map');
                     }}
                   />
@@ -580,18 +657,32 @@ export default function DataUploadCentrePage() {
                             <p className="text-sm font-semibold text-slate-700">{match.matchedProviderName || 'No match'}</p>
                           </div>
                         </div>
-                        {match.status !== 'confirmed' && match.candidates && (
-                          <select className="mt-4 w-full rounded-xl border-slate-200 text-sm" onChange={async (e) => {
-                            const c = match.candidates?.find(c => c.id === e.target.value);
-                            if (!c) return;
-                            await financialDataService.resolveMatch(match, session?.user?.email, activeItem.id, c.id, match.excelName);
-                            const newMatches = [...activeItem.data!.matches];
-                            newMatches[idx] = { ...match, matchedProviderId: c.id, matchedProviderName: c.name, matchedProviderCode: c.code, status: 'confirmed', confidence: 1 };
-                            updateActiveData({ matches: newMatches });
-                          }}>
-                            <option value="">Resolve to...</option>
-                            {match.candidates.map(c => <option key={c.id} value={c.id}>{c.name} ({c.code})</option>)}
-                          </select>
+                        {match.status !== 'confirmed' && (
+                          <div className="mt-4 space-y-2">
+                            <input
+                              className="w-full rounded-xl border-slate-200 text-sm"
+                              value={matchSearch[match.excelName] || ''}
+                              onChange={event => setMatchSearch(previous => ({ ...previous, [match.excelName]: event.target.value }))}
+                              placeholder="Search suggested providers by name, code, or LGA..."
+                            />
+                            <select className="w-full rounded-xl border-slate-200 text-sm" value="" onChange={async (e) => {
+                              const c = match.candidates?.find(candidate => candidate.id === e.target.value);
+                              if (!c) return;
+                              await financialDataService.resolveMatch(match, session?.user?.email, activeItem.id, c.id, match.excelName);
+                              const newMatches = [...activeItem.data!.matches];
+                              newMatches[idx] = { ...match, matchedProviderId: c.id, matchedProviderName: c.name, matchedProviderCode: c.code, matchedProviderLga: c.lga, matchedProviderState: c.state, status: 'confirmed', confidence: 1 };
+                              updateActiveData({ matches: newMatches });
+                            }}>
+                              <option value="">Resolve to...</option>
+                              {(match.candidates || [])
+                                .filter(candidate => {
+                                  const query = (matchSearch[match.excelName] || '').toLowerCase().trim();
+                                  return !query || [candidate.name, candidate.code, candidate.lga, candidate.state].filter(Boolean).join(' ').toLowerCase().includes(query);
+                                })
+                                .map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.name} ({candidate.code})</option>)}
+                            </select>
+                            {(!match.candidates || match.candidates.length === 0) && <p className="text-xs text-amber-700">No candidates were returned. Refine the source facility name or use the Provider Directory to confirm the authoritative facility.</p>}
+                          </div>
                         )}
                       </div>
                     ))}
@@ -602,7 +693,7 @@ export default function DataUploadCentrePage() {
 
               {step === 'preview' && activeItem?.data && (
                 <Panel title="Validation Preview" description="Summary of normalized financial records before commit.">
-                  <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 mb-6">
+                  <div className="grid gap-3 grid-cols-2 lg:grid-cols-5 mb-6">
                     <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">TOTAL ROWS</p>
                       <p className="mt-1 text-xl font-bold text-slate-900">{activeItem.rows.toLocaleString()}</p>
@@ -618,6 +709,10 @@ export default function DataUploadCentrePage() {
                     <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100">
                       <p className="text-[10px] font-bold text-rose-600 uppercase">ERRORS</p>
                       <p className="mt-1 text-xl font-bold text-rose-700">{activeItem.errors.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase">DUPLICATES</p>
+                      <p className="mt-1 text-xl font-bold text-slate-700">{(activeItem.duplicates || 0).toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="overflow-x-auto rounded-2xl border border-slate-100">
@@ -635,8 +730,13 @@ export default function DataUploadCentrePage() {
                           <tr key={i}>
                             <td className="px-4 py-3 font-semibold text-slate-800">{r.providerName}</td>
                             <td className="px-4 py-3 text-slate-500">{r.period}</td>
-                            <td className="px-4 py-3 text-right font-mono">₦{(r.amountPaid || 0).toLocaleString()}</td>
-                            <td className="px-4 py-3 text-right"><Badge variant={r.providerId ? 'success' : 'error'} className="text-[9px]">{r.providerId ? 'READY' : 'UNMATCHED'}</Badge></td>
+                            <td className="px-4 py-3 text-right font-mono">₦{amountForPreview(r).toLocaleString()}</td>
+                            <td className="px-4 py-3 text-right">
+                              <Badge variant={r.recordStatus === 'duplicate' ? 'default' : r.validationErrors?.length ? 'error' : r.providerId ? 'success' : 'warning'} className="text-[9px]">
+                                {r.recordStatus === 'duplicate' ? 'DUPLICATE' : r.validationErrors?.length ? 'ERROR' : r.providerId ? 'READY' : 'MATCH REVIEW'}
+                              </Badge>
+                              {r.validationErrors?.[0] && <p className="mt-1 max-w-[220px] text-[10px] text-rose-600">{r.validationErrors[0]}</p>}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
