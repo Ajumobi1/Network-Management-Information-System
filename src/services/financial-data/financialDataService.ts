@@ -62,6 +62,10 @@ export const financialDataService = {
   /**
    * Suggest a data type based on headers
    */
+  isMonthColumn(value: string): boolean {
+    return aiIngestionEngine.isMonthColumn(value);
+  },
+
   detectDataType(headers: string[], sourceName = ''): FinancialDataType {
     const headerStr = [...headers, sourceName].join(' ').toLowerCase().replace(/[-_/]+/g, ' ');
 
@@ -120,6 +124,17 @@ export const financialDataService = {
     headers.forEach(header => {
       const normalizedHeader = normalized(header);
       const values = sampleRows.slice(0, 50).map(row => String(row[header] ?? '').trim().toUpperCase().replace(/[-_/]+/g, ' '));
+      const monthIndex = aiIngestionEngine.getMonthIndex(header);
+      if (monthIndex >= 0) {
+        mappings.push({
+          excelField: header,
+          nmisField: 'amountPaid',
+          confidence: 'HIGH',
+          confidenceScore: 1,
+          isCustom: true,
+        });
+        return;
+      }
       const looksLikeRowType = values.some(value => value === 'CAPITATION' || value === 'FFS' || value === 'FEE FOR SERVICE');
       if (looksLikeRowType) {
         mappings.push({ excelField: header, nmisField: 'dataType', confidence: 'HIGH', confidenceScore: 1 });

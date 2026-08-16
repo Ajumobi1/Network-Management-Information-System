@@ -707,6 +707,9 @@ const generatePreview = () => {
                               updateActiveData({ mappings: newMappings });
                             }}
                           >
+                            {financialDataService.isMonthColumn(mapping.excelField) && (
+                              <option value="amountPaid">Monthly amount · {mapping.excelField.toUpperCase()}</option>
+                            )}
                             {mappingOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                           </select>
                         </div>

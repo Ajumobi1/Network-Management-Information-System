@@ -643,7 +643,7 @@ export default function EnrolmentUploadPage() {
                       <div className="grid gap-3 sm:grid-cols-3">
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Header intelligence</p>
-                          <p className="mt-1 text-xs font-semibold text-slate-700">Scans the first 25 rows</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-700">Scans the entire worksheet</p>
                         </div>
                         <div>
                           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Context inheritance</p>

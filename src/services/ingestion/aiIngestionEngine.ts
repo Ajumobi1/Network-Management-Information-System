@@ -18,40 +18,69 @@ export interface AiIngestionMetadata {
 
 export const aiIngestionEngine = {
   /**
-   * Automatically detect the header row index by scanning up to 25 rows
-   * for common identity, provider, amount, or enrollee keywords.
+   * Automatically detect the strongest header row anywhere in the worksheet.
+   * The scan is deliberately whole-file rather than limited to the first N rows.
+   * Data rows are down-ranked because they contain numeric values and long names,
+   * while headers contain repeated schema vocabulary such as PROVIDER, MONTH,
+   * CATEGORY, AMOUNT, S/N, POLICY, or JAN–DEC.
    */
   detectHeaderRowIndex(matrix: unknown[][]): number {
-    const keywords = [
-      'provider', 'facility', 'hospital', 'policy', 'enrollee', 'beneficiary',
-      'amount', 'date', 'month', 'year', 'claims', 'capitation', 'ffs',
-      'fee for service', 'category', 's/n', 'sn', 'first name', 'last name', 'phone'
+    const headerKeywords = [
+      'provider', 'providers', 'facility', 'hospital', 'policy', 'enrollee', 'beneficiary',
+      'amount', 'date', 'month', 'year', 'claims', 'capitation', 'ffs', 'fee for service',
+      'category', 's/n', 'sn', 'serial', 'first name', 'last name', 'phone', 'gender',
+      'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'sept', 'oct', 'nov', 'dec'
     ];
+    const schemaKeywords = new Set([
+      'provider', 'providers', 'facility', 'policy', 'category', 'amount', 'month', 'year',
+      'claims', 'capitation', 'ffs', 's/n', 'sn', 'serial', 'first name', 'last name',
+      'gender', 'phone', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep',
+      'sept', 'oct', 'nov', 'dec'
+    ]);
 
-    for (let i = 0; i < Math.min(matrix.length, 25); i++) {
-      const row = matrix[i];
-      if (!Array.isArray(row)) continue;
-      
-      const matchCount = row.filter(cell => {
-        const val = String(cell ?? '').toLowerCase().trim();
-        return keywords.some(k => val.includes(k));
-      }).length;
+    let bestIndex = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
 
-      // If a row contains 3 or more financial/enrollee keywords, it's the header
-      if (matchCount >= 3) {
-        return i;
+    matrix.forEach((row, index) => {
+      if (!Array.isArray(row)) return;
+      const cells = row.map(cell => String(cell ?? '').trim()).filter(Boolean);
+      if (cells.length < 2) return;
+
+      const normalized = cells.map(cell => cell.toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim());
+      const headerMatches = normalized.filter(cell => headerKeywords.some(keyword => cell === keyword || cell.includes(keyword))).length;
+      const exactSchemaMatches = normalized.filter(cell => schemaKeywords.has(cell)).length;
+      const monthMatches = normalized.filter(cell => this.isMonthColumn(cell)).length;
+      const numericCells = cells.filter(cell => /^[-+₦$\d,\.\s]+$/.test(cell)).length;
+      const longTextCells = cells.filter(cell => cell.length > 28).length;
+      const duplicateCells = cells.length - new Set(normalized).size;
+
+      // Strongly reward schema vocabulary and month columns; penalize data-shaped rows.
+      const score = (headerMatches * 2) + (exactSchemaMatches * 3) + (monthMatches * 2)
+        + (cells.length >= 3 ? 1 : 0) - (numericCells * 1.5) - (longTextCells * 0.5) - duplicateCells;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
       }
-    }
+    });
 
-    // Fallback: First row with at least 3 non-empty cells
-    for (let i = 0; i < Math.min(matrix.length, 15); i++) {
-      const row = matrix[i];
-      if (!Array.isArray(row)) continue;
-      const nonEmpty = row.filter(cell => String(cell ?? '').trim() !== '').length;
-      if (nonEmpty >= 3) return i;
-    }
+    return bestIndex;
+  },
 
-    return 0;
+  /** Return the zero-based month index for a JAN–DEC header, or -1. */
+  getMonthIndex(value: string): number {
+    const normalized = String(value ?? '').toLowerCase().trim().replace(/[_-]+/g, ' ');
+    const fullMonths = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const shortMonths = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const firstPart = normalized.split(/\s+/)[0];
+    const fullIndex = fullMonths.indexOf(firstPart);
+    if (fullIndex >= 0) return fullIndex;
+    if (firstPart === 'sept') return 8;
+    return shortMonths.indexOf(firstPart);
+  },
+
+  isMonthColumn(value: string): boolean {
+    return this.getMonthIndex(value) >= 0;
   },
 
   /**
