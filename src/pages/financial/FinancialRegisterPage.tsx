@@ -40,7 +40,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
   const isClaims = selectedDataType === 'claims-ffs';
   const [search, setSearch] = useState('');
   const [year, setYear] = useState('2026');
-  const [month, setMonth] = useState('8');
+  const [month, setMonth] = useState('');
   const [facilityType, setFacilityType] = useState('');
   const [ownership, setOwnership] = useState('');
   const [state, setState] = useState('');
@@ -80,7 +80,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
   const title = selectedDataType === 'capitation' ? 'Capitation Register' : 'Claims/FFS Register';
 
   const clearFilters = () => {
-    setSearch(''); setYear('2026'); setMonth('8'); setFacilityType(''); setOwnership('');
+    setSearch(''); setYear('2026'); setMonth(''); setFacilityType(''); setOwnership('');
     setState(''); setLga(''); setClaimsCategory(''); setMinAmount(''); setMaxAmount('');
   };
 
@@ -150,7 +150,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
                 <Search className="pointer-events-none absolute left-3.5 top-[2.35rem] h-4 w-4 text-brand-subtle" />
               </div>
               <Select label="Year" value={year} onChange={e => setYear(e.target.value)} options={['2026', '2025'].map(y => ({ label: y, value: y }))} />
-              <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} />
+              <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} placeholder="All months" />
             </div>
             <div className="flex flex-wrap items-center gap-2 border-t border-brand-divider pt-4">
               <span className="mr-2 text-xs font-bold uppercase tracking-wider text-brand-muted">Additional filters</span>
