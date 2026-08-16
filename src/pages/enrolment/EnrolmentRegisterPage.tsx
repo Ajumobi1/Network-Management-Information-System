@@ -16,6 +16,11 @@ import ExportEnrolmentDialog from './ExportEnrolmentDialog';
 
 type SortField = 'policyNumber' | 'beneficiary' | 'providerName' | 'lga' | 'period' | 'gender' | 'category' | 'sector' | 'district' | 'age';
 
+function livePeriod() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export default function EnrolmentRegisterPage() {
   const [search, setSearch] = useState('');
   const [sector, setSector] = useState<EnrolmentFilters['sector']>('all');
@@ -25,7 +30,7 @@ export default function EnrolmentRegisterPage() {
   const [lga, setLga] = useState('all');
   const [district, setDistrict] = useState('all');
   const [providerId, setProviderId] = useState('all');
-  const [period, setPeriod] = useState('all');
+  const [period, setPeriod] = useState(() => livePeriod());
   const [sortField, setSortField] = useState<SortField>('policyNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
@@ -64,16 +69,16 @@ export default function EnrolmentRegisterPage() {
     states: unique(allRecords.map(record => record.state)),
     lgas: unique(allRecords.map(record => record.lga)),
     districts: unique(allRecords.map(record => record.senatorialDistrict).filter((value): value is string => Boolean(value))),
-    periods: unique(allRecords.map(record => record.period)).sort(),
+    periods: unique([livePeriod(), ...allRecords.map(record => record.period)]).sort(),
     providers: Array.from(new Map(allRecords.map(record => [record.providerId || record.providerName, { id: record.providerId || record.providerName, name: record.providerName }])).values()).sort((a, b) => a.name.localeCompare(b.name)),
   }), [allRecords]);
 
   const totalMatching = analytics?.totalEnrollees ?? records[0]?.totalCount ?? records.length;
   const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
 
-  const clearFilters = () => { setSearch(''); setSector('all'); setCategory('all'); setGender('all'); setState('all'); setLga('all'); setDistrict('all'); setProviderId('all'); setPeriod('all'); };
+  const clearFilters = () => { setSearch(''); setSector('all'); setCategory('all'); setGender('all'); setState('all'); setLga('all'); setDistrict('all'); setProviderId('all'); setPeriod(livePeriod()); };
   const activeFilterChips = [search ? { id: 'search', label: 'Search', value: search } : null, sector !== 'all' ? { id: 'sector', label: 'Sector', value: sector || '' } : null, category !== 'all' ? { id: 'category', label: 'Category', value: category || '' } : null, gender !== 'all' ? { id: 'gender', label: 'Gender', value: gender } : null, state !== 'all' ? { id: 'state', label: 'State', value: state } : null, lga !== 'all' ? { id: 'lga', label: 'LGA', value: lga } : null, district !== 'all' ? { id: 'district', label: 'District', value: district } : null, providerId !== 'all' ? { id: 'providerId', label: 'Facility', value: options.providers.find(provider => provider.id === providerId)?.name || providerId } : null, period !== 'all' ? { id: 'period', label: 'Period', value: period } : null].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
-  const removeFilter = (id: string) => { if (id === 'search') setSearch(''); if (id === 'sector') setSector('all'); if (id === 'category') setCategory('all'); if (id === 'gender') setGender('all'); if (id === 'state') setState('all'); if (id === 'lga') setLga('all'); if (id === 'district') setDistrict('all'); if (id === 'providerId') setProviderId('all'); if (id === 'period') setPeriod('all'); };
+  const removeFilter = (id: string) => { if (id === 'search') setSearch(''); if (id === 'sector') setSector('all'); if (id === 'category') setCategory('all'); if (id === 'gender') setGender('all'); if (id === 'state') setState('all'); if (id === 'lga') setLga('all'); if (id === 'district') setDistrict('all'); if (id === 'providerId') setProviderId('all'); if (id === 'period') setPeriod(livePeriod()); };
   const toggleSort = (field: SortField) => { if (sortField === field) setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDirection('asc'); } };
 
   const openExportDialog = () => setIsExportDialogOpen(true);
@@ -84,11 +89,11 @@ export default function EnrolmentRegisterPage() {
   const dependantCount = analytics?.dependantCount ?? 0;
 
   if (secureError) {
-    return <div className="space-y-6"><PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Individual beneficiary records require an explicitly approved PII access contract." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link></>} /><Card className="border-amber-200 bg-amber-50"><div className="space-y-2 p-5"><p className="font-semibold text-amber-900">Secure access unavailable</p><p className="text-sm text-amber-800">This user does not have an approved browser contract for enrollee register, detail, or export access. No records were loaded.</p><p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{secureError.code}</p></div></Card></div>;
+    return <div className="space-y-6"><PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Individual beneficiary records require an explicitly approved PII access contract." actions={<><Link to="/dashboard"><Button variant="secondary">Dashboard</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link></>} /><Card className="border-amber-200 bg-amber-50"><div className="space-y-2 p-5"><p className="font-semibold text-amber-900">Secure access unavailable</p><p className="text-sm text-amber-800">This user does not have an approved browser contract for enrollee register, detail, or export access. No records were loaded.</p><p className="text-xs font-semibold uppercase tracking-wide text-amber-700">{secureError.code}</p></div></Card></div>;
   }
 
   return <div className="space-y-6">
-<PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/population/enrolment"><Button variant="secondary">Population overview</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={openExportDialog} disabled={totalMatching === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
+<PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/dashboard"><Button variant="secondary">Dashboard</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={openExportDialog} disabled={totalMatching === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
 	    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard title="Matching records" value={isAnalyticsLoading ? '...' : totalMatching.toLocaleString()} subtitle="Current filter context" tone="primary" />
         <KpiCard title="Formal" value={isAnalyticsLoading ? '...' : formalCount.toLocaleString()} subtitle="/C/ policy sector" tone="success" />
@@ -96,7 +101,7 @@ export default function EnrolmentRegisterPage() {
         <KpiCard title="Principals" value={isAnalyticsLoading ? '...' : principalCount.toLocaleString()} subtitle="Source CATEGORY" tone="info" />
         <KpiCard title="Dependants" value={isAnalyticsLoading ? '...' : dependantCount.toLocaleString()} subtitle="Source CATEGORY" tone="neutral" />
       </section>
-	    <FilterBar primaryFilters={<><label className="relative min-w-[240px] flex-[2]"><span className="nmis-label">Search records</span><Search className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-brand-subtle" /><Input aria-label="Search policy, beneficiary, facility, or LGA" placeholder="Policy, beneficiary, facility, LGA..." value={search} onChange={event => setSearch(event.target.value)} className="pl-9" /></label><Select label="Sector" value={sector || 'all'} onChange={value => setSector(value as EnrolmentFilters['sector'])} options={['all', 'formal', 'informal']} /><Select label="Category" value={category || 'all'} onChange={value => setCategory(value as EnrolmentFilters['category'])} options={['all', 'principal', 'dependant']} /><Select label="Period" value={period} onChange={setPeriod} options={['all', ...options.periods]} /></>} advancedFilters={<><Select label="Gender" value={gender} onChange={setGender} options={['all', 'male', 'female', 'other']} /><Select label="State" value={state} onChange={setState} options={['all', ...options.states]} /><Select label="LGA" value={lga} onChange={setLga} options={['all', ...options.lgas]} /><Select label="Senatorial district" value={district} onChange={setDistrict} options={['all', ...options.districts]} /><label><span className="nmis-label">Facility</span><select className="nmis-control" value={providerId} onChange={event => setProviderId(event.target.value)}><option value="all">All facilities</option>{options.providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label></>} activeFilters={<ActiveFilterChips chips={activeFilterChips} onRemove={removeFilter} onClear={clearFilters} />} onReset={clearFilters} />
+	    <FilterBar primaryFilters={<><label className="relative min-w-[240px] flex-[2]"><span className="nmis-label">Search records</span><Search className="pointer-events-none absolute left-3 top-[2.35rem] h-4 w-4 text-brand-subtle" /><Input aria-label="Search policy, beneficiary, facility, or LGA" placeholder="Policy, beneficiary, facility, LGA..." value={search} onChange={event => setSearch(event.target.value)} className="pl-9" /></label><Select label="Sector" value={sector || 'all'} onChange={value => setSector(value as EnrolmentFilters['sector'])} options={['all', 'formal', 'informal']} /><Select label="Category" value={category || 'all'} onChange={value => setCategory(value as EnrolmentFilters['category'])} options={['all', 'principal', 'dependant']} /><Select label="Period" value={period} onChange={setPeriod} options={options.periods} /></>} advancedFilters={<><Select label="Gender" value={gender} onChange={setGender} options={['all', 'male', 'female', 'other']} /><Select label="State" value={state} onChange={setState} options={['all', ...options.states]} /><Select label="LGA" value={lga} onChange={setLga} options={['all', ...options.lgas]} /><Select label="Senatorial district" value={district} onChange={setDistrict} options={['all', ...options.districts]} /><label><span className="nmis-label">Facility</span><select className="nmis-control" value={providerId} onChange={event => setProviderId(event.target.value)}><option value="all">All facilities</option>{options.providers.map(provider => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label></>} activeFilters={<ActiveFilterChips chips={activeFilterChips} onRemove={removeFilter} onClear={clearFilters} />} onReset={clearFilters} />
 	    <section className="nmis-table-wrap"><div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="nmis-section-title">Normalized beneficiary records</h2><p className="nmis-section-subtitle">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p></div><div className="flex items-center gap-2 text-xs text-brand-muted">
   <span>Sort by</span>
   <select

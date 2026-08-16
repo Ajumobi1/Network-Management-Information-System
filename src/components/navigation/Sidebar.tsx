@@ -20,7 +20,6 @@ const sections: Section[] = [
   ] },
   { label: 'Population & Enrolment', icon: Users, visible: true, children: [
     { label: 'Enrolment Register', path: '/population/enrolment/register', icon: Users },
-    { label: 'Population Overview', path: '/population/enrolment', icon: Grid },
     { label: 'Upload Capitation List', path: '/population/enrolment/upload', icon: UploadCloud },
   ] },
   { label: 'Financial Management', icon: FileChartColumn, visible: true, children: [

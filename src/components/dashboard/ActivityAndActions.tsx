@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Dashboard2Intelligence } from '../../types/dashboard/dashboardIntelligenceTypes';
 
 const quickActions = [
+  { label: 'Register new enrollee', detail: 'Create a beneficiary record', href: '/population/enrolment/new', icon: UserRoundPlus, tone: 'green' },
   { label: 'Upload financial data', detail: 'Claims, Capitation, or FFS', href: '/financial/upload', icon: FileUp, tone: 'blue' },
   { label: 'Upload enrolment list', detail: 'Start a population import', href: '/population/enrolment/upload', icon: ListChecks, tone: 'green' },
   { label: 'Provider Directory', detail: 'Review network coverage', href: '/providers', icon: Hospital, tone: 'slate' },

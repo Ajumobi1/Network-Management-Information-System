@@ -12,12 +12,17 @@ import { isSecureContractError } from '../../lib/security/secureContracts';
 
 const emptyOptions: DashboardFilterOptions = { years: [], months: [], states: [], lgas: [], facilityTypes: [], ownerships: [] };
 
+function liveCalendarFilters(): DashboardFilters {
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1, sector: 'all' };
+}
+
 export default function ExecutiveDashboardPage() {
-  const [filters, setFilters] = useState<DashboardFilters>({ sector: 'all' });
+  const [filters, setFilters] = useState<DashboardFilters>(() => liveCalendarFilters());
   const { data: intelligence, isLoading, isFetching, isError, error, refetch } = useDashboardIntelligence(filters);
   const options = intelligence?.filterOptions || emptyOptions;
   const updateFilter = <K extends keyof DashboardFilters>(key: K, value: DashboardFilters[K]) => setFilters(previous => ({ ...previous, [key]: value }));
-  const clearFilters = () => setFilters({ sector: 'all' });
+  const clearFilters = () => setFilters(liveCalendarFilters());
 
   return <div className="space-y-6 pb-4"><Dashboard2Header filters={filters} options={options} reportingPeriod={intelligence?.reportingPeriod || 'All periods'} lastUpdatedAt={intelligence?.lastUpdatedAt} onChange={updateFilter} onClear={clearFilters} />{isFetching && !isLoading ? <div className="flex items-center justify-end gap-2 text-xs font-semibold text-slate-500"><span className="h-2 w-2 animate-pulse rounded-full bg-brand-blue" />Refreshing filtered intelligence…</div> : null}{isLoading ? <DashboardLoadingState /> : null}{isError ? <ErrorState error={error} onRetry={() => refetch()} /> : null}{intelligence ? <><ExecutiveKpiRow intelligence={intelligence} /><NetworkCoverageSection intelligence={intelligence} /><PopulationIntelligenceSection intelligence={intelligence} /><FinancialIntelligenceSummary intelligence={intelligence} /><ManagementAttentionPanel intelligence={intelligence} /><ActivityAndActions intelligence={intelligence} /></> : null}</div>;
 }

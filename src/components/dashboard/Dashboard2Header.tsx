@@ -6,6 +6,11 @@ import { DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTyp
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
+function liveCalendarPeriod() {
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1 };
+}
+
 function computeReportingPeriod(filters: DashboardFilters, rpcPeriod?: string): string {
   if (filters.year && filters.month) {
     return `${monthNames[filters.month - 1] || filters.month} ${filters.year}`;
@@ -20,7 +25,8 @@ function computeReportingPeriod(filters: DashboardFilters, rpcPeriod?: string): 
     }
     return rpcPeriod;
   }
-  return 'All reporting periods';
+  const live = liveCalendarPeriod();
+  return `${monthNames[live.month - 1]} ${live.year}`;
 }
 
 type Dashboard2HeaderProps = {
@@ -35,8 +41,6 @@ type Dashboard2HeaderProps = {
 export default function Dashboard2Header({ filters, options, reportingPeriod, lastUpdatedAt, onChange, onClear }: Dashboard2HeaderProps) {
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const activeFilterChips = [
-    filters.year ? { id: 'year', label: 'Year', value: String(filters.year) } : null,
-    filters.month ? { id: 'month', label: 'Month', value: monthNames[filters.month - 1] || String(filters.month) } : null,
     filters.lga ? { id: 'lga', label: 'LGA', value: filters.lga } : null,
     filters.state ? { id: 'state', label: 'State', value: filters.state } : null,
     filters.facilityType ? { id: 'facilityType', label: 'Facility', value: filters.facilityType } : null,
@@ -45,8 +49,11 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
   ].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
 
   const removeFilter = (id: string) => {
-    if (id === 'year') onChange('year', undefined);
-    if (id === 'month') onChange('month', undefined);
+    if (id === 'year' || id === 'month') {
+      const live = liveCalendarPeriod();
+      onChange('year', live.year);
+      onChange('month', live.month);
+    }
     if (id === 'lga') onChange('lga', undefined);
     if (id === 'state') onChange('state', undefined);
     if (id === 'facilityType') onChange('facilityType', undefined);
@@ -86,10 +93,10 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
 
         <div className="mt-5 flex flex-wrap items-end gap-3">
           <div className="w-full max-w-[140px]">
-            <Select label="Year" value={filters.year ? String(filters.year) : ''} options={options.years.map(y => ({ label: String(y), value: y }))} placeholder="All years" onChange={event => onChange('year', event.target.value ? Number(event.target.value) : undefined)} />
+              <Select label="Year" value={filters.year ? String(filters.year) : String(liveCalendarPeriod().year)} options={Array.from(new Set([liveCalendarPeriod().year, ...options.years])).sort((a, b) => b - a).map(y => ({ label: String(y), value: y }))} placeholder="Select year" onChange={event => onChange('year', Number(event.target.value))} />
           </div>
           <div className="w-full max-w-[140px]">
-            <Select label="Month" value={filters.month ? String(filters.month) : ''} options={options.months.map(m => ({ label: monthNames[m - 1] || String(m), value: m }))} placeholder="All months" onChange={event => onChange('month', event.target.value ? Number(event.target.value) : undefined)} />
+              <Select label="Month" value={filters.month ? String(filters.month) : String(liveCalendarPeriod().month)} options={monthNames.map((label, index) => ({ label, value: index + 1 }))} placeholder="Select month" onChange={event => onChange('month', Number(event.target.value))} />
           </div>
           <div className="w-full max-w-[180px]">
             <Select label="LGA" value={filters.lga || ''} options={options.lgas.map(l => ({ label: l, value: l }))} placeholder="All LGAs" onChange={event => onChange('lga', event.target.value || undefined)} />

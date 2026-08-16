@@ -25,7 +25,6 @@ import DataUploadCentrePage from '../pages/financial/DataUploadCentrePage';
 import ImportHistoryPage from '../pages/financial/ImportHistoryPage';
 import EnrolmentUploadPage from '../pages/enrolment/EnrolmentUploadPage';
 import NewEnrolleePage from '../pages/enrolment/NewEnrolleePage';
-import PopulationOverviewPage from '../pages/enrolment/PopulationOverviewPage';
 import EnrolmentRegisterPage from '../pages/enrolment/EnrolmentRegisterPage';
 import CommunicationPage from '../pages/CommunicationPage';
 import ComplaintsPage from '../pages/ComplaintsPage';
@@ -67,7 +66,7 @@ export default function AppRoutes() {
         <Route path="/population/enrolment/new" element={<NewEnrolleePage />} />
         <Route path="/financial/upload" element={<DataUploadCentrePage />} />
         <Route path="/financial/history" element={<ImportHistoryPage />} />
-        <Route path="/population/enrolment" element={<PopulationOverviewPage />} />
+        <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
         <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
         <Route path="/inspections" element={<InspectionsPage />} />
         <Route path="/performance" element={<PerformancePage />} />
