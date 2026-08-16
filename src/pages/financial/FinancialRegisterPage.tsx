@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { BarChart3, Building2, Calendar, Download, FileText, Filter, Search, Users, ChevronLeft, ChevronRight, ArrowDownUp } from 'lucide-react';
 import { ProviderCategory, ProviderOwnership } from '../../constants/providerNetwork';
 import Badge from '../../components/ui/Badge';
@@ -136,7 +136,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
           eyebrow="Financial Management"
           title={title}
           subtitle={selectedDataType === 'claims-ffs' ? 'Claims and Fee-for-Service records are shown under the same Claims/FFS financial workflow.' : 'Capitation records in the separate capitation register.'}
-          actions={<Button variant="secondary" onClick={exportCsv} disabled={records.length === 0} className="gap-2"><Download size={16} /> Export CSV</Button>}
+          actions={<div className="flex flex-wrap gap-2"><Link to={isClaims ? '/financial/manual' : '/financial/manual?type=capitation'}><Button variant="secondary" className="gap-2"><FileText size={16} /> Manual Entry</Button></Link><Button variant="secondary" onClick={exportCsv} disabled={records.length === 0} className="gap-2"><Download size={16} /> Export CSV</Button></div>}
         />
 
         <SummaryGrid summary={summary} isClaims={isClaims} isLoading={isSummaryLoading} />

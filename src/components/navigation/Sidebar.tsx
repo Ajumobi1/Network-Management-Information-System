@@ -27,6 +27,8 @@ const sections: Section[] = [
     { label: 'Capitation Register', path: '/financial/capitation', icon: FileChartColumn },
     { label: 'Claims/FFS Upload', path: '/financial/upload', icon: UploadCloud },
     { label: 'Capitation Upload', path: '/financial/upload?type=capitation', icon: UploadCloud },
+    { label: 'Manual Claims/FFS Entry', path: '/financial/manual', icon: ClipboardCheck },
+    { label: 'Manual Capitation Entry', path: '/financial/manual/capitation', icon: ClipboardCheck },
     { label: 'Import History', path: '/financial/history', icon: ClipboardCheck },
   ] },
   { label: 'Quality & Compliance', icon: ShieldCheck, visible: true, children: [

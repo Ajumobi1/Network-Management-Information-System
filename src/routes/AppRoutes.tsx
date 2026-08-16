@@ -18,6 +18,7 @@ import CredentialingPage from '../pages/CredentialingPage';
 import CapitationPage from '../pages/CapitationPage';
 import PerformancePage from '../pages/PerformancePage';
 import FinancialRegisterPage from '../pages/financial/FinancialRegisterPage';
+import FinancialManualEntryPage from '../pages/financial/FinancialManualEntryPage';
 import DataUploadCentrePage from '../pages/financial/DataUploadCentrePage';
 import ImportHistoryPage from '../pages/financial/ImportHistoryPage';
 import EnrolmentUploadPage from '../pages/enrolment/EnrolmentUploadPage';
@@ -63,6 +64,8 @@ export default function AppRoutes() {
         <Route path="/population/enrolment/register" element={<EnrolmentRegisterPage />} />
         <Route path="/population/enrolment/new" element={<NewEnrolleePage />} />
         <Route path="/financial/upload" element={<DataUploadCentrePage />} />
+        <Route path="/financial/manual" element={<FinancialManualEntryPage />} />
+        <Route path="/financial/manual/capitation" element={<Navigate to="/financial/manual?type=capitation" replace />} />
         <Route path="/financial/history" element={<ImportHistoryPage />} />
         <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
         <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
