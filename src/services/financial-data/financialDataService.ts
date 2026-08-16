@@ -480,7 +480,8 @@ export const financialDataService = {
     fileName: string,
     sourceSheet?: string,
     periodOverride?: { reportingYear: number; reportingMonth: number },
-    fallbackContext?: { facilityName?: string; lga?: string; state?: string }
+    fallbackContext?: { facilityName?: string; lga?: string; state?: string },
+    rowTypePolicy: { mode: 'auto' | 'capitation' | 'claims-ffs' } = { mode: 'auto' }
   ): FinancialRecord[] {
     const records: FinancialRecord[] = [];
     const now = new Date().toISOString();
@@ -538,6 +539,11 @@ export const financialDataService = {
         if (detected) return detected;
       }
       return dataType;
+    };
+    const shouldIncludeType = (recordType: FinancialDataType) => {
+      if (rowTypePolicy.mode === 'capitation') return recordType === 'capitation';
+      if (rowTypePolicy.mode === 'claims-ffs') return recordType === 'claims' || recordType === 'ffs';
+      return true;
     };
 
     let inheritedProviderName = fallbackContext?.facilityName || '';
@@ -606,7 +612,9 @@ export const financialDataService = {
             period: `${baseData.reportingYear}-${String(monthIdx + 1).padStart(2, '0')}`,
           } as FinancialRecord;
 
-          records.push({ ...finalRecord, fingerprint: buildFingerprint(finalRecord) });
+          if (shouldIncludeType(finalRecord.dataType)) {
+            records.push({ ...finalRecord, fingerprint: buildFingerprint(finalRecord) });
+          }
         });
       } else {
         // Autonomous Cleaning: Skip rows that have no financial amount
@@ -619,7 +627,9 @@ export const financialDataService = {
           period: baseData.reportingYear && baseData.reportingMonth ? `${baseData.reportingYear}-${String(baseData.reportingMonth).padStart(2, '0')}` : undefined,
         } as FinancialRecord;
 
-        records.push({ ...finalRecord, fingerprint: buildFingerprint(finalRecord) });
+        if (shouldIncludeType(finalRecord.dataType)) {
+          records.push({ ...finalRecord, fingerprint: buildFingerprint(finalRecord) });
+        }
       }
     });
 

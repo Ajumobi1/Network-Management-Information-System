@@ -36,6 +36,7 @@ import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDete
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type UploadWorkflow = 'claims-ffs' | 'capitation';
+type RowTypeSelection = 'auto' | 'capitation' | 'claims-ffs';
 type RawRow = Record<string, unknown>;
 
 interface FileQueueItem {
@@ -68,6 +69,7 @@ interface FileQueueItem {
     periodDetection: DetectedPeriod;
     horizontalSchedule: boolean;
     extractedContext: { facilityName?: string; lga?: string; period?: string };
+    rowTypeSelection: RowTypeSelection;
     aiIntegrity?: FinancialIntegritySummary;
   };
 }
@@ -265,6 +267,7 @@ export default function DataUploadCentrePage() {
           periodDetection: detectedPeriod,
           horizontalSchedule,
           extractedContext: context,
+          rowTypeSelection: item.workflow === 'capitation' ? 'capitation' : 'claims-ffs',
         }
       });
       // Horizontal month-column schedules need only a year; ordinary files need both year and month.
@@ -331,7 +334,7 @@ export default function DataUploadCentrePage() {
 
 const generatePreview = () => {
     if (!activeItem?.data) return;
-    const { rawRows, mappings, matches, reportingYear, reportingMonth, horizontalSchedule } = activeItem.data;
+    const { rawRows, mappings, matches, reportingYear, reportingMonth, horizontalSchedule, rowTypeSelection } = activeItem.data;
     const hasAmountField = mappings.some(mapping => amountMappingFields.has(mapping.nmisField));
     const lowConfidence = mappings.filter(mapping => mapping.nmisField !== 'ignored' && mapping.confidence === 'LOW');
     if (!mappings.some(mapping => mapping.nmisField === 'providerName') && !activeItem.data.extractedContext.facilityName) {
@@ -356,6 +359,7 @@ const generatePreview = () => {
       activeItem.data.sourceSheet,
       reportingYear && (reportingMonth || horizontalSchedule) ? { reportingYear: Number(reportingYear), reportingMonth: Number(reportingMonth || 1) } : undefined,
       activeItem.data.extractedContext,
+      { mode: rowTypeSelection || 'auto' },
     );
     const records = rawRecords.map(record => {
       const match = matches.find(candidate => {
@@ -414,10 +418,15 @@ const generatePreview = () => {
 
     setIsAnalyzing(true);
     try {
+      const selectedBatchType: FinancialDataType = activeItem.data.rowTypeSelection === 'capitation'
+        ? 'capitation'
+        : activeItem.data.rowTypeSelection === 'claims-ffs'
+          ? 'claims'
+          : activeItem.dataType;
       const result = await createBatch.mutateAsync({
         batch: {
           fileName: activeItem.file.name,
-          dataType: activeItem.dataType,
+          dataType: selectedBatchType,
           periodCovered: activeItem.period || null,
           totalRows: activeItem.rows,
           status: 'imported',
@@ -431,6 +440,7 @@ const generatePreview = () => {
             sourceSheet: activeItem.data.sourceSheet,
             workflow: activeItem.workflow,
             detectedDataTypes: [...new Set(activeItem.data.normalizedRecords.map(record => record.dataType))],
+            rowTypeSelection: activeItem.data.rowTypeSelection,
             providerNames: [...new Set(activeItem.data.normalizedRecords.map(r => r.providerName).filter(Boolean))],
             aiIntegrity: activeItem.data.aiIntegrity,
           }
@@ -692,6 +702,23 @@ const generatePreview = () => {
 
               {step === 'map' && activeItem?.data && (
                 <Panel title="Column Mapping" description="Map workbook columns to NMIS financial fields.">
+                  <div className="mb-5 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wider text-brand-blue">Import row types</p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-600">Column 3 is the source row-type field. Choose what this upload should keep; excluded row types will not reach matching, preview, or commit.</p>
+                      </div>
+                      <select
+                        className="w-full rounded-xl border-blue-200 bg-white text-sm font-semibold lg:w-80"
+                        value={activeItem.data.rowTypeSelection}
+                        onChange={event => updateActiveData({ rowTypeSelection: event.target.value as RowTypeSelection })}
+                      >
+                        <option value="capitation">Capitation only — exclude Claims/FFS</option>
+                        <option value="claims-ffs">Claims/FFS only — exclude Capitation</option>
+                        <option value="auto">Auto-detect mixed rows — keep both</option>
+                      </select>
+                    </div>
+                  </div>
                   <div className="space-y-2">
                     {activeItem.data.mappings.map((mapping, idx) => (
                       <div key={idx} className="flex items-center justify-between rounded-xl border border-slate-100 p-3 hover:bg-slate-50 transition-colors">
@@ -767,6 +794,10 @@ const generatePreview = () => {
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-slate-500">Workflow Mode</span>
                           <span className="font-bold text-slate-900">{activeItem.workflow === 'capitation' ? 'Capitation' : 'Claims/FFS'}</span>
+                        </div>
+                        <div className="flex items-center justify-between gap-4 text-sm">
+                          <span className="text-slate-500">Import row-type policy</span>
+                          <span className="text-right font-bold text-slate-900">{activeItem.data.rowTypeSelection === 'auto' ? 'Auto-detect mixed rows' : activeItem.data.rowTypeSelection === 'capitation' ? 'Capitation only' : 'Claims/FFS only'}</span>
                         </div>
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-slate-500">Detected Records</span>
