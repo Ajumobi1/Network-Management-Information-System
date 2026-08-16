@@ -17,8 +17,6 @@ import ReportsPage from '../pages/ReportsPage';
 import CredentialingPage from '../pages/CredentialingPage';
 import CapitationPage from '../pages/CapitationPage';
 import PerformancePage from '../pages/PerformancePage';
-import FinancialDashboardPage from '../pages/financial/FinancialDashboardPage';
-import FinancialIntelligencePage from '../pages/financial/FinancialIntelligencePage';
 import FinancialRegisterPage from '../pages/financial/FinancialRegisterPage';
 import ClaimsAnalyticsPage from '../pages/financial/ClaimsAnalyticsPage';
 import DataUploadCentrePage from '../pages/financial/DataUploadCentrePage';
@@ -55,8 +53,8 @@ export default function AppRoutes() {
         <Route path="/credentialing" element={<CredentialingPage />} />
         <Route path="/contracts" element={<ContractsPage />} />
         <Route path="/capitation" element={<CapitationPage />} />
-        <Route path="/financial/dashboard" element={<FinancialDashboardPage />} />
-        <Route path="/analytics/financial-intelligence" element={<FinancialIntelligencePage />} />
+        <Route path="/financial/dashboard" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/analytics/financial-intelligence" element={<Navigate to="/dashboard" replace />} />
         <Route path="/financial/claims" element={<FinancialRegisterPage type="claims" />} />
         <Route path="/financial/claims/analytics" element={<ClaimsAnalyticsPage />} />
         <Route path="/financial/capitation" element={<FinancialRegisterPage type="capitation" />} />

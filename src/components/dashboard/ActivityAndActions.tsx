@@ -7,7 +7,6 @@ const quickActions = [
   { label: 'Upload financial data', detail: 'Claims, Capitation, or FFS', href: '/financial/upload', icon: FileUp, tone: 'blue' },
   { label: 'Upload enrolment list', detail: 'Start a population import', href: '/population/enrolment/upload', icon: ListChecks, tone: 'green' },
   { label: 'Provider Directory', detail: 'Review network coverage', href: '/providers', icon: Hospital, tone: 'slate' },
-  { label: 'Financial Intelligence', detail: 'Explore expenditure and PEPM', href: '/analytics/financial-intelligence', icon: FileBarChart, tone: 'rose' },
   { label: 'Enrolment Register', detail: 'Search normalized records', href: '/population/enrolment/register', icon: ClipboardList, tone: 'amber' },
   { label: 'Import history', detail: 'Review source batches', href: '/financial/history', icon: History, tone: 'slate' },
 ];

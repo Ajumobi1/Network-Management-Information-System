@@ -23,11 +23,9 @@ const sections: Section[] = [
     { label: 'Upload Capitation List', path: '/population/enrolment/upload', icon: UploadCloud },
   ] },
   { label: 'Financial Management', icon: FileChartColumn, visible: true, children: [
-    { label: 'Financial Overview', path: '/financial/dashboard', icon: Grid },
     { label: 'Claims', path: '/financial/claims', icon: FileText },
     { label: 'Capitation', path: '/financial/capitation', icon: FileChartColumn },
     { label: 'Fee-for-Service', path: '/financial/ffs', icon: FileText },
-    { label: 'Financial Intelligence', path: '/analytics/financial-intelligence', icon: FileChartColumn },
     { label: 'Data Upload Centre', path: '/financial/upload', icon: UploadCloud },
     { label: 'Import History', path: '/financial/history', icon: ClipboardCheck },
   ] },
