@@ -242,19 +242,19 @@ export default function FinancialRegisterPage({ type }: Props) {
 function SummaryGrid({ summary, isClaims, isLoading }: { summary?: FinancialRegisterSummary; isClaims: boolean; isLoading: boolean }) {
   const cards = isClaims
     ? [
-      { label: 'Total Records', value: summary?.totalRecords.toLocaleString() ?? '0', tone: 'primary' as const, icon: <FileText size={18} /> },
-      { label: 'Claim Count', value: summary?.totalClaimCount.toLocaleString() ?? '0', tone: 'info' as const, icon: <Users size={18} /> },
+      { label: 'Total Records', value: summary?.totalRecords?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <FileText size={18} /> },
+      { label: 'Claim Count', value: summary?.totalClaimCount?.toLocaleString() ?? '0', tone: 'info' as const, icon: <Users size={18} /> },
       { label: 'Submitted', value: formatNaira(summary?.totalSubmittedAmount ?? 0), tone: 'neutral' as const, icon: <BarChart3 size={18} /> },
       { label: 'Paid / Approved', value: formatNaira(summary?.totalApprovedAmount ?? 0), tone: 'success' as const, icon: <BarChart3 size={18} /> },
       { label: 'Rejected', value: formatNaira(summary?.totalRejectedAmount ?? 0), tone: 'danger' as const, icon: <BarChart3 size={18} /> },
       { label: 'Avg Claim', value: formatNaira(summary?.averageClaimValue ?? 0), tone: 'info' as const, icon: <BarChart3 size={18} /> },
-      { label: 'Providers', value: summary?.providerCount.toLocaleString() ?? '0', tone: 'primary' as const, icon: <Building2 size={18} /> },
+      { label: 'Providers', value: summary?.providerCount?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <Building2 size={18} /> },
     ]
     : [
-      { label: 'Total Records', value: summary?.totalRecords.toLocaleString() ?? '0', tone: 'primary' as const, icon: <FileText size={18} /> },
+      { label: 'Total Records', value: summary?.totalRecords?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <FileText size={18} /> },
       { label: 'Total Amount', value: formatNaira(summary?.totalPaidAmount ?? 0), tone: 'success' as const, icon: <BarChart3 size={18} /> },
       { label: 'Avg Amount', value: formatNaira(summary?.averageClaimValue ?? 0), tone: 'info' as const, icon: <BarChart3 size={18} /> },
-      { label: 'Providers', value: summary?.providerCount.toLocaleString() ?? '0', tone: 'primary' as const, icon: <Building2 size={18} /> },
+      { label: 'Providers', value: summary?.providerCount?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <Building2 size={18} /> },
     ];
 
   return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">{cards.map((card) => <KpiCard key={card.label} title={card.label} value={card.value} tone={card.tone} icon={card.icon} />)}</div>;

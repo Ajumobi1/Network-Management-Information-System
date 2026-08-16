@@ -328,12 +328,23 @@ export interface FinancialRegisterSummary {
 }
 
 export async function fetchFinancialRegisterSummary(filters: FinancialFilters = {}): Promise<FinancialRegisterSummary> {
-  if (!useMockData) return invokeSecureRpc<FinancialRegisterSummary>('nmis_financial_intelligence', reportingArgs(filters));
-  const records = await fetchFinancialRecords(filters);
+  // Use the same authoritative, filtered register contract as the table. This is read-only;
+  // it prevents the summary from depending on a different aggregate payload shape and
+  // guarantees that Claims, Capitation, and FFS counts cannot drift from the visible rows.
+  const records = await fetchFinancialRecords({ ...filters, page: 1, pageSize: 50000 });
   const totalClaimCount = records.reduce((sum, record) => sum + claimVolume(record), 0);
   const totalSubmittedAmount = records.reduce((sum, record) => sum + submittedClaimsAmount(record), 0);
   const totalApprovedAmount = records.reduce((sum, record) => sum + (record.amountApproved ?? record.amountPaid ?? 0), 0);
   const totalRejectedAmount = records.reduce((sum, record) => sum + rejectedClaimsAmount(record), 0);
   const totalPaidAmount = records.reduce((sum, record) => sum + amountForRecord(record), 0);
-  return { totalRecords: records.length, totalClaimCount, totalSubmittedAmount, totalApprovedAmount, totalRejectedAmount, totalPaidAmount, averageClaimValue: totalClaimCount ? totalPaidAmount / totalClaimCount : 0, providerCount: new Set(records.map(record => record.providerId || record.providerCode || record.providerName)).size };
+  return {
+    totalRecords: records.length,
+    totalClaimCount,
+    totalSubmittedAmount,
+    totalApprovedAmount,
+    totalRejectedAmount,
+    totalPaidAmount,
+    averageClaimValue: totalClaimCount ? totalPaidAmount / totalClaimCount : (records.length ? totalPaidAmount / records.length : 0),
+    providerCount: new Set(records.map(record => record.providerId || record.providerCode || record.providerName)).size,
+  };
 }
