@@ -11,7 +11,7 @@ import { ProviderCategory, PROVIDER_CATEGORY_LABELS } from '../constants/provide
 
 const categories = Object.values(ProviderCategory);
 const ownerships = ['Government', 'Private'];
-const lgas = ['Akoko North East', 'Akoko North West', 'Akoko South East', 'Akoko South West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'];
+const lgas = ['Akoko North East', 'Akoko North West', 'Akoko South East', 'Akoko South West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Odigbo', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'];
 
 export default function ProviderRegistrationPage() {
   const navigate = useNavigate();
@@ -142,14 +142,7 @@ export default function ProviderRegistrationPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Subcategory</label>
-                <Input
-                  value={form.subcategory}
-                  onChange={e => setForm(prev => ({ ...prev, subcategory: e.target.value }))}
-                  placeholder="e.g. Comprehensive / General"
-                />
-              </div>
+
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">State</label>

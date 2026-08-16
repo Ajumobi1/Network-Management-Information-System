@@ -33,13 +33,25 @@ export default function ProviderPage() {
     ownership: 'all',
   });
 
-  const { data: providers = [], isLoading, isError, error, refetch } = useProviderDirectory({
+  const { data: rawProviders = [], isLoading, isError, error, refetch } = useProviderDirectory({
     ...filters,
     page,
     pageSize,
-    sortField: sortField as any,
-    sortDirection,
   });
+
+  const providers = useMemo(() => {
+    const list = [...rawProviders];
+    list.sort((a, b) => {
+      let aVal = (a as any)[sortField] ?? '';
+      let bVal = (b as any)[sortField] ?? '';
+      if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+      if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+      if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return list;
+  }, [rawProviders, sortField, sortDirection]);
 
   const totalCount = (providers as any).totalCount ?? providers.length;
 

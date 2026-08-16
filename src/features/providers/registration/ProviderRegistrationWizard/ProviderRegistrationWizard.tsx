@@ -133,12 +133,8 @@ export default function ProviderRegistrationWizard() {
               </select>
             </label>
             <label className="space-y-2 text-sm font-medium text-slate-700">
-              Subcategory <span className="font-normal text-slate-500">(optional)</span>
-              <input value={formState.subcategory} onChange={event => updateField('subcategory', event.target.value)} maxLength={160} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
-            </label>
-            <label className="space-y-2 text-sm font-medium text-slate-700">
               Local government area
-              <input value={formState.lga} onChange={event => updateField('lga', event.target.value)} maxLength={120} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
+              <input value={formState.lga} onChange={event => updateField('lga', event.target.value)} maxLength={120} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" placeholder="e.g. Akure South" />
             </label>
           </div>
         )}
