@@ -63,8 +63,14 @@ export const financialDataService = {
   /**
    * Suggest a data type based on headers
    */
-  detectDataType(headers: string[]): FinancialDataType {
-    const headerStr = headers.join(' ').toLowerCase();
+  detectDataType(headers: string[], sourceName = ''): FinancialDataType {
+    const headerStr = [...headers, sourceName].join(' ').toLowerCase().replace(/[-_/]+/g, ' ');
+
+    // Claims, FFS, and Fee-for-Service are one workflow. Keep the stored row type
+    // as claims/ffs for reporting, but detect all common source spellings equally.
+    if (headerStr.includes('ffs') || headerStr.includes('fee for service')) {
+      return 'ffs';
+    }
 
     if (headerStr.includes('claim') || headerStr.includes('dental') || headerStr.includes('optical') || headerStr.includes('diagnostic')) {
       return 'claims';
@@ -72,10 +78,6 @@ export const financialDataService = {
 
     if (headerStr.includes('capitation') || headerStr.includes('cap fee') || (headerStr.includes('enrollee') && headerStr.includes('amount'))) {
       return 'capitation';
-    }
-
-    if (headerStr.includes('ffs') || headerStr.includes('fee for service')) {
-      return 'ffs';
     }
 
     if (headerStr.includes('enrolment') || headerStr.includes('informal') || headerStr.includes('formal')) {
@@ -118,7 +120,7 @@ export const financialDataService = {
 
     headers.forEach(header => {
       const normalizedHeader = normalized(header);
-      const values = sampleRows.slice(0, 50).map(row => String(row[header] ?? '').trim().toUpperCase());
+      const values = sampleRows.slice(0, 50).map(row => String(row[header] ?? '').trim().toUpperCase().replace(/[-_/]+/g, ' '));
       const looksLikeRowType = values.some(value => value === 'CAPITATION' || value === 'FFS' || value === 'FEE FOR SERVICE');
       if (looksLikeRowType) {
         mappings.push({ excelField: header, nmisField: 'dataType', confidence: 'HIGH', confidenceScore: 1 });
@@ -168,6 +170,7 @@ export const financialDataService = {
     if (value === null || value === undefined) return value;
     const text = String(value).trim();
     const upper = text.toUpperCase();
+    const normalizedUpper = upper.replace(/[-_/]+/g, ' ');
 
     if (field === 'ownership') {
       if (upper.includes('PRVATE') || upper.includes('PRIVATE')) return 'Private';
@@ -186,9 +189,9 @@ export const financialDataService = {
     }
 
     if (field === 'dataType') {
-      if (upper.includes('FFS') || upper.includes('FEE FOR SERVICE')) return 'ffs';
-      if (upper.includes('CAPITATION') || upper.includes('CAP')) return 'capitation';
-      if (upper.includes('CLAIM')) return 'claims';
+      if (normalizedUpper.includes('FFS') || normalizedUpper.includes('FEE FOR SERVICE')) return 'ffs';
+      if (normalizedUpper.includes('CAPITATION') || normalizedUpper.includes('CAP')) return 'capitation';
+      if (normalizedUpper.includes('CLAIM')) return 'claims';
       return text.toLowerCase();
     }
 

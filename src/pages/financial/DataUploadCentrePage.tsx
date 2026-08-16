@@ -199,7 +199,7 @@ export default function DataUploadCentrePage() {
 
       const hIndex = 0;
       const detectedHeaders = (matrix[hIndex] || []).map((value, index) => String(value ?? '').trim() || `Column ${index + 1}`);
-      const detectedType = financialDataService.detectDataType(detectedHeaders);
+      const detectedType = financialDataService.detectDataType(detectedHeaders, item.file.name);
       const inferredType: FinancialDataType = item.workflow === 'capitation' ? 'capitation' : detectedType === 'ffs' ? 'ffs' : 'claims';
       const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { header: detectedHeaders, range: hIndex + 1, defval: '', raw: false })
         .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
