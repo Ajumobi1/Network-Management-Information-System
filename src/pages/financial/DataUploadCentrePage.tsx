@@ -427,8 +427,8 @@ export default function DataUploadCentrePage() {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-blue">Network Financial Data</p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">{uploadWorkflow === 'capitation' ? 'Capitation Upload Centre' : 'Claims & FFS Upload Centre'}</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">Capitation is processed separately. Claims and Fee-for-Service share one workflow, while any row-level CAPITATION or FFS type in the workbook remains authoritative.</p>
+          <h1 className="mt-2 text-2xl font-bold text-slate-900">{uploadWorkflow === 'capitation' ? 'Capitation Upload Centre' : 'Claims/FFS Upload Centre'}</h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">Capitation is processed separately. Claims and Fee-for-Service share the **Claims/FFS** workflow, while any row-level CAPITATION or FFS type in the workbook remains authoritative.</p>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">
           {steps.map((item, index) => (
@@ -470,7 +470,7 @@ export default function DataUploadCentrePage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-xs font-bold text-slate-900">{item.file.name}</p>
-                      <p className="mt-0.5 text-[10px] text-slate-500">{item.rows.toLocaleString()} records · {item.workflow === 'capitation' ? 'CAPITATION' : 'CLAIMS / FFS'}</p>
+                      <p className="mt-0.5 text-[10px] text-slate-500">{item.rows.toLocaleString()} records · {item.workflow === 'capitation' ? 'CAPITATION' : 'CLAIMS/FFS'}</p>
                     </div>
                     <button onClick={(e) => { e.stopPropagation(); removeItem(item.id); }} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-500 transition-opacity">
                       <Trash2 className="h-3.5 w-3.5" />
@@ -510,12 +510,12 @@ export default function DataUploadCentrePage() {
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue">
                     <Coins className="h-7 w-7" />
                   </div>
-                  <h2 className="mt-5 text-xl font-bold text-slate-900">Upload {uploadWorkflow === 'capitation' ? 'Capitation' : 'Claims / FFS'} Workbooks</h2>
+                  <h2 className="mt-5 text-xl font-bold text-slate-900">Upload {uploadWorkflow === 'capitation' ? 'Capitation' : 'Claims/FFS'} Workbooks</h2>
                   <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Choose the workflow first, then drop multiple folders or select a folder of processed workbooks. A mapped row-level type remains authoritative.</p>
                   
                   <div className="mt-6 flex justify-center gap-2">
                     {([
-                      { value: 'claims-ffs', label: 'Claims / FFS' },
+                      { value: 'claims-ffs', label: 'Claims/FFS' },
                       { value: 'capitation', label: 'Capitation' },
                     ] as Array<{ value: UploadWorkflow; label: string }>).map(option => (
                       <button
@@ -707,7 +707,7 @@ export default function DataUploadCentrePage() {
               )}
 
               {step === 'preview' && activeItem?.data && (
-                <Panel title="Validation Preview" description={`Summary of normalized ${activeItem.workflow === 'capitation' ? 'Capitation' : 'Claims / FFS'} records before commit. Row-level CAPITATION and FFS values remain preserved.`}>
+                <Panel title="Validation Preview" description={`Summary of normalized ${activeItem.workflow === 'capitation' ? 'Capitation' : 'Claims/FFS'} records before commit. Row-level CAPITATION and FFS values remain preserved.`}>
                   <div className="grid gap-3 grid-cols-2 lg:grid-cols-5 mb-6">
                     <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">TOTAL ROWS</p>
@@ -746,7 +746,7 @@ export default function DataUploadCentrePage() {
                           <tr key={i}>
                             <td className="px-4 py-3 font-semibold text-slate-800">{r.providerName}</td>
                             <td className="px-4 py-3 text-slate-500">{r.period}</td>
-                            <td className="px-4 py-3"><Badge variant={r.dataType === 'capitation' ? 'success' : 'info'}>{r.dataType === 'ffs' ? 'Claims / FFS' : r.dataType}</Badge></td>
+                            <td className="px-4 py-3"><Badge variant={r.dataType === 'capitation' ? 'success' : 'info'}>{r.dataType === 'ffs' ? 'Claims/FFS' : r.dataType}</Badge></td>
                             <td className="px-4 py-3 text-right font-mono">₦{amountForPreview(r).toLocaleString()}</td>
                             <td className="px-4 py-3 text-right">
                               <Badge variant={r.recordStatus === 'duplicate' ? 'default' : r.validationErrors?.length ? 'error' : r.providerId ? 'success' : 'warning'} className="text-[9px]">

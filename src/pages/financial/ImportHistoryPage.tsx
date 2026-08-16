@@ -11,7 +11,7 @@ import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
 import { isSecureContractError } from '../../lib/security/secureContracts';
 
-const workflowLabel = (dataType: string) => dataType.toLowerCase() === 'capitation' ? 'Capitation' : 'Claims / FFS';
+const workflowLabel = (dataType: string) => dataType.toLowerCase() === 'capitation' ? 'Capitation' : 'Claims/FFS';
 
 export default function ImportHistoryPage() {
   const { data: batches = [], isLoading, isError, error, refetch } = useImportBatches();

@@ -77,7 +77,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
 
   useEffect(() => setPage(1), [search, year, month, facilityType, ownership, state, lga, claimsCategory, minAmount, maxAmount]);
 
-  const title = selectedDataType === 'capitation' ? 'Capitation Register' : 'Claims & FFS Register';
+  const title = selectedDataType === 'capitation' ? 'Capitation Register' : 'Claims/FFS Register';
 
   const clearFilters = () => {
     setSearch(''); setYear(''); setMonth(''); setFacilityType(''); setOwnership('');
@@ -135,7 +135,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
         <PageHeader
           eyebrow="Financial Management"
           title={title}
-          subtitle={selectedDataType === 'claims-ffs' ? 'Claims and Fee-for-Service records are shown under the same financial workflow.' : 'Capitation records in the separate capitation register.'}
+          subtitle={selectedDataType === 'claims-ffs' ? 'Claims and Fee-for-Service records are shown under the same Claims/FFS financial workflow.' : 'Capitation records in the separate capitation register.'}
           actions={<Button variant="secondary" onClick={exportCsv} disabled={records.length === 0} className="gap-2"><Download size={16} /> Export CSV</Button>}
         />
 
