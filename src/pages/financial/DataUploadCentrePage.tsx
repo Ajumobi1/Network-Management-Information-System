@@ -27,7 +27,7 @@ import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Input from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
-import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
+import { financialDataService, isSummaryRow, FinancialIntegritySummary } from '../../services/financial-data/financialDataService';
 import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from '../../types/financial-data';
 import { useCreateImportBatch } from '../../hooks/financial-data/financialDataHooks';
 import { useMockData } from '../../repositories/common';
@@ -68,6 +68,7 @@ interface FileQueueItem {
     periodDetection: DetectedPeriod;
     horizontalSchedule: boolean;
     extractedContext: { facilityName?: string; lga?: string; period?: string };
+    aiIntegrity?: FinancialIntegritySummary;
   };
 }
 
@@ -386,6 +387,7 @@ const generatePreview = () => {
       }
       return { ...record, fingerprint };
     });
+    const aiIntegrity = financialDataService.analyzeIntegrity(rawRows, mappings, classifiedRecords, horizontalSchedule);
     const errors = classifiedRecords.flatMap(r => (r.validationErrors || []).map(e => `Row ${r.sourceRow}: ${e}`));
     const reviewCount = classifiedRecords.filter(r => !r.providerId && !(r.validationErrors?.length)).length;
     const errorCount = classifiedRecords.filter(r => (r.validationErrors?.length || 0) > 0).length;
@@ -393,7 +395,7 @@ const generatePreview = () => {
     const periods = [...new Set(classifiedRecords.map(record => record.period).filter(Boolean))].sort();
     const period = periods.length === 1 ? periods[0] : periods.length > 1 ? `${periods[0]} to ${periods[periods.length - 1]}` : activeItem.period;
 
-    updateActiveData({ normalizedRecords: classifiedRecords, validationErrors: [...new Set(errors)] });
+    updateActiveData({ normalizedRecords: classifiedRecords, validationErrors: [...new Set(errors)], aiIntegrity });
     updateQueueItem(activeItem.id, {
       status: (reviewCount > 0 || errorCount > 0) ? (reviewCount > 0 ? 'review' : 'error') : 'ready',
       review: reviewCount,
@@ -425,11 +427,12 @@ const generatePreview = () => {
           errorRows: activeItem.errors,
           duplicateRows: activeItem.duplicates || 0,
           unmatchedProviders: activeItem.review,
-          metadata: {
+            metadata: {
             sourceSheet: activeItem.data.sourceSheet,
             workflow: activeItem.workflow,
             detectedDataTypes: [...new Set(activeItem.data.normalizedRecords.map(record => record.dataType))],
-            providerNames: [...new Set(activeItem.data.normalizedRecords.map(r => r.providerName).filter(Boolean))]
+            providerNames: [...new Set(activeItem.data.normalizedRecords.map(r => r.providerName).filter(Boolean))],
+            aiIntegrity: activeItem.data.aiIntegrity,
           }
         },
         records: activeItem.data.normalizedRecords
@@ -891,21 +894,54 @@ const generatePreview = () => {
                       <p className="mt-1 text-xl font-bold text-slate-700">{(activeItem.duplicates || 0).toLocaleString()}</p>
                     </button>
                   </div>
+                  {activeItem.data.aiIntegrity && (
+                    <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/40 p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 text-brand-blue">
+                            <CheckCircle2 size={15} />
+                            <p className="text-[10px] font-bold uppercase tracking-widest">AI Integrity Summary</p>
+                          </div>
+                          <p className="mt-1 text-xs text-slate-500">Read-only evidence of how the workbook was scanned, cleaned, inherited, and transformed.</p>
+                        </div>
+                        <button type="button" onClick={() => { setErrorTypeFilter('records'); setIsErrorModalOpen(true); }} className="shrink-0 rounded-xl border border-blue-200 bg-white px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-brand-blue hover:bg-blue-50">
+                          Inspect all records
+                        </button>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                        <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Rows scanned</p><p className="mt-1 text-lg font-bold text-slate-800">{activeItem.data.aiIntegrity.scannedRows.toLocaleString()}</p></div>
+                        <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Provider rows inherited</p><p className="mt-1 text-lg font-bold text-slate-800">{activeItem.data.aiIntegrity.inheritedProviderRows.toLocaleString()}</p></div>
+                        <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Summary rows suppressed</p><p className="mt-1 text-lg font-bold text-slate-800">{activeItem.data.aiIntegrity.suppressedSummaryRows.toLocaleString()}</p></div>
+                        <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Empty schedule cells</p><p className="mt-1 text-lg font-bold text-slate-800">{activeItem.data.aiIntegrity.skippedEmptyScheduleCells.toLocaleString()}</p></div>
+                        <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Invalid amounts</p><p className={`mt-1 text-lg font-bold ${activeItem.data.aiIntegrity.invalidAmountCells > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{activeItem.data.aiIntegrity.invalidAmountCells.toLocaleString()}</p></div>
+                      </div>
+                      {activeItem.data.aiIntegrity.warnings.length > 0 ? (
+                        <div className="mt-4 space-y-1 rounded-xl border border-amber-100 bg-amber-50 p-3">
+                          {activeItem.data.aiIntegrity.warnings.map((warning, index) => <p key={index} className="text-xs text-amber-800">{warning}</p>)}
+                        </div>
+                      ) : (
+                        <p className="mt-4 text-xs font-semibold text-emerald-700">No AI integrity warnings were generated for this preview.</p>
+                      )}
+                    </div>
+                  )}
                   <div className="overflow-x-auto rounded-2xl border border-slate-100">
                     <table className="w-full text-left text-sm">
                       <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         <tr>
                           <th className="px-4 py-3">Facility</th>
+                          <th className="px-4 py-3">Source row</th>
                           <th className="px-4 py-3">Period</th>
                           <th className="px-4 py-3">Type</th>
                           <th className="px-4 py-3 text-right">Amount</th>
                           <th className="px-4 py-3 text-right">Status</th>
+                          <th className="px-4 py-3 text-right">Inspect</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
                         {activeItem.data.normalizedRecords.slice(0, 10).map((r, i) => (
                           <tr key={i}>
                             <td className="px-4 py-3 font-semibold text-slate-800">{r.providerName}</td>
+                            <td className="px-4 py-3 font-mono text-xs text-slate-400">{r.sourceRow ?? '—'}</td>
                             <td className="px-4 py-3 text-slate-500">{r.period}</td>
                             <td className="px-4 py-3"><Badge variant={r.dataType === 'capitation' ? 'success' : 'info'}>{r.dataType === 'ffs' ? 'Claims/FFS' : r.dataType}</Badge></td>
                             <td className="px-4 py-3 text-right font-mono">₦{amountForPreview(r).toLocaleString()}</td>
@@ -914,6 +950,9 @@ const generatePreview = () => {
                                 {r.recordStatus === 'duplicate' ? 'DUPLICATE' : r.validationErrors?.length ? 'ERROR' : r.providerId ? 'READY' : 'MATCH REVIEW'}
                               </Badge>
                               {r.validationErrors?.[0] && <p className="mt-1 max-w-[220px] text-[10px] text-rose-600">{r.validationErrors[0]}</p>}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <button type="button" onClick={() => { setErrorTypeFilter('records'); setIsErrorModalOpen(true); }} className="rounded-lg border border-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-brand-blue hover:bg-blue-50">Inspect</button>
                             </td>
                           </tr>
                         ))}
@@ -949,8 +988,8 @@ const generatePreview = () => {
           <div className="flex items-start justify-between bg-slate-50 p-6 border-b border-slate-200">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">AI Validation Inspector</p>
-              <h2 className="mt-1 text-2xl font-bold text-slate-900">Record-Level Issues</h2>
-              <p className="mt-1 text-sm text-slate-500">Review and correct individual validation errors or provider matching issues.</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-900">{errorTypeFilter === 'records' ? 'All Normalized Records' : 'Record-Level Issues'}</h2>
+              <p className="mt-1 text-sm text-slate-500">{errorTypeFilter === 'records' ? 'Inspect every normalized record with source row, period, type, and validation status.' : 'Review and correct individual validation errors or provider matching issues.'}</p>
             </div>
             <button className="rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-900 transition-all" onClick={() => setIsErrorModalOpen(false)}><X size={20} /></button>
           </div>
@@ -968,6 +1007,7 @@ const generatePreview = () => {
                   <option value="error">Validation Errors</option>
                   <option value="review">Unmatched Providers</option>
                   <option value="duplicate">Duplicates</option>
+                  <option value="records">All normalized records</option>
                 </select>
               </div>
             </div>
@@ -977,19 +1017,21 @@ const generatePreview = () => {
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   <tr>
                     <th className="px-4 py-3 border-b border-slate-100">Row</th>
-                    <th className="px-4 py-3 border-b border-slate-100">Provider</th>
-                    <th className="px-4 py-3 border-b border-slate-100">Issue</th>
+                          <th className="px-4 py-3 border-b border-slate-100">Provider</th>
+                          <th className="px-4 py-3 border-b border-slate-100">Period / Type</th>
+                          <th className="px-4 py-3 border-b border-slate-100">Issue</th>
                     <th className="px-4 py-3 border-b border-slate-100 text-right">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {activeItem.data.normalizedRecords
                     .filter(r => {
+                      const showAllRecords = errorTypeFilter === 'records';
                       const hasIssue = (r.validationErrors?.length || 0) > 0 || !r.providerId || r.recordStatus === 'duplicate';
-                      if (!hasIssue) return false;
+                      if (!showAllRecords && !hasIssue) return false;
 
-                      const matchesSearch = !errorSearch || [r.providerName, ...(r.validationErrors || [])].some(v => String(v).toLowerCase().includes(errorSearch.toLowerCase()));
-                      const matchesType = errorTypeFilter === 'all'
+                      const matchesSearch = !errorSearch || [r.providerName, r.period, r.dataType, ...(r.validationErrors || [])].some(v => String(v).toLowerCase().includes(errorSearch.toLowerCase()));
+                      const matchesType = showAllRecords || errorTypeFilter === 'all'
                         || (errorTypeFilter === 'error' && (r.validationErrors?.length || 0) > 0)
                         || (errorTypeFilter === 'review' && !r.providerId && (!r.validationErrors || r.validationErrors.length === 0))
                         || (errorTypeFilter === 'duplicate' && r.recordStatus === 'duplicate');
@@ -1000,10 +1042,12 @@ const generatePreview = () => {
                       <tr key={i} className="hover:bg-slate-50 transition-colors">
                         <td className="px-4 py-4 font-mono text-xs text-slate-400">{r.sourceRow}</td>
                         <td className="px-4 py-4 font-semibold text-slate-900">{r.providerName}</td>
+                        <td className="px-4 py-4 text-xs text-slate-500">{r.period} · {r.dataType === 'ffs' ? 'Claims/FFS' : r.dataType}</td>
                         <td className="px-4 py-4">
                           {r.validationErrors?.map((e, idx) => <p key={idx} className="text-xs text-rose-600 flex items-center gap-1.5"><AlertCircle size={12} /> {e}</p>)}
                           {!r.providerId && (!r.validationErrors || r.validationErrors.length === 0) && <p className="text-xs text-amber-600 flex items-center gap-1.5"><MapPin size={12} /> Provider matching required</p>}
                           {r.recordStatus === 'duplicate' && <p className="text-xs text-slate-500 flex items-center gap-1.5"><Copy size={12} /> Duplicate record skipped</p>}
+                          {!r.validationErrors?.length && r.providerId && r.recordStatus !== 'duplicate' && <p className="text-xs text-emerald-600 flex items-center gap-1.5"><CheckCircle2 size={12} /> No validation issues</p>}
                         </td>
                         <td className="px-4 py-4 text-right">
                           <Badge variant={r.recordStatus === 'duplicate' ? 'default' : r.validationErrors?.length ? 'error' : 'warning'}>

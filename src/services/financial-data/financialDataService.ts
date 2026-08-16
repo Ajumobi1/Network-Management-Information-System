@@ -35,6 +35,24 @@ const buildFingerprint = (record: Partial<FinancialRecord>) => [
   record.amountPaid ?? record.netAmountPaid ?? record.amount ?? '',
 ].map(value => normalizeText(value)).join('|');
 
+export interface FinancialIntegritySummary {
+  scannedRows: number;
+  normalizedRecords: number;
+  inheritedProviderRows: number;
+  suppressedSummaryRows: number;
+  skippedEmptyScheduleCells: number;
+  skippedRowsWithoutAmounts: number;
+  invalidAmountCells: number;
+  detectedDataTypes: string[];
+  detectedPeriods: string[];
+  warnings: string[];
+}
+
+const isBlankScheduleValue = (value: unknown): boolean => {
+  const text = String(value ?? '').trim().toLowerCase();
+  return text === '' || text === '-' || text === '—' || text === 'n/a' || text === 'na';
+};
+
 export const isSummaryRow = (providerName: string): boolean => aiIngestionEngine.isSummaryRow(providerName);
 
 /**
@@ -378,6 +396,72 @@ export const financialDataService = {
    */
   generateFingerprint(record: Partial<FinancialRecord>): string {
     return buildFingerprint(record);
+  },
+
+  /**
+   * Explain the autonomous actions taken during normalization. This is read-only
+   * metadata for the Validation Preview and never changes persistence decisions.
+   */
+  analyzeIntegrity(
+    rows: Array<Record<string, unknown>>,
+    mappings: ColumnMapping[],
+    records: FinancialRecord[],
+    horizontalSchedule: boolean,
+  ): FinancialIntegritySummary {
+    const providerMapping = mappings.find(mapping => mapping.nmisField === 'providerName');
+    const amountMappings = mappings.filter(mapping => numericFields.has(String(mapping.nmisField)) && mapping.nmisField !== 'reportingMonth' && mapping.nmisField !== 'reportingYear');
+    const monthColumns = mappings.filter(mapping => aiIngestionEngine.isMonthColumn(mapping.excelField));
+    let inheritedProviderRows = 0;
+    let suppressedSummaryRows = 0;
+    let skippedEmptyScheduleCells = 0;
+    let skippedRowsWithoutAmounts = 0;
+    let invalidAmountCells = 0;
+    let inheritedProvider = '';
+
+    rows.forEach(row => {
+      const explicitProvider = providerMapping ? String(row[providerMapping.excelField] ?? '').trim() : '';
+      if (explicitProvider && isSummaryRow(explicitProvider)) {
+        suppressedSummaryRows += 1;
+      }
+      if (explicitProvider) inheritedProvider = explicitProvider;
+      else if (inheritedProvider || !providerMapping) inheritedProviderRows += 1;
+
+      if (horizontalSchedule && monthColumns.length > 0) {
+        monthColumns.forEach(mapping => {
+          const raw = row[mapping.excelField];
+          if (isBlankScheduleValue(raw) || toNumber(raw) === 0) {
+            skippedEmptyScheduleCells += 1;
+          } else if (toNumber(raw) === undefined) {
+            invalidAmountCells += 1;
+          }
+        });
+      } else {
+        const hasAmount = amountMappings.some(mapping => toNumber(row[mapping.excelField]) !== undefined);
+        if (!hasAmount) skippedRowsWithoutAmounts += 1;
+        amountMappings.forEach(mapping => {
+          const raw = row[mapping.excelField];
+          if (!isBlankScheduleValue(raw) && toNumber(raw) === undefined) invalidAmountCells += 1;
+        });
+      }
+    });
+
+    const warnings: string[] = [];
+    if (invalidAmountCells > 0) warnings.push(`${invalidAmountCells.toLocaleString()} non-empty amount cell(s) could not be parsed and were excluded.`);
+    if (suppressedSummaryRows > 0) warnings.push(`${suppressedSummaryRows.toLocaleString()} summary row(s) were excluded from normalized records.`);
+    if (skippedRowsWithoutAmounts > 0) warnings.push(`${skippedRowsWithoutAmounts.toLocaleString()} row(s) contained no usable financial amount and were excluded.`);
+
+    return {
+      scannedRows: rows.length,
+      normalizedRecords: records.length,
+      inheritedProviderRows,
+      suppressedSummaryRows,
+      skippedEmptyScheduleCells,
+      skippedRowsWithoutAmounts,
+      invalidAmountCells,
+      detectedDataTypes: [...new Set(records.map(record => record.dataType).filter(Boolean))],
+      detectedPeriods: [...new Set(records.map(record => record.period).filter(Boolean))].sort(),
+      warnings,
+    };
   },
 
   aiIngestionEngine,
