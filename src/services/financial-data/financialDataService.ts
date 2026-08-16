@@ -141,7 +141,7 @@ export const financialDataService = {
 
     headers.forEach(header => {
       const normalizedHeader = normalized(header);
-      const values = sampleRows.slice(0, 50).map(row => String(row[header] ?? '').trim().toUpperCase().replace(/[-_/]+/g, ' '));
+      const values = sampleRows.map(row => String(row[header] ?? '').trim().toUpperCase().replace(/[-_/]+/g, ' '));
       const monthIndex = aiIngestionEngine.getMonthIndex(header);
       if (monthIndex >= 0) {
         mappings.push({
@@ -153,7 +153,7 @@ export const financialDataService = {
         });
         return;
       }
-      const looksLikeRowType = values.some(value => value === 'CAPITATION' || value === 'FFS' || value === 'FEE FOR SERVICE');
+      const looksLikeRowType = values.some(value => ['CAPITATION', 'CAP', 'FFS', 'CLAIM', 'CLAIMS', 'FEE FOR SERVICE'].includes(value));
       if (looksLikeRowType) {
         mappings.push({ excelField: header, nmisField: 'dataType', confidence: 'HIGH', confidenceScore: 1 });
         return;
@@ -500,6 +500,7 @@ export const financialDataService = {
     };
 
     const monthColumns = mappings.filter(m => getMonthIndex(m.excelField) >= 0);
+    const dataTypeMapping = mappings.find(m => m.nmisField === 'dataType');
     const providerMapping = mappings.find(m => m.nmisField === 'providerName');
     const codeMapping = mappings.find(m => m.nmisField === 'providerCode');
     const lgaMapping = mappings.find(m => m.nmisField === 'lga');
@@ -510,6 +511,19 @@ export const financialDataService = {
       lga: lgaMapping?.excelField,
       state: stateMapping?.excelField,
     });
+
+    const resolveRowDataType = (row: Record<string, unknown>): FinancialDataType => {
+      const candidates = dataTypeMapping
+        ? [row[dataTypeMapping.excelField]]
+        : Object.values(row);
+      for (const candidate of candidates) {
+        const value = String(candidate ?? '').trim().toUpperCase().replace(/[-_/]+/g, ' ');
+        if (value === 'FFS' || value === 'FEE FOR SERVICE') return 'ffs';
+        if (value === 'CLAIM' || value === 'CLAIMS') return 'claims';
+        if (value === 'CAPITATION' || value === 'CAP') return 'capitation';
+      }
+      return dataType;
+    };
 
     let inheritedProviderName = fallbackContext?.facilityName || '';
     let inheritedProviderCode = '';
@@ -571,7 +585,7 @@ export const financialDataService = {
           const monthIdx = getMonthIndex(m.excelField);
           const finalRecord: FinancialRecord = {
             ...baseData,
-            dataType: baseData.dataType || dataType,
+            dataType: resolveRowDataType(row),
             reportingMonth: monthIdx + 1,
             amountPaid: amount,
             period: `${baseData.reportingYear}-${String(monthIdx + 1).padStart(2, '0')}`,
@@ -586,7 +600,7 @@ export const financialDataService = {
 
         const finalRecord: FinancialRecord = {
           ...baseData,
-          dataType: baseData.dataType || dataType,
+          dataType: resolveRowDataType(row),
           period: baseData.reportingYear && baseData.reportingMonth ? `${baseData.reportingYear}-${String(baseData.reportingMonth).padStart(2, '0')}` : undefined,
         } as FinancialRecord;
 

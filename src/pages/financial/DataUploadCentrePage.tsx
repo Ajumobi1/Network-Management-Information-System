@@ -256,7 +256,7 @@ export default function DataUploadCentrePage() {
           headerRowIndex: hIndex,
           headers: detectedHeaders,
           rawRows: rows,
-          mappings: financialDataService.suggestMappings(detectedHeaders, inferredType, rows.slice(0, 50)),
+          mappings: financialDataService.suggestMappings(detectedHeaders, inferredType, rows),
           matches: [],
           normalizedRecords: [],
           validationErrors: [],
@@ -914,6 +914,12 @@ const generatePreview = () => {
                         <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Summary rows suppressed</p><p className="mt-1 text-lg font-bold text-slate-800">{activeItem.data.aiIntegrity.suppressedSummaryRows.toLocaleString()}</p></div>
                         <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Empty schedule cells</p><p className="mt-1 text-lg font-bold text-slate-800">{activeItem.data.aiIntegrity.skippedEmptyScheduleCells.toLocaleString()}</p></div>
                         <div className="rounded-xl border border-blue-100 bg-white p-3"><p className="text-[10px] font-bold uppercase text-slate-400">Invalid amounts</p><p className={`mt-1 text-lg font-bold ${activeItem.data.aiIntegrity.invalidAmountCells > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>{activeItem.data.aiIntegrity.invalidAmountCells.toLocaleString()}</p></div>
+                      </div>
+                      <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="font-bold uppercase tracking-wider text-slate-400">Detected row types:</span>
+                        {activeItem.data.aiIntegrity.detectedDataTypes.length > 0 ? activeItem.data.aiIntegrity.detectedDataTypes.map(type => (
+                          <Badge key={type} variant={type === 'capitation' ? 'success' : 'info'}>{type === 'ffs' ? 'Claims/FFS' : type}</Badge>
+                        )) : <span className="text-slate-500">No row-level type values detected</span>}
                       </div>
                       {activeItem.data.aiIntegrity.warnings.length > 0 ? (
                         <div className="mt-4 space-y-1 rounded-xl border border-amber-100 bg-amber-50 p-3">
