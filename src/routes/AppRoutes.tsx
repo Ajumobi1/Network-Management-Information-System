@@ -54,11 +54,11 @@ export default function AppRoutes() {
         <Route path="/capitation" element={<CapitationPage />} />
         <Route path="/financial/dashboard" element={<Navigate to="/dashboard" replace />} />
         <Route path="/analytics/financial-intelligence" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/financial/register" element={<FinancialRegisterPage />} />
-        <Route path="/financial/claims" element={<Navigate to="/financial/register?type=claims" replace />} />
-        <Route path="/financial/claims/analytics" element={<Navigate to="/financial/register?type=claims" replace />} />
-        <Route path="/financial/capitation" element={<Navigate to="/financial/register?type=capitation" replace />} />
-        <Route path="/financial/ffs" element={<Navigate to="/financial/register?type=ffs" replace />} />
+        <Route path="/financial/register" element={<FinancialRegisterPage type="claims-ffs" />} />
+        <Route path="/financial/claims" element={<Navigate to="/financial/register" replace />} />
+        <Route path="/financial/claims/analytics" element={<Navigate to="/financial/register" replace />} />
+        <Route path="/financial/capitation" element={<FinancialRegisterPage type="capitation" />} />
+        <Route path="/financial/ffs" element={<Navigate to="/financial/register" replace />} />
         <Route path="/financial/enrolment" element={<Navigate to="/financial/register" replace />} />
         <Route path="/population/enrolment/register" element={<EnrolmentRegisterPage />} />
         <Route path="/population/enrolment/new" element={<NewEnrolleePage />} />

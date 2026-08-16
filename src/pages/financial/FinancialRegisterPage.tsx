@@ -16,20 +16,13 @@ import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
 import { isSecureContractError } from '../../lib/security/secureContracts';
 
-type RegisterDataType = 'all' | 'claims' | 'capitation' | 'ffs';
+type RegisterDataType = 'claims-ffs' | 'capitation';
 
 interface Props {
   type?: RegisterDataType;
 }
 
 const claimCategories = ['Outpatient', 'Inpatient', 'Pharmaceuticals', 'Diagnostics', 'Dental', 'Specialist Services'];
-const recordTypeOptions = [
-  { value: 'all', label: 'All financial records' },
-  { value: 'claims', label: 'Claims' },
-  { value: 'capitation', label: 'Capitation' },
-  { value: 'ffs', label: 'Claims / FFS' },
-];
-
 const months = [
   { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
   { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
@@ -40,12 +33,11 @@ const months = [
 const formatNaira = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amount);
 const csvCell = (value: unknown) => { const text = value === undefined || value === null ? '' : String(value); return `"${text.replace(/"/g, '""')}"`; };
 
-export default function FinancialRegisterPage({ type = 'all' }: Props) {
+export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
   const [searchParams] = useSearchParams();
   const queryType = searchParams.get('type');
-  const initialDataType: RegisterDataType = queryType === 'claims' || queryType === 'capitation' || queryType === 'ffs' ? queryType : type;
-  const [selectedDataType, setSelectedDataType] = useState<RegisterDataType>(initialDataType);
-  const isClaims = selectedDataType === 'claims';
+  const selectedDataType: RegisterDataType = queryType === 'capitation' || type === 'capitation' ? 'capitation' : 'claims-ffs';
+  const isClaims = selectedDataType === 'claims-ffs';
   const [search, setSearch] = useState('');
   const [year, setYear] = useState('');
   const [month, setMonth] = useState('');
@@ -61,7 +53,8 @@ export default function FinancialRegisterPage({ type = 'all' }: Props) {
   const pageSize = 15;
 
   const filters = useMemo<FinancialFilters>(() => ({
-    dataType: selectedDataType === 'all' ? undefined : selectedDataType,
+    dataType: selectedDataType === 'capitation' ? 'capitation' : undefined,
+    dataTypes: selectedDataType === 'claims-ffs' ? ['claims', 'ffs'] : undefined,
     search: search || undefined,
     year: year ? Number(year) : undefined,
     month: month ? Number(month) : undefined,
@@ -74,7 +67,7 @@ export default function FinancialRegisterPage({ type = 'all' }: Props) {
     maxAmount: maxAmount ? Number(maxAmount) : undefined,
     page,
     pageSize,
-  }), [claimsCategory, facilityType, isClaims, lga, maxAmount, minAmount, month, ownership, search, selectedDataType, state, year, page]);
+  }), [claimsCategory, facilityType, lga, maxAmount, minAmount, month, ownership, search, selectedDataType, state, year, page]);
 
   const { data: records = [], isLoading, isError, error, refetch } = useFinancialRecords(filters);
   const { data: summary, isLoading: isSummaryLoading } = useFinancialRegisterSummary(filters);
@@ -82,17 +75,16 @@ export default function FinancialRegisterPage({ type = 'all' }: Props) {
   const totalMatching = summary?.totalRecords ?? records[0]?.totalCount ?? records.length;
   const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
 
-  useEffect(() => setPage(1), [search, year, month, facilityType, ownership, state, lga, claimsCategory, minAmount, maxAmount, selectedDataType]);
+  useEffect(() => setPage(1), [search, year, month, facilityType, ownership, state, lga, claimsCategory, minAmount, maxAmount]);
 
-  const title = selectedDataType === 'all' ? 'Financial Register' : selectedDataType === 'claims' ? 'Claims' : selectedDataType === 'capitation' ? 'Capitation' : 'Claims / FFS';
+  const title = selectedDataType === 'capitation' ? 'Capitation Register' : 'Claims & FFS Register';
 
   const clearFilters = () => {
-    setSelectedDataType('all'); setSearch(''); setYear(''); setMonth(''); setFacilityType(''); setOwnership('');
+    setSearch(''); setYear(''); setMonth(''); setFacilityType(''); setOwnership('');
     setState(''); setLga(''); setClaimsCategory(''); setMinAmount(''); setMaxAmount('');
   };
 
   const activeFilterChips = [
-    selectedDataType !== 'all' ? { id: 'dataType', label: 'Type', value: recordTypeOptions.find(option => option.value === selectedDataType)?.label || selectedDataType } : null,
     search ? { id: 'search', label: 'Search', value: search } : null,
     year ? { id: 'year', label: 'Year', value: year } : null,
     month ? { id: 'month', label: 'Month', value: months.find(item => String(item.value) === month)?.label || month } : null,
@@ -106,7 +98,6 @@ export default function FinancialRegisterPage({ type = 'all' }: Props) {
   ].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
 
   const removeFilter = (id: string) => {
-    if (id === 'dataType') setSelectedDataType('all');
     if (id === 'search') setSearch('');
     if (id === 'year') setYear('');
     if (id === 'month') setMonth('');
@@ -144,7 +135,7 @@ export default function FinancialRegisterPage({ type = 'all' }: Props) {
         <PageHeader
           eyebrow="Financial Management"
           title={title}
-          subtitle={selectedDataType === 'all' ? 'One authoritative register for Claims, Capitation, and Fee-for-Service records.' : selectedDataType === 'claims' || selectedDataType === 'ffs' ? 'Claims and Fee-for-Service records are shown under the same financial workflow.' : 'Capitation records in the unified financial register.'}
+          subtitle={selectedDataType === 'claims-ffs' ? 'Claims and Fee-for-Service records are shown under the same financial workflow.' : 'Capitation records in the separate capitation register.'}
           actions={<Button variant="secondary" onClick={exportCsv} disabled={records.length === 0} className="gap-2"><Download size={16} /> Export CSV</Button>}
         />
 
@@ -158,7 +149,6 @@ export default function FinancialRegisterPage({ type = 'all' }: Props) {
               <Input placeholder="Search provider, code, facility, state, or LGA..." className="pl-10" value={search} onChange={event => setSearch(event.target.value)} />
             </div>
             <div className="flex flex-wrap gap-2">
-              <Select label="Record type" value={selectedDataType} onChange={e => setSelectedDataType(e.target.value as RegisterDataType)} options={recordTypeOptions} className="w-48" />
               <Select label="Year" value={year} onChange={e => setYear(e.target.value)} options={['2026', '2025'].map(y => ({ label: y, value: y }))} placeholder="All years" className="w-32" />
               <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} placeholder="All months" className="w-40" />
               <Button variant="secondary" onClick={() => setMoreFiltersOpen(!moreFiltersOpen)} className="h-[2.625rem] gap-2">

@@ -82,6 +82,7 @@ function mapSecureFinancialRow(row: SecureFinancialRow): FinancialRecord {
 
 export interface FinancialFilters {
   dataType?: FinancialDataType;
+  dataTypes?: FinancialDataType[];
   year?: number;
   month?: number;
   period?: string;
@@ -105,6 +106,7 @@ export interface FinancialFilters {
 function applyMockFilters(records: FinancialRecord[], filters: FinancialFilters): FinancialRecord[] {
   let filtered = [...records];
   if (filters.dataType) filtered = filtered.filter(record => record.dataType === filters.dataType);
+  if (filters.dataTypes?.length) filtered = filtered.filter(record => filters.dataTypes?.includes(record.dataType));
   if (filters.year) filtered = filtered.filter(record => record.reportingYear === filters.year);
   if (filters.month) filtered = filtered.filter(record => record.reportingMonth === filters.month);
   if (filters.batchId) filtered = filtered.filter(record => record.importBatchId === filters.batchId);
@@ -145,6 +147,16 @@ function reportingArgs(filters: FinancialFilters): Record<string, unknown> {
 /** Read-only financial rows are returned through the role-gated register contract. */
 export async function fetchFinancialRecords(filters: FinancialFilters = {}): Promise<FinancialRecord[]> {
   if (useMockData) return applyMockFilters(mockFinancialRecords, filters);
+
+  if (filters.dataTypes?.length) {
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 15;
+    const sourceFilters = { ...filters, dataTypes: undefined, page: 1, pageSize: 50000 };
+    const groupedRecords = await Promise.all(filters.dataTypes.map(dataType => fetchFinancialRecords({ ...sourceFilters, dataType })));
+    const combined = groupedRecords.flat().sort((left, right) => `${right.period}-${right.providerName}`.localeCompare(`${left.period}-${left.providerName}`));
+    const offset = (page - 1) * pageSize;
+    return combined.slice(offset, offset + pageSize).map(record => ({ ...record, totalCount: combined.length }));
+  }
 
   const page = filters.page ?? 1;
   const pageSize = filters.pageSize ?? 50000;

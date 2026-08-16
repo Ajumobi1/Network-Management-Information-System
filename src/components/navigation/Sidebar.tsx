@@ -23,7 +23,8 @@ const sections: Section[] = [
     { label: 'Upload Capitation List', path: '/population/enrolment/upload', icon: UploadCloud },
   ] },
   { label: 'Financial Management', icon: FileChartColumn, visible: true, children: [
-    { label: 'Financial Register', path: '/financial/register', icon: FileChartColumn },
+    { label: 'Claims & FFS Register', path: '/financial/register', icon: FileChartColumn },
+    { label: 'Capitation Register', path: '/financial/capitation', icon: FileChartColumn },
     { label: 'Data Upload Centre', path: '/financial/upload', icon: UploadCloud },
     { label: 'Import History', path: '/financial/history', icon: ClipboardCheck },
   ] },
