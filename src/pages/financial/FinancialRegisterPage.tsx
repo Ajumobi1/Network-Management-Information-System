@@ -39,8 +39,8 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
   const selectedDataType: RegisterDataType = queryType === 'capitation' || type === 'capitation' ? 'capitation' : 'claims-ffs';
   const isClaims = selectedDataType === 'claims-ffs';
   const [search, setSearch] = useState('');
-  const [year, setYear] = useState('');
-  const [month, setMonth] = useState('');
+  const [year, setYear] = useState('2026');
+  const [month, setMonth] = useState('8');
   const [facilityType, setFacilityType] = useState('');
   const [ownership, setOwnership] = useState('');
   const [state, setState] = useState('');
@@ -80,7 +80,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
   const title = selectedDataType === 'capitation' ? 'Capitation Register' : 'Claims/FFS Register';
 
   const clearFilters = () => {
-    setSearch(''); setYear(''); setMonth(''); setFacilityType(''); setOwnership('');
+    setSearch(''); setYear('2026'); setMonth('8'); setFacilityType(''); setOwnership('');
     setState(''); setLga(''); setClaimsCategory(''); setMinAmount(''); setMaxAmount('');
   };
 
@@ -149,8 +149,8 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
                 <Input label="Search records" placeholder="Provider, code, facility, state, or LGA..." className="pl-10" value={search} onChange={event => setSearch(event.target.value)} />
                 <Search className="pointer-events-none absolute left-3.5 top-[2.35rem] h-4 w-4 text-brand-subtle" />
               </div>
-              <Select label="Year" value={year} onChange={e => setYear(e.target.value)} options={['2026', '2025'].map(y => ({ label: y, value: y }))} placeholder="All years" />
-              <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} placeholder="All months" />
+              <Select label="Year" value={year} onChange={e => setYear(e.target.value)} options={['2026', '2025'].map(y => ({ label: y, value: y }))} />
+              <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} />
             </div>
             <div className="flex flex-wrap items-center gap-2 border-t border-brand-divider pt-4">
               <span className="mr-2 text-xs font-bold uppercase tracking-wider text-brand-muted">Additional filters</span>
