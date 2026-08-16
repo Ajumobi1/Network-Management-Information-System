@@ -261,10 +261,10 @@ function SummaryGrid({ summary, isClaims, isLoading }: { summary?: FinancialRegi
     ]
     : [
       { label: 'Total Records', value: summary?.totalRecords?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <FileText size={18} /> },
-      { label: 'Total Amount', value: formatNaira(summary?.totalPaidAmount ?? 0), tone: 'success' as const, icon: <BarChart3 size={18} /> },
-      { label: 'Avg Amount', value: formatNaira(summary?.averageClaimValue ?? 0), tone: 'info' as const, icon: <BarChart3 size={18} /> },
+      { label: 'Total Capitation', value: formatNaira(summary?.totalPaidAmount ?? 0), tone: 'success' as const, icon: <BarChart3 size={18} /> },
+      { label: 'Avg Capitation', value: formatNaira(summary?.averageClaimValue ?? 0), tone: 'info' as const, icon: <BarChart3 size={18} /> },
       { label: 'Providers', value: summary?.providerCount?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <Building2 size={18} /> },
     ];
 
-  return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">{cards.map((card) => <KpiCard key={card.label} title={card.label} value={card.value} tone={card.tone} icon={card.icon} />)}</div>;
+  return <div className={`grid gap-4 sm:grid-cols-2 ${isClaims ? 'lg:grid-cols-4 xl:grid-cols-7' : 'lg:grid-cols-4'}`}>{cards.map((card) => <KpiCard key={card.label} title={card.label} value={card.value} tone={card.tone} icon={card.icon} />)}</div>;
 }
