@@ -12,11 +12,14 @@ import { ProviderDirectoryFilters } from '../features/providers/types';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import { isSecureContractError } from '../lib/security/secureContracts';
+import { PROVIDER_CATEGORIES } from '../constants/providerNetwork';
 
 export default function ProviderPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
+  const [sortField, setSortField] = useState('providerName');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [filters, setFilters] = useState<ProviderDirectoryFilters>({
     search: '',
     status: 'all',
@@ -34,6 +37,8 @@ export default function ProviderPage() {
     ...filters,
     page,
     pageSize,
+    sortField: sortField as any,
+    sortDirection,
   });
 
   const totalCount = (providers as any).totalCount ?? providers.length;
@@ -43,9 +48,19 @@ export default function ProviderPage() {
     setPage(1); // Reset to page 1 on filter change
   };
 
-  const categories = useMemo(() => ['all', 'Hospital', 'Primary Health Centre (PHC)', 'Clinic', 'Diagnostic Centre', 'Pharmacy'], []);
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setPage(1);
+  };
+
+  const categories = useMemo(() => ['all', ...PROVIDER_CATEGORIES], []);
   const ownerships = useMemo(() => ['all', 'Government', 'Private'], []);
-  const lgas = useMemo(() => ['all', 'Akoko North East', 'Akoko North West', 'Akoko South East', 'Akoko South West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'], []);
+  const lgas = useMemo(() => ['all', 'Akoko North East', 'Akoko North West', 'Akoko South East', 'Akoko South West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Odigbo', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'], []);
 
   const stats = useMemo(() => ({
     total: totalCount,
@@ -104,13 +119,16 @@ export default function ProviderPage() {
         {isLoading ? (
           <LoadingState title="Loading provider directory register..." />
         ) : (
-          <ProviderTable
-            providers={providers}
-            page={page}
-            pageSize={pageSize}
-            totalCount={totalCount}
-            onPageChange={setPage}
-          />
+        <ProviderTable
+          providers={providers}
+          page={page}
+          pageSize={pageSize}
+          totalCount={totalCount}
+          onPageChange={setPage}
+          sortField={sortField}
+          sortDirection={sortDirection}
+          onSort={handleSort}
+        />
         )}
 
         <Card className="bg-brand-soft/30 border-brand-blue/10">

@@ -302,7 +302,7 @@ export type Permissions =
   | 'manage:reports'
   | 'manage:notifications'
   | 'manage:settings';
-export type ProviderType = 'hospital' | 'pharmacy' | 'laboratory' | 'clinic' | 'specialist' | 'phc';
+export type ProviderType = 'HOSPITAL' | 'DIAGNOSTIC_CENTRE' | 'PHARMACY' | 'OPTICAL_CENTRE' | 'DENTAL_CENTRE';
 export type ProviderStatus = 'active' | 'inactive' | 'pending' | 'suspended';
 export type CredentialingStatus = 'pending' | 'in-review' | 'approved' | 'rejected';
 export type ContractStatus = 'draft' | 'active' | 'expiring' | 'expired' | 'terminated';

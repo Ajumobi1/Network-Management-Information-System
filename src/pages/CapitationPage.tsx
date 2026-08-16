@@ -21,7 +21,7 @@ import {
   PaymentStatus,
   ReconciliationStatus,
 } from '../types/capitation';
-import { PROVIDER_CATEGORIES, PROVIDER_OWNERSHIPS } from '../constants/providerNetwork';
+import { PROVIDER_CATEGORIES, PROVIDER_OWNERSHIPS, getProviderCategoryLabel } from '../constants/providerNetwork';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { isSecureContractError } from '../lib/security/secureContracts';
 import { ChartCard, SectionHeader } from '../components/ui/LayoutComponents';
@@ -211,7 +211,7 @@ export default function CapitationPage() {
             <Select
               label="Facility type"
               value={filters.facilityType}
-              options={[{ label: 'All types', value: 'all' }, ...PROVIDER_CATEGORIES.map(c => ({ label: c, value: c }))]}
+              options={[{ label: 'All types', value: 'all' }, ...PROVIDER_CATEGORIES.map(c => ({ label: getProviderCategoryLabel(c), value: c }))]}
               onChange={e => updateFilter('facilityType', e.target.value as any)}
             />
             <Select
@@ -252,7 +252,7 @@ export default function CapitationPage() {
                       <tr key={record.id}>
                         <td className="px-4"><input type="checkbox" checked={selectedIds.includes(record.id)} onChange={() => setSelectedIds(curr => curr.includes(record.id) ? curr.filter(id => id !== record.id) : [...curr, record.id])} className="h-4 w-4 rounded border-brand-border text-brand-blue" /></td>
                         <td className="font-semibold text-brand-foreground">{record.facilityName}<span className="block text-[10px] text-brand-muted font-bold uppercase">{record.providerCode}</span></td>
-                        <td><div className="text-xs font-bold text-brand-secondary">{record.facilityType}</div><div className="text-[10px] text-brand-muted">{record.ownership}</div></td>
+                        <td><div className="text-xs font-bold text-brand-secondary">{getProviderCategoryLabel(record.facilityType)}</div><div className="text-[10px] text-brand-muted">{record.ownership}</div></td>
                         <td><div className="text-xs">{record.state}</div><div className="text-[10px] text-brand-muted">{record.lga}</div></td>
                         <td><Badge variant="default">{formatPeriod(record.period)}</Badge></td>
                         <td className="text-right font-medium">{formatNaira(record.grossAmount)}</td>

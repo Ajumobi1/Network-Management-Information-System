@@ -3,6 +3,7 @@ import { ProviderDirectoryItem } from '../../types';
 import ProviderStatusBadge, { formatProviderLabel } from '../ProviderStatusBadge';
 import ProviderQuickActions from '../ProviderQuickActions';
 import Badge from '../../../../components/ui/Badge';
+import { getProviderCategoryLabel } from '../../../../constants/providerNetwork';
 
 interface ProviderCardProps {
   provider: ProviderDirectoryItem;
@@ -22,7 +23,7 @@ export default function ProviderCard({ provider, onSelect }: ProviderCardProps) 
             {provider.providerCode}
           </span>
           <Badge variant="info" className="text-[10px] uppercase tracking-wider">
-            {provider.category}
+            {getProviderCategoryLabel(provider.category)}
           </Badge>
         </div>
         <ProviderStatusBadge status={provider.status} />
@@ -36,7 +37,7 @@ export default function ProviderCard({ provider, onSelect }: ProviderCardProps) 
               {provider.providerName}
             </h3>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
-              {formatProviderLabel(provider.ownership)} • {provider.subcategory}
+              {formatProviderLabel(provider.ownership)}
             </p>
           </div>
           <div className="shrink-0" onClick={(e) => e.stopPropagation()}>

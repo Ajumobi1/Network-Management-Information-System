@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BarChart3, Building2, Calendar, Download, FileText, Filter, Search, Users, ChevronLeft, ChevronRight, ArrowDownUp } from 'lucide-react';
-import { ProviderCategory, ProviderOwnership } from '../../constants/providerNetwork';
+import { ProviderCategory, ProviderOwnership, getProviderCategoryLabel } from '../../constants/providerNetwork';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import KpiCard from '../../components/ui/KpiCard';
@@ -116,8 +116,8 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
       ? ['Provider Code', 'Facility Name', 'Facility Type', 'Ownership', 'State', 'LGA', 'Period', 'Data Type', 'Claims Category', 'Claim Count', 'Submitted Amount', 'Approved/Paid Amount', 'Rejected/Disallowed Amount', 'Net Paid Amount', 'Source File', 'Import Batch']
       : ['Provider Code', 'Provider Name', 'Facility Type', 'Ownership', 'State', 'LGA', 'Period', 'Data Type', 'Amount', 'Source File', 'Import Batch'];
     const rows = records.map(record => isClaims
-      ? [record.providerCode, record.providerName, record.facilityType, record.ownership, record.state, record.lga, record.period, record.dataType, record.claimsCategory, record.claimCount ?? record.encounterCount, record.amountSubmitted ?? record.amountClaimed, record.amountApproved ?? record.amountPaid, record.amountRejected ?? record.amountDisallowed, record.netAmountPaid ?? record.amountPaid, record.sourceFile, record.importBatchId]
-      : [record.providerCode, record.providerName, record.facilityType, record.ownership, record.state, record.lga, record.period, record.dataType, record.amountPaid ?? record.netAmount ?? record.amount, record.sourceFile, record.importBatchId]);
+      ? [record.providerCode, record.providerName, getProviderCategoryLabel(record.facilityType), record.ownership, record.state, record.lga, record.period, record.dataType, record.claimsCategory, record.claimCount ?? record.encounterCount, record.amountSubmitted ?? record.amountClaimed, record.amountApproved ?? record.amountPaid, record.amountRejected ?? record.amountDisallowed, record.netAmountPaid ?? record.amountPaid, record.sourceFile, record.importBatchId]
+      : [record.providerCode, record.providerName, getProviderCategoryLabel(record.facilityType), record.ownership, record.state, record.lga, record.period, record.dataType, record.amountPaid ?? record.netAmount ?? record.amount, record.sourceFile, record.importBatchId]);
     const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
@@ -163,7 +163,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
 
           {moreFiltersOpen && (
             <div className="mt-4 grid gap-4 rounded-panel border border-brand-divider bg-brand-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Select label="Facility Type" value={facilityType} onChange={e => setFacilityType(e.target.value)} options={Object.values(ProviderCategory).map(c => ({ label: c, value: c }))} placeholder="All types" />
+              <Select label="Facility Type" value={facilityType} onChange={e => setFacilityType(e.target.value)} options={Object.values(ProviderCategory).map(c => ({ label: getProviderCategoryLabel(c), value: c }))} placeholder="All types" />
               <Select label="Ownership" value={ownership} onChange={e => setOwnership(e.target.value)} options={Object.values(ProviderOwnership).map(o => ({ label: o, value: o }))} placeholder="All ownerships" />
               <Select label="Claims category" value={claimsCategory} onChange={e => setClaimsCategory(e.target.value)} options={claimCategories.map(c => ({ label: c, value: c }))} placeholder="All categories" />
               <Input label="State" placeholder="Filter state" value={state} onChange={e => setState(e.target.value)} />
@@ -219,7 +219,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
                           </div>
                         </div>
                       </td>
-                      <td><div className="text-xs font-bold text-brand-secondary">{record.facilityType}</div><div className="text-[10px] text-brand-muted">{record.ownership}</div></td>
+                      <td><div className="text-xs font-bold text-brand-secondary">{getProviderCategoryLabel(record.facilityType)}</div><div className="text-[10px] text-brand-muted">{record.ownership}</div></td>
                       <td><div className="text-xs">{record.state}</div><div className="text-[10px] text-brand-muted">{record.lga}</div></td>
                       <td><Badge variant="default" className="gap-1.5"><Calendar size={12} /> {record.period}</Badge></td>
                       <td><Badge variant={record.dataType === 'capitation' ? 'success' : record.dataType === 'ffs' ? 'warning' : 'info'}>{record.dataType === 'ffs' ? 'Claims / FFS' : record.dataType}</Badge></td>

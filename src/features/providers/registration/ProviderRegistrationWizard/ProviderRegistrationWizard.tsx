@@ -5,6 +5,7 @@ import Card from '../../../../components/ui/Card';
 import { useRegisterProvider } from '../../hooks';
 import { ProviderCategory, ProviderOwnership } from '../../types';
 import { isSecureContractError } from '../../../../lib/security/secureContracts';
+import { PROVIDER_CATEGORY_LABELS } from '../../../../constants/providerNetwork';
 
 const steps = ['Basic information', 'Facility and location', 'Ownership', 'Review and submit'] as const;
 
@@ -128,7 +129,7 @@ export default function ProviderRegistrationWizard() {
             <label className="space-y-2 text-sm font-medium text-slate-700">
               Facility category
               <select value={formState.category} onChange={event => updateField('category', event.target.value as ProviderCategory)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20">
-                {Object.values(ProviderCategory).map(category => <option key={category} value={category}>{category}</option>)}
+                {Object.values(ProviderCategory).map(category => <option key={category} value={category}>{PROVIDER_CATEGORY_LABELS[category]}</option>)}
               </select>
             </label>
             <label className="space-y-2 text-sm font-medium text-slate-700">
@@ -154,7 +155,7 @@ export default function ProviderRegistrationWizard() {
         {activeStep === 3 && (
           <dl className="grid gap-4 text-sm md:grid-cols-2">
             <div><dt className="text-slate-500">Provider</dt><dd className="font-semibold text-slate-900">{formState.providerName || 'Not provided'}</dd></div>
-            <div><dt className="text-slate-500">Category</dt><dd className="font-semibold text-slate-900">{formState.category}</dd></div>
+            <div><dt className="text-slate-500">Category</dt><dd className="font-semibold text-slate-900">{PROVIDER_CATEGORY_LABELS[formState.category]}</dd></div>
             <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{formState.lga || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Ownership</dt><dd className="font-semibold text-slate-900">{formState.ownership}</dd></div>
             <div><dt className="text-slate-500">Excluded from this workflow</dt><dd className="font-semibold text-slate-900">Contacts, bank data, documents, metadata</dd></div>

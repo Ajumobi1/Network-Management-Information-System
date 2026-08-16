@@ -2,6 +2,7 @@ import Button from '../../../../components/ui/Button';
 import Select from '../../../../components/ui/Select';
 import { ProviderDirectoryFilters } from '../../types';
 import ProviderSearch from '../ProviderSearch';
+import { ProviderCategory, getProviderCategoryLabel } from '../../../../constants/providerNetwork';
 
 type ProviderFiltersProps = {
   filters: ProviderDirectoryFilters;
@@ -39,7 +40,7 @@ export default function ProviderFilters({ filters, categories, ownerships, lgas,
           <Select
             label="Facility type"
             value={filters.category}
-            options={categories.map(c => ({ label: c === 'all' ? 'All types' : c, value: c }))}
+            options={categories.map(c => ({ label: c === 'all' ? 'All types' : getProviderCategoryLabel(c), value: c }))}
             onChange={event => onChange({ ...filters, category: event.target.value })}
           />
 

@@ -7,8 +7,9 @@ import Input from '../components/ui/Input';
 import PageHeader from '../components/ui/PageHeader';
 import { useUpdateProvider } from '../features/providers/hooks';
 import { isSecureContractError } from '../lib/security/secureContracts';
+import { ProviderCategory, PROVIDER_CATEGORY_LABELS } from '../constants/providerNetwork';
 
-const categories = ['Hospital', 'Primary Health Centre (PHC)', 'Clinic', 'Diagnostic Centre', 'Pharmacy'];
+const categories = Object.values(ProviderCategory);
 const ownerships = ['Government', 'Private'];
 const lgas = ['Akoko North East', 'Akoko North West', 'Akoko South East', 'Akoko South West', 'Akure North', 'Akure South', 'Ese Odo', 'Idanre', 'Ifedore', 'Ilaje', 'Ile Oluji/Okeigbo', 'Irele', 'Okitipupa', 'Ondo East', 'Ondo West', 'Ose', 'Owo'];
 
@@ -18,7 +19,7 @@ export default function ProviderRegistrationPage() {
 
   const [form, setForm] = useState({
     providerName: '',
-    category: 'Hospital',
+    category: ProviderCategory.Hospital,
     subcategory: 'General',
     ownership: 'Government',
     lga: 'Akure South',
@@ -123,10 +124,10 @@ export default function ProviderRegistrationPage() {
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">Facility Type / Category *</label>
                 <select
                   value={form.category}
-                  onChange={e => setForm(prev => ({ ...prev, category: e.target.value }))}
+                  onChange={e => setForm(prev => ({ ...prev, category: e.target.value as ProviderCategory }))}
                   className="w-full rounded-control border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 focus:border-brand-blue focus:outline-none"
                 >
-                  {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                  {categories.map(cat => <option key={cat} value={cat}>{PROVIDER_CATEGORY_LABELS[cat as ProviderCategory]}</option>)}
                 </select>
               </div>
 

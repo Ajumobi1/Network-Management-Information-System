@@ -2,6 +2,7 @@ import { BarChart3, Building2, CircleDollarSign, MapPin, PieChart as PieChartIco
 import { useFinancialIntelligence } from '../../hooks/financial-intelligence/financialIntelligenceHooks';
 import { FinancialIntelligenceFilters } from '../../types/financial-intelligence';
 import { Dashboard2Intelligence, DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTypes';
+import { getProviderCategoryLabel } from '../../constants/providerNetwork';
 
 function formatNaira(value: number): string {
   if (value >= 1_000_000_000) return `₦${(value / 1_000_000_000).toFixed(2)}B`;
@@ -82,7 +83,7 @@ export default function FinancialIntelligenceSummary({ intelligence, filters }: 
             <Ranking items={byState.slice(0, 5)} max={maxState} emptyText="No state expenditure data is available." />
           </Panel>
           <Panel title="Expenditure by facility type" description="Expenditure distribution across facility categories." icon={<Building2 className="h-5 w-5" />}>
-            <Ranking items={byFacilityType.slice(0, 5)} max={maxFacilityType} emptyText="No facility-type expenditure data is available." />
+            <Ranking items={byFacilityType.slice(0, 5).map(item => ({ ...item, name: getProviderCategoryLabel(item.name) }))} max={maxFacilityType} emptyText="No facility-type expenditure data is available." />
           </Panel>
         </div>
       </> : null}

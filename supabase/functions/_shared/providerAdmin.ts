@@ -97,13 +97,11 @@ export type ValidatedProviderAdminCommand =
   | { command: 'delete_provider'; providerId: string; payload: DeleteProviderPayload };
 
 const categories = new Set([
-  'Hospital',
-  'Primary Health Centre (PHC)',
-  'Pharmacy',
-  'Laboratory',
-  'Specialist Centre',
-  'Diagnostic & Imaging Centre',
-  'Referral Centre',
+  'HOSPITAL',
+  'DIAGNOSTIC_CENTRE',
+  'PHARMACY',
+  'OPTICAL_CENTRE',
+  'DENTAL_CENTRE',
 ]);
 
 const ownerships = new Set([

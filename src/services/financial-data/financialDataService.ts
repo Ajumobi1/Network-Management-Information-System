@@ -214,9 +214,16 @@ export const financialDataService = {
     }
 
     if (field === 'facilityType') {
-      if (upper.includes('HOSPITAL')) return 'Hospital';
-      if (upper.includes('PHC') || upper.includes('PRIMARY')) return 'Primary Health Centre (PHC)';
-      return text;
+      const categoryText = normalizedUpper.replace(/[^A-Z0-9]+/g, ' ').trim();
+      if (categoryText.includes('HOSPITAL')) return 'HOSPITAL';
+      if (categoryText.includes('DIAGNOSTIC') || categoryText.includes('IMAGING') || categoryText.includes('LABORATORY') || categoryText.includes('LAB ')) return 'DIAGNOSTIC_CENTRE';
+      if (categoryText.includes('PHARMACY')) return 'PHARMACY';
+      if (categoryText.includes('OPTICAL') || categoryText.includes('OPTOMET')) return 'OPTICAL_CENTRE';
+      if (categoryText.includes('DENTAL')) return 'DENTAL_CENTRE';
+      // PHC/PRIMARY/CLINIC labels do not contain enough authoritative information to
+      // choose a new flat category. Leave them unresolved for provider matching/review.
+      if (categoryText.includes('PHC') || categoryText.includes('PRIMARY') || categoryText.includes('CLINIC')) return null;
+      return null;
     }
 
     if (field === 'state') {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CalendarDays, ChevronDown, Filter } from 'lucide-react';
 import ActiveFilterChips from '../ui/ActiveFilterChips';
 import Select from '../ui/Select';
+import { getProviderCategoryLabel } from '../../constants/providerNetwork';
 import { DashboardFilters } from '../../types/dashboard/dashboardIntelligenceTypes';
 
 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -107,7 +108,7 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
 
         {moreFiltersOpen ? <div className="mt-4 grid gap-4 rounded-panel border border-brand-divider bg-brand-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <Select label="State" value={filters.state || ''} options={options.states.map(s => ({ label: s, value: s }))} placeholder="All states" onChange={event => onChange('state', event.target.value || undefined)} />
-          <Select label="Facility type" value={filters.facilityType || ''} options={options.facilityTypes.map(f => ({ label: f, value: f }))} placeholder="All facility types" onChange={event => onChange('facilityType', event.target.value || undefined)} />
+          <Select label="Facility type" value={filters.facilityType || ''} options={options.facilityTypes.map(f => ({ label: getProviderCategoryLabel(f), value: f }))} placeholder="All facility types" onChange={event => onChange('facilityType', event.target.value || undefined)} />
           <Select label="Ownership" value={filters.ownership || ''} options={options.ownerships.map(o => ({ label: o, value: o }))} placeholder="All ownerships" onChange={event => onChange('ownership', event.target.value || undefined)} />
           <Select label="Sector" value={filters.sector && filters.sector !== 'all' ? filters.sector : ''} options={[{ label: 'Formal', value: 'formal' }, { label: 'Informal', value: 'informal' }]} placeholder="All sectors" onChange={event => onChange('sector', (event.target.value || 'all') as DashboardFilters['sector'])} />
         </div> : null}

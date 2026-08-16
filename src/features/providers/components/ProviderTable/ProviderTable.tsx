@@ -6,14 +6,15 @@ import Badge from '../../../../components/ui/Badge';
 import { ProviderDirectoryItem } from '../../types';
 import ProviderStatusBadge from '../ProviderStatusBadge';
 import ProviderToolbar from '../ProviderToolbar';
+import { getProviderCategoryLabel } from '../../../../constants/providerNetwork';
 
 const listColumns = [
-  { key: 'providerCode', label: 'Code' },
-  { key: 'providerName', label: 'Facility Name' },
-  { key: 'category', label: 'Category' },
-  { key: 'ownership', label: 'Ownership' },
-  { key: 'lga', label: 'LGA' },
-  { key: 'status', label: 'Status' },
+  { key: 'providerCode', label: 'Code', sortable: true },
+  { key: 'providerName', label: 'Facility Name', sortable: true },
+  { key: 'category', label: 'Category', sortable: true },
+  { key: 'ownership', label: 'Ownership', sortable: true },
+  { key: 'lga', label: 'LGA', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
 ];
 
 type ProviderTableProps = {
@@ -23,9 +24,21 @@ type ProviderTableProps = {
   totalCount?: number;
   onPageChange?: (page: number) => void;
   onSelect?: (providerId: string) => void;
+  sortField?: string;
+  sortDirection?: 'asc' | 'desc';
+  onSort?: (field: string) => void;
 };
 
-export default function ProviderTable({ providers, page = 1, pageSize = 50, totalCount = providers.length, onPageChange }: ProviderTableProps) {
+export default function ProviderTable({ 
+  providers, 
+  page = 1, 
+  pageSize = 50, 
+  totalCount = providers.length, 
+  onPageChange,
+  sortField = 'providerName',
+  sortDirection = 'asc',
+  onSort
+}: ProviderTableProps) {
   const navigate = useNavigate();
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -49,9 +62,16 @@ export default function ProviderTable({ providers, page = 1, pageSize = 50, tota
                 />
               </th>
               {listColumns.map(column => (
-                <th key={column.key} className="px-6 py-4">
+                <th 
+                  key={column.key} 
+                  className={`px-6 py-4 ${column.sortable ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
+                  onClick={() => column.sortable && onSort?.(column.key)}
+                >
                   <div className="flex items-center gap-2 text-brand-foreground">
                     {column.label}
+                    {column.sortable && (
+                      <ArrowDownUp size={12} className={sortField === column.key ? 'text-brand-blue' : 'text-slate-300'} />
+                    )}
                   </div>
                 </th>
               ))}
@@ -79,10 +99,9 @@ export default function ProviderTable({ providers, page = 1, pageSize = 50, tota
                 </td>
                 <td className="px-6 py-4">
                   <div className="font-black text-slate-900 text-sm hover:text-brand-blue transition-colors">{provider.providerName}</div>
-                  <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mt-0.5">{provider.subcategory}</div>
                 </td>
                 <td className="px-6 py-4">
-                  <Badge variant="info" className="text-[10px] uppercase tracking-wider">{provider.category}</Badge>
+                  <Badge variant="info" className="text-[10px] uppercase tracking-wider">{getProviderCategoryLabel(provider.category)}</Badge>
                 </td>
                 <td className="px-6 py-4">
                   <span className="text-xs font-semibold text-slate-700">{provider.ownership}</span>

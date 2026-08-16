@@ -11,6 +11,7 @@ import { useCredentialingApplications, useUpdateCredentialingStatus } from '../h
 import { CredentialingFilters, CredentialingStatus } from '../types/credentialing/credentialingTypes';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
+import { ProviderCategory, PROVIDER_CATEGORY_LABELS } from '../constants/providerNetwork';
 
 export default function CredentialingPage() {
   const [filters, setFilters] = useState<CredentialingFilters>({
@@ -118,11 +119,7 @@ export default function CredentialingPage() {
               onChange={e => setFilters({ ...filters, category: e.target.value })}
               options={[
                 { label: 'All Facility Types', value: 'all' },
-                { label: 'Hospital', value: 'Hospital' },
-                { label: 'PHC', value: 'Primary Health Centre (PHC)' },
-                { label: 'Pharmacy', value: 'Pharmacy' },
-                { label: 'Laboratory', value: 'Laboratory' },
-                { label: 'Specialist Centre', value: 'Specialist Centre' },
+                ...Object.values(ProviderCategory).map(category => ({ label: PROVIDER_CATEGORY_LABELS[category], value: category })),
               ]}
             />
             <Select

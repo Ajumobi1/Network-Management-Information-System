@@ -5,6 +5,7 @@ import { useUpdateProvider, useUpdateProviderStatus, useDeleteProvider } from '.
 import type { ProviderProfile } from '../../types';
 import { ProviderCategory, ProviderOwnership, ProviderLifecycleStatus } from '../../types';
 import { isSecureContractError } from '../../../../lib/security/secureContracts';
+import { PROVIDER_CATEGORY_LABELS, PROVIDER_CATEGORIES } from '../../../../constants/providerNetwork';
 
 type OperationalForm = {
   providerName: string;
@@ -194,7 +195,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
             <label className="space-y-1 text-xs font-semibold text-brand-secondary">
               Category
               <select value={form.category} onChange={event => setForm(current => ({ ...current, category: event.target.value as ProviderCategory }))} className="w-full rounded-xl border border-brand-divider bg-white px-3 py-2 text-sm text-brand-foreground outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20">
-                {['Hospital', 'Primary Health Centre (PHC)', 'Clinic', 'Diagnostic Centre', 'Pharmacy'].map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                {PROVIDER_CATEGORIES.map(category => <option key={category} value={category}>{PROVIDER_CATEGORY_LABELS[category]}</option>)}
               </select>
             </label>
             <label className="space-y-1 text-xs font-semibold text-brand-secondary">

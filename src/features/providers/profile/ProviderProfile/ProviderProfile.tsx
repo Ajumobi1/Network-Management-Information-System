@@ -8,6 +8,7 @@ import { SectionHeader } from '../../../../components/ui/LayoutComponents';
 import { LoadingState, ErrorState } from '../../../../components/ui/FeedbackStates';
 import { isSecureContractError } from '../../../../lib/security/secureContracts';
 import ProviderOperationalEditor from './ProviderOperationalEditor';
+import { getProviderCategoryLabel } from '../../../../constants/providerNetwork';
 
 import AuditLogTab from '../AuditLogTab';
 import CapitationTab from '../CapitationTab';
@@ -85,7 +86,7 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
                   {provider.registerPosition ? String(provider.registerPosition).padStart(3, '0') : provider.providerCode}
                 </span>
                 <span className="opacity-30">|</span>
-                <span>{provider.category}</span>
+                <span>{getProviderCategoryLabel(provider.category)}</span>
               </div>
               <h2 className="mt-2 text-2xl font-black tracking-tight text-brand-foreground sm:text-3xl">
                 {provider.providerName}
