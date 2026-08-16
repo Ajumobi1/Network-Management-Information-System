@@ -4,6 +4,13 @@ import { ShieldCheck, Users, Lock, History, Settings as SettingsIcon, WalletCard
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { useCapitationSettings, useUpdateCapitationRate } from '../hooks/settings';
+import { useDashboardIntelligence } from '../hooks/dashboard/dashboardHooks';
+import ManagementAttentionPanel from '../components/dashboard/ManagementAttentionPanel';
+
+function liveCalendarFilters() {
+  const now = new Date();
+  return { year: now.getFullYear(), month: now.getMonth() + 1, sector: 'all' as const };
+}
 
 export default function SettingsPage() {
   const adminStats = [
@@ -21,6 +28,7 @@ export default function SettingsPage() {
 
   const { data: capitationSettings, isLoading: isLoadingCapitation, isError: isCapitationError } = useCapitationSettings();
   const updateCapitationRate = useUpdateCapitationRate();
+  const managementQuery = useDashboardIntelligence(liveCalendarFilters());
   const [rate, setRate] = useState('750');
   const [validationError, setValidationError] = useState('');
 
@@ -96,6 +104,8 @@ export default function SettingsPage() {
             </Button>
           </div>
         </Card>
+
+        {managementQuery.data ? <ManagementAttentionPanel intelligence={managementQuery.data} /> : <Card><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 text-brand-blue" /><div><h2 className="text-lg font-semibold text-slate-900">Management attention</h2><p className="mt-1 text-sm text-slate-500">{managementQuery.isLoading ? 'Loading current management signals…' : 'Management signals are unavailable under the current administrative access contract.'}</p></div></div></Card>}
 
         <Card>
           <div className="mb-6 flex items-center gap-2 text-brand-blue">
