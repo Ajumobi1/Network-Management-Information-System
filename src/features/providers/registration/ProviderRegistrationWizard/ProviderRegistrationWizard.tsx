@@ -5,26 +5,26 @@ import Card from '../../../../components/ui/Card';
 import { useRegisterProvider } from '../../hooks';
 import { ProviderCategory, ProviderOwnership } from '../../types';
 import { isSecureContractError } from '../../../../lib/security/secureContracts';
-import { PROVIDER_CATEGORY_LABELS } from '../../../../constants/providerNetwork';
+import { PROVIDER_CATEGORY_LABELS, PROVIDER_SERVICES } from '../../../../constants/providerNetwork';
 
-const steps = ['Basic information', 'Facility and location', 'Ownership', 'Review and submit'] as const;
+const steps = ['Basic information', 'Facility and location', 'Services offered', 'Ownership', 'Review and submit'] as const;
 
 type RegistrationFormState = {
   providerName: string;
   category: ProviderCategory;
-  subcategory: string;
   ownership: ProviderOwnership;
   lga: string;
   state: string;
+  services: string[];
 };
 
 const initialFormState: RegistrationFormState = {
   providerName: '',
   category: ProviderCategory.Hospital,
-  subcategory: '',
   ownership: ProviderOwnership.Private,
   lga: '',
   state: 'Ondo',
+  services: [],
 };
 
 function safeWorkflowMessage(error: unknown): string {
@@ -60,13 +60,14 @@ export default function ProviderRegistrationWizard() {
       {
         providerName: formState.providerName,
         category: formState.category,
-        subcategory: formState.subcategory,
+        subcategory: '',
         ownership: formState.ownership,
         lga: formState.lga,
         state: formState.state,
         email: '',
         contactPerson: '',
         phone: '',
+        services: formState.services,
       },
       {
         onSuccess: provider => {
@@ -140,6 +141,30 @@ export default function ProviderRegistrationWizard() {
         )}
 
         {activeStep === 2 && (
+          <div className="space-y-4">
+            <p className="text-sm font-medium text-slate-700">Select services offered by this facility</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {PROVIDER_SERVICES.map(service => (
+                <label key={service} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-all ${formState.services.includes(service) ? 'border-brand-blue bg-brand-soft/20 ring-1 ring-brand-blue' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
+                    checked={formState.services.includes(service)}
+                    onChange={() => {
+                      const newServices = formState.services.includes(service)
+                        ? formState.services.filter(s => s !== service)
+                        : [...formState.services, service];
+                      updateField('services', newServices);
+                    }}
+                  />
+                  <span className="text-sm font-medium text-slate-700">{service}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeStep === 3 && (
           <label className="block max-w-md space-y-2 text-sm font-medium text-slate-700">
             Ownership
             <select value={formState.ownership} onChange={event => updateField('ownership', event.target.value as ProviderOwnership)} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20">
@@ -148,13 +173,22 @@ export default function ProviderRegistrationWizard() {
           </label>
         )}
 
-        {activeStep === 3 && (
+        {activeStep === 4 && (
           <dl className="grid gap-4 text-sm md:grid-cols-2">
-            <div><dt className="text-slate-500">Provider</dt><dd className="font-semibold text-slate-900">{formState.providerName || 'Not provided'}</dd></div>
+            <div className="md:col-span-2"><dt className="text-slate-500">Provider</dt><dd className="font-semibold text-slate-900">{formState.providerName || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Category</dt><dd className="font-semibold text-slate-900">{PROVIDER_CATEGORY_LABELS[formState.category]}</dd></div>
-            <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{formState.lga || 'Not provided'}</dd></div>
             <div><dt className="text-slate-500">Ownership</dt><dd className="font-semibold text-slate-900">{formState.ownership}</dd></div>
-            <div><dt className="text-slate-500">Excluded from this workflow</dt><dd className="font-semibold text-slate-900">Contacts, bank data, documents, metadata</dd></div>
+            <div><dt className="text-slate-500">Location</dt><dd className="font-semibold text-slate-900">{formState.lga || 'Not provided'}</dd></div>
+            <div className="md:col-span-2">
+              <dt className="text-slate-500">Services Offered</dt>
+              <dd className="mt-2 flex flex-wrap gap-2">
+                {formState.services.length > 0 ? (
+                  formState.services.map(s => <Badge key={s} variant="info">{s}</Badge>)
+                ) : (
+                  <span className="text-slate-400 italic">No services selected</span>
+                )}
+              </dd>
+            </div>
           </dl>
         )}
       </div>

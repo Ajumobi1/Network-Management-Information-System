@@ -7,7 +7,7 @@ import Input from '../components/ui/Input';
 import PageHeader from '../components/ui/PageHeader';
 import { useUpdateProvider } from '../features/providers/hooks';
 import { isSecureContractError } from '../lib/security/secureContracts';
-import { ProviderCategory, PROVIDER_CATEGORY_LABELS } from '../constants/providerNetwork';
+import { ProviderCategory, PROVIDER_CATEGORY_LABELS, PROVIDER_SERVICES } from '../constants/providerNetwork';
 
 const categories = Object.values(ProviderCategory);
 const ownerships = ['Government', 'Private'];
@@ -20,7 +20,6 @@ export default function ProviderRegistrationPage() {
   const [form, setForm] = useState({
     providerName: '',
     category: ProviderCategory.Hospital,
-    subcategory: 'General',
     ownership: 'Government',
     lga: 'Akure South',
     address: '',
@@ -30,6 +29,7 @@ export default function ProviderRegistrationPage() {
     bankName: '',
     accountName: '',
     accountNumber: '',
+    services: [] as string[],
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export default function ProviderRegistrationPage() {
 
     // Since direct create uses trusted workflow / server-side admin function, simulate success with secure notice
     updateProviderMutation.mutate(
-      { id: 'new', payload: form as any },
+      { id: 'new', payload: { ...form, subcategory: null } as any },
       {
         onSuccess: () => {
           setSuccess('Provider successfully registered and added to the alphabetical master register.');
@@ -142,11 +142,33 @@ export default function ProviderRegistrationPage() {
                 </select>
               </div>
 
-
-
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">State</label>
                 <Input value="Ondo" disabled className="bg-slate-100 text-slate-500 cursor-not-allowed" />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-4">Services Offered (Select Multiple)</label>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {PROVIDER_SERVICES.map(service => (
+                    <label key={service} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-all ${form.services.includes(service) ? 'border-brand-blue bg-brand-soft/20 ring-1 ring-brand-blue' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
+                        checked={form.services.includes(service)}
+                        onChange={() => {
+                          setForm(prev => ({
+                            ...prev,
+                            services: prev.services.includes(service)
+                              ? prev.services.filter(s => s !== service)
+                              : [...prev.services, service]
+                          }));
+                        }}
+                      />
+                      <span className="text-sm font-medium text-slate-700">{service}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>

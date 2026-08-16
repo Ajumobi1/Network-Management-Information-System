@@ -100,3 +100,15 @@ export const PROVIDER_REPORT_GROUPINGS = [
   'Contract Status',
   'Inspection Rating',
 ] as const;
+
+export enum ProviderService {
+  Diagnostic = 'Diagnostic Services',
+  Dental = 'Dental Services',
+  Optical = 'Optical Services',
+  Laboratory = 'Laboratory Services',
+  Pharmacy = 'Pharmacy Services',
+  Specialist = 'Specialist Services',
+  Other = 'Other Services',
+}
+
+export const PROVIDER_SERVICES = Object.values(ProviderService);

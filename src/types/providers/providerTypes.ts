@@ -31,6 +31,7 @@ export type ProviderDirectoryItem = {
   capitationStatus: ProviderWorkflowStatus;
   inspectionRating: string;
   lastInspectionDate: string;
+  services: string[];
 };
 
 export type ProviderDocument = {
@@ -87,6 +88,7 @@ export type ProviderDirectoryFilters = {
   category: 'all' | string;
   subcategory: 'all' | string;
   ownership: 'all' | ProviderOwnership;
+  service: 'all' | string;
   page?: number;
   pageSize?: number;
 };

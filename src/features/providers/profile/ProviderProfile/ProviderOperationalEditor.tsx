@@ -5,12 +5,11 @@ import { useUpdateProvider, useUpdateProviderStatus, useDeleteProvider } from '.
 import type { ProviderProfile } from '../../types';
 import { ProviderCategory, ProviderOwnership, ProviderLifecycleStatus } from '../../types';
 import { isSecureContractError } from '../../../../lib/security/secureContracts';
-import { PROVIDER_CATEGORY_LABELS, PROVIDER_CATEGORIES } from '../../../../constants/providerNetwork';
+import { PROVIDER_CATEGORY_LABELS, PROVIDER_CATEGORIES, PROVIDER_SERVICES } from '../../../../constants/providerNetwork';
 
 type OperationalForm = {
   providerName: string;
   category: ProviderCategory;
-  subcategory: string;
   ownership: ProviderOwnership;
   state: string;
   lga: string;
@@ -21,6 +20,7 @@ type OperationalForm = {
   bankName: string;
   accountName: string;
   accountNumber: string;
+  services: string[];
 };
 
 function workflowMessage(error: unknown): string {
@@ -51,7 +51,6 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
   const [form, setForm] = useState<OperationalForm>({
     providerName: provider.providerName,
     category: provider.category,
-    subcategory: provider.subcategory,
     ownership: provider.ownership,
     state: 'Ondo',
     lga: provider.lga,
@@ -62,6 +61,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
     bankName: provider.bankName || '',
     accountName: provider.accountName || '',
     accountNumber: provider.accountNumber || '',
+    services: provider.services || [],
   });
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -71,7 +71,6 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
     setForm({
       providerName: provider.providerName,
       category: provider.category,
-      subcategory: provider.subcategory,
       ownership: provider.ownership,
       state: 'Ondo',
       lga: provider.lga,
@@ -82,6 +81,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
       bankName: provider.bankName || '',
       accountName: provider.accountName || '',
       accountNumber: provider.accountNumber || '',
+      services: provider.services || [],
     });
     setErrorMessage(null);
     setIsEditing(false);
@@ -91,7 +91,7 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
     setErrorMessage(null);
     setSuccessMessage(null);
     updateProvider.mutate(
-      { id: provider.id, payload: { ...form, state: 'Ondo' } },
+      { id: provider.id, payload: { ...form, state: 'Ondo', subcategory: null } as any },
       {
         onSuccess: () => {
           setSuccessMessage('Provider record was updated through the trusted workflow.');
@@ -198,10 +198,30 @@ export default function ProviderOperationalEditor({ provider }: { provider: Prov
                 {PROVIDER_CATEGORIES.map(category => <option key={category} value={category}>{PROVIDER_CATEGORY_LABELS[category]}</option>)}
               </select>
             </label>
-            <label className="space-y-1 text-xs font-semibold text-brand-secondary">
-              Subcategory
-              <input value={form.subcategory} maxLength={160} onChange={event => setForm(current => ({ ...current, subcategory: event.target.value }))} className="w-full rounded-xl border border-brand-divider bg-white px-3 py-2 text-sm text-brand-foreground outline-none focus:border-brand-blue focus:ring-2 focus:ring-brand-blue/20" />
-            </label>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-xs font-semibold text-brand-secondary mb-3">Services Offered</p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {PROVIDER_SERVICES.map(service => (
+                <label key={service} className={`flex cursor-pointer items-center gap-2 rounded-lg border p-2 transition-all ${form.services.includes(service) ? 'border-brand-blue bg-brand-soft/10' : 'border-brand-divider bg-white hover:border-slate-300'}`}>
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-brand-blue focus:ring-brand-blue"
+                    checked={form.services.includes(service)}
+                    onChange={() => {
+                      setForm(prev => ({
+                        ...prev,
+                        services: prev.services.includes(service)
+                          ? prev.services.filter(s => s !== service)
+                          : [...prev.services, service]
+                      }));
+                    }}
+                  />
+                  <span className="text-xs font-medium text-slate-700">{service}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </section>
 

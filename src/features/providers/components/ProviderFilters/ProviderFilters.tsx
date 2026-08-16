@@ -2,7 +2,7 @@ import Button from '../../../../components/ui/Button';
 import Select from '../../../../components/ui/Select';
 import { ProviderDirectoryFilters } from '../../types';
 import ProviderSearch from '../ProviderSearch';
-import { ProviderCategory, getProviderCategoryLabel } from '../../../../constants/providerNetwork';
+import { ProviderCategory, getProviderCategoryLabel, PROVIDER_SERVICES } from '../../../../constants/providerNetwork';
 
 type ProviderFiltersProps = {
   filters: ProviderDirectoryFilters;
@@ -25,6 +25,7 @@ export default function ProviderFilters({ filters, categories, ownerships, lgas,
       category: 'all',
       subcategory: 'all',
       ownership: 'all',
+      service: 'all',
     });
   };
 
@@ -56,6 +57,16 @@ export default function ProviderFilters({ filters, categories, ownerships, lgas,
             value={filters.ownership}
             options={ownerships.map(o => ({ label: o === 'all' ? 'All ownerships' : o, value: o }))}
             onChange={event => onChange({ ...filters, ownership: event.target.value as any })}
+          />
+
+          <Select
+            label="Services offered"
+            value={filters.service}
+            options={[
+              { label: 'All services', value: 'all' },
+              ...PROVIDER_SERVICES.map(s => ({ label: s, value: s }))
+            ]}
+            onChange={event => onChange({ ...filters, service: event.target.value })}
           />
         </div>
 

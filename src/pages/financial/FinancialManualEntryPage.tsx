@@ -25,6 +25,7 @@ const providerFilters: ProviderDirectoryFilters = {
   category: 'all',
   subcategory: 'all',
   ownership: 'all',
+  service: 'all',
   page: 1,
   pageSize: 1000,
 };

@@ -35,6 +35,7 @@ export default function DashboardPage() {
     category: 'all',
     subcategory: 'all',
     ownership: 'all',
+    service: 'all',
   });
   const { data: inspections = [] } = useInspections();
   const { data: intelligence } = useFinancialIntelligence({ period: '2026-08' });

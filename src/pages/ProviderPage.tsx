@@ -31,6 +31,7 @@ export default function ProviderPage() {
     category: 'all',
     subcategory: 'all',
     ownership: 'all',
+    service: 'all',
   });
 
   const { data: rawProviders = [], isLoading, isError, error, refetch } = useProviderDirectory({

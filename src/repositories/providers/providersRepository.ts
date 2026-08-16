@@ -43,6 +43,7 @@ type ProviderDirectoryRpcRow = {
   capitation_status: string;
   inspection_rating?: string | null;
   last_inspection_date?: string | null;
+  services?: string[] | null;
 };
 
 type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
@@ -93,6 +94,7 @@ function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
     capitationStatus: row.capitation_status as ProviderDirectoryItem['capitationStatus'],
     inspectionRating: row.inspection_rating ?? '',
     lastInspectionDate: row.last_inspection_date ?? '',
+    services: row.services ?? [],
   };
 }
 
@@ -259,6 +261,7 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
       contact_person: payload.contactPerson || null,
       phone: payload.phone || null,
       email: payload.email || null,
+      services: payload.services || [],
     },
   });
 }
@@ -276,6 +279,7 @@ export async function updateDirectoryProvider(id: string, payload: ProviderOpera
   if (payload.contactPerson !== undefined) safePayload.contact_person = payload.contactPerson || null;
   if (payload.phone !== undefined) safePayload.phone = payload.phone || null;
   if (payload.email !== undefined) safePayload.email = payload.email || null;
+  if (payload.services !== undefined) safePayload.services = payload.services || [];
   if (payload.bankName !== undefined) safePayload.bank_name = payload.bankName || null;
   if (payload.accountName !== undefined) safePayload.account_name = payload.accountName || null;
   if (payload.accountNumber !== undefined) safePayload.account_number = payload.accountNumber || null;
