@@ -13,7 +13,7 @@ const emptyOptions: DashboardFilterOptions = { years: [], months: [], states: []
 
 function liveCalendarFilters(): DashboardFilters {
   const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1, sector: 'all' };
+  return { year: now.getFullYear(), month: undefined, sector: 'all' };
 }
 
 export default function ExecutiveDashboardPage() {

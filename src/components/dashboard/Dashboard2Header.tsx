@@ -49,11 +49,11 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
   ].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
 
   const removeFilter = (id: string) => {
-    if (id === 'year' || id === 'month') {
+    if (id === 'year') {
       const live = liveCalendarPeriod();
       onChange('year', live.year);
-      onChange('month', live.month);
     }
+    if (id === 'month') onChange('month', undefined);
     if (id === 'lga') onChange('lga', undefined);
     if (id === 'state') onChange('state', undefined);
     if (id === 'facilityType') onChange('facilityType', undefined);
@@ -95,8 +95,8 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
           <div className="w-full max-w-[140px]">
               <Select label="Year" value={filters.year ? String(filters.year) : String(liveCalendarPeriod().year)} options={Array.from(new Set([liveCalendarPeriod().year, ...options.years])).sort((a, b) => b - a).map(y => ({ label: String(y), value: y }))} placeholder="Select year" onChange={event => onChange('year', Number(event.target.value))} />
           </div>
-          <div className="w-full max-w-[140px]">
-              <Select label="Month" value={filters.month ? String(filters.month) : String(liveCalendarPeriod().month)} options={monthNames.map((label, index) => ({ label, value: index + 1 }))} placeholder="Select month" onChange={event => onChange('month', Number(event.target.value))} />
+          <div className="w-full max-w-[160px]">
+              <Select label="Month" value={filters.month ? String(filters.month) : ''} options={monthNames.map((label, index) => ({ label, value: index + 1 }))} placeholder="All months" onChange={event => onChange('month', event.target.value ? Number(event.target.value) : undefined)} />
           </div>
           <div className="w-full max-w-[180px]">
             <Select label="LGA" value={filters.lga || ''} options={options.lgas.map(l => ({ label: l, value: l }))} placeholder="All LGAs" onChange={event => onChange('lga', event.target.value || undefined)} />
