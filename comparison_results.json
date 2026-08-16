@@ -1,0 +1,306 @@
+{
+  "matched": [
+    {
+      "workbook_name": "COLLEGE OF HEALTH TECHNOLOGY CLINIC, ODA ROAD, AKURE",
+      "db_name": "COLLEGE OF HEALTH TECHNOLOGY CLINIC, ODA ROAD, AKURE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "COMPREHENSIVE HEALTH CENTRE OWASE OKA",
+      "db_name": "PRIMARY/COMPREHENSIVE HEALTH CENTRE, OWASE OKA",
+      "method": "Alias Match"
+    },
+    {
+      "workbook_name": "COMPREHENSIVE HEALTH CENTRE ZION PEPE",
+      "db_name": "COMPREHENSIVE HEALTH CENTRE ZION PEPE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "FIRST MERCY SPECIALIST HOSPITAL AKURE",
+      "db_name": "FIRST MERCY SPECIALIST HOSPITAL AKURE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL ARAROMI-OBU",
+      "db_name": "GENERAL HOSPITAL, ARAROMI-OBU",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL BOLORUNDURO",
+      "db_name": "GENERAL HOSPITAL BOLORUNDURO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IDO-ANI",
+      "db_name": "GENERAL HOSPITAL IDO-ANI",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IFON",
+      "db_name": "GENERAL HOSPITAL IFON",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IGBARA-OKE",
+      "db_name": "GENERAL HOSPITAL IGBARA-OKE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IGBEKEBO",
+      "db_name": "GENERAL HOSPITAL IGBEKEBO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IGBOKODA",
+      "db_name": "GENERAL HOSPITAL IGBOKODA",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IJU ITAOGBOLU",
+      "db_name": "GENERAL HOSPITAL IJU ITAOGBOLU",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IPE-AKOKO",
+      "db_name": "GENERAL HOSPITAL IPE-AKOKO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IRUN AKOKO",
+      "db_name": "GENERAL HOSPITAL IRUN AKOKO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL IWARO OKA",
+      "db_name": "GENERAL HOSPITAL IWARO OKA",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL ODE-IRELE",
+      "db_name": "GENERAL HOSPITAL ODE-IRELE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL ORE",
+      "db_name": "GENERAL HOSPITAL ORE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL OWO",
+      "db_name": "GENERAL HOSPITAL OWO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL, IDANRE",
+      "db_name": "GENERAL HOSPITAL, IDANRE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL, IGBOTAKO",
+      "db_name": "GENERAL HOSPITAL, IGBOTAKO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GENERAL HOSPITAL, ILE-OLUJI",
+      "db_name": "GENERAL HOSPITAL, ILE-OLUJI",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "GOODIES HOSPITAL ONDO",
+      "db_name": "GOODIES HOSPITAL & DIAGNOSTICS LTD ONDO",
+      "method": "Alias Match"
+    },
+    {
+      "workbook_name": "HOPE HOSPITAL & MATERNAL, PALACE ROAD IDANRE",
+      "db_name": "HOPE HOSPITAL & MATERNAL, PALACE ROAD IDANRE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "MAO HOSPITAL LIMITED, IROWO, AKURE",
+      "db_name": "MAO HOSPITAL LIMITED, IROWO, AKURE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "NEWDAY MEDICAL CENTER, IJAPO, AKURE",
+      "db_name": "NEWDAY MEDICAL CENTER, IJAPO, AKURE(-4)",
+      "method": "Fuzzy Overlap Match"
+    },
+    {
+      "workbook_name": "NIGERIAN POLICE MEDICAL SERVICES, AKURE",
+      "db_name": "NIGERIAN POLICE MEDICAL SERVICES, AKURE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "OMOLOLU HOSPITAL",
+      "db_name": "AKINTAN MEMORIAL HOSPITAL, OKE-IJEBU AKURE",
+      "method": "Fuzzy Alias Overlap"
+    },
+    {
+      "workbook_name": "PIMA HOSPITAL ORE",
+      "db_name": "PIMA HOSPITAL ORE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE AJAGBA 1",
+      "db_name": "PRIMARY HEALTH CENTRE AJAGBA 1",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE ARIGIDI",
+      "db_name": "PRIMARY HEALTH CENTRE ARIGIDI",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE AROGBO",
+      "db_name": "PRIMARY HEALTH CENTRE AROGBO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE EMURE ILE",
+      "db_name": "PRIMARY HEALTH CENTRE EMURE ILE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE IJARE",
+      "db_name": "PRIMARY HEALTH CENTRE IJARE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE ILARA II",
+      "db_name": "PRIMARY HEALTH CENTRE ILARA II",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE IPELE",
+      "db_name": "PRIMARY HEALTH CENTER, IPELE",
+      "method": "Alias Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE ISHAKUNMI",
+      "db_name": "PRIMARY HEALTH CENTRE ISHAKUNMI",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE ISUA OKE",
+      "db_name": "PRIMARY HEALTH CENTRE ISUA OKE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE MAROKO",
+      "db_name": "PRIMARY HEALTH CENTRE MAROKO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE ODE AYE 1",
+      "db_name": "PRIMARY HEALTH CENTRE ODE AYE 1",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE OKE-ALAFIA",
+      "db_name": "PRIMARY HEALTH CENTRE OKE-ALAFIA ILE-OLUJI",
+      "method": "Fuzzy Overlap Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE OWENA",
+      "db_name": "PRIMARY HEALTH CENTRE OWENA",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE OWENA BRIDGE",
+      "db_name": "PRIMARY HEALTH CENTRE OWENA BRIDGE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE PANAPANA ORE",
+      "db_name": "PRIMARY HEALTH CENTRE,PANAPANA ORE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CENTRE, ARAKALE",
+      "db_name": "PRIMARY/COMPREHENSIVE HEALTH CENTRE, ARAKALE",
+      "method": "Alias Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CLINIC DANJUMA AKURE",
+      "db_name": "PRIMARY HEALTH CLINIC DANJUMA AKURE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CLINIC IGOBA",
+      "db_name": "PRIMARY HEALTH CLINIC IGOBA",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "PRIMARY HEALTH CLINIC OKELUSE COTTAGE",
+      "db_name": "PRIMARY HEALTH CLINIC OKELUSE COTTAGE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "REFERENCE HOSPITAL IGBATORO ROAD",
+      "db_name": "ONDO STATE REFERENCE HOSPITAL, IGBATORO ROAD AKURE",
+      "method": "Fuzzy Overlap Match"
+    },
+    {
+      "workbook_name": "RUFUS GIWA MEMORIAL HOSPITAL OKE AGBE",
+      "db_name": "RUFUS GIWA MEMORIAL HOSPITAL OKE AGBE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "SCKYE HOSPITAL, AKURE",
+      "db_name": "SCKYE HOSPITAL, AKURE (-1)",
+      "method": "Fuzzy Overlap Match"
+    },
+    {
+      "workbook_name": "SIMLON MEDICAL CENTER, LAFE WAY, AKURE",
+      "db_name": "SIMLON MEDICAL CENTER, LAFE WAY, AKURE",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "ST MICHAEL HOSPITAL DANJUMA AKURE",
+      "db_name": "PRIMARY HEALTH CLINIC DANJUMA AKURE",
+      "method": "Fuzzy Alias Overlap"
+    },
+    {
+      "workbook_name": "STATE SPECIALIST HOSPITAL (ODCHC) ACCOUNT OKE-ARO",
+      "db_name": "STATE SPECIALIST HOSPITAL, OKITIPUPA",
+      "method": "Fuzzy Alias Overlap"
+    },
+    {
+      "workbook_name": "STATE SPECIALIST HOSPITAL IKARE-AKOKO",
+      "db_name": "STATE SPECIALIST HOSPITAL IKARE-AKOKO",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "STATE SPECIALIST HOSPITAL NHIS",
+      "db_name": "STATE SPECIALIST HOSPITAL, OKITIPUPA",
+      "method": "Fuzzy Alias Overlap"
+    },
+    {
+      "workbook_name": "STATE SPECIALIST HOSPITAL, OKITIPUPA",
+      "db_name": "STATE SPECIALIST HOSPITAL, OKITIPUPA",
+      "method": "Direct Provider Match"
+    },
+    {
+      "workbook_name": "STATE SPECIALIST HOSPITAL,AKURE REVENUE ACCOUNT",
+      "db_name": "STATE SPECIALIST HOSPITAL, OKITIPUPA",
+      "method": "Fuzzy Alias Overlap"
+    },
+    {
+      "workbook_name": "TOPTARI MEDICALS",
+      "db_name": "TOPTARI MEDICALS  AGADAGBA-OBON",
+      "method": "Fuzzy Overlap Match"
+    }
+  ],
+  "unmatched": [
+    "CHRISTBAY CONSULTANT HOSPITAL AKURE",
+    "DEBORAH MULTI SPECIALIST  HOS  AND DIAGNOSTICS CENTER",
+    "ETON CLINIC OBAILE AKURE",
+    "J&E FATULA HOSPITAL OKEARO AKURE",
+    "KINGS MEDIC ROYAL CLINIC, ODA ROAD, AKURE",
+    "MERCYLAND MEDICAL CENTER, ONDO",
+    "NETCARE MULTISPECIALIST HOSPITAL IJAPO",
+    "OKEIGBO CHC ORANGE HEALTH INSURANCE SCHEME",
+    "REMITA FUND HOLDING ACCOUNT FMC OWO",
+    "UNIVERSITY OF MEDICAL SCIENCES TEACHING HOSPITAL"
+  ]
+}

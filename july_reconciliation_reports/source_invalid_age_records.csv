@@ -1,0 +1,3 @@
+facility,source_lga,source_file,source_row,policy_number,beneficiary_name,gender,age_source,age_status,primary_reason
+GENERAL HOSPITAL IRUN AKOKO,AKOKO NORTH WEST,GENERAL HOSPITAL IRUN AKOKO.xlsx,183,ANW/0234221/26/C/0,ABDULLAHI AJULO,MALE,,invalid,invalid_source_age
+PRIMARY HEALTH CENTRE OKEIGBO,ILEOLUJIOKEIGBO,PRIMARY HEALTH CENTRE OKEIGBO.xlsx,78,AKS/0051814/23/C/1,TUNDE ADENIGBA,MALE,,invalid,invalid_source_age

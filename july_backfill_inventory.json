@@ -1,0 +1,15 @@
+{
+  "period": "2026-07",
+  "workbook_count": 80,
+  "parsed_workbook_count": 80,
+  "workbooks_without_header": [],
+  "source_rows_with_policy": 112300,
+  "unique_policy_numbers": 112203,
+  "duplicate_policy_number_groups": 97,
+  "duplicate_policy_occurrences_excluded": 194,
+  "missing_gender_rows": 70,
+  "blank_age_rows": 8,
+  "invalid_age_rows": 2,
+  "valid_age_rows": 112290,
+  "eligible_age_backfill_rows": 112027
+}

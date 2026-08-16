@@ -111,7 +111,7 @@ export default function FinancialDashboardPage() {
         <PanelHeading title="Top expenditure by state" description="Concentration of network expenditure." icon={<MapPin className="h-5 w-5" />} />
         <div className="mt-6 space-y-6">
           {intelligence?.byState?.slice(0, 4).map((item: { name: string; value: number }) => (
-            <LocationBar key={item.name} label={item.name} value={item.value} max={intelligence.byState[0]?.value || 1} color="bg-brand-blue" formatNaira={formatNaira} />
+            <LocationBar key={item.name} label={item.name} value={item.value} max={intelligence.byState?.[0]?.value || 1} color="bg-brand-blue" formatNaira={formatNaira} />
           )) || <p className="py-10 text-center text-brand-muted">No state data available</p>}
         </div>
       </Card>
@@ -120,7 +120,7 @@ export default function FinancialDashboardPage() {
         <PanelHeading title="Expenditure by facility type" description="Expenditure distribution across facility categories." icon={<Building2 className="h-5 w-5" />} />
         <div className="mt-6 space-y-6">
           {intelligence?.byFacilityType?.slice(0, 4).map((item: { name: string; value: number }) => (
-            <LocationBar key={item.name} label={item.name} value={item.value} max={intelligence.byFacilityType[0]?.value || 1} color="bg-brand-emerald" formatNaira={formatNaira} />
+            <LocationBar key={item.name} label={item.name} value={item.value} max={intelligence.byFacilityType?.[0]?.value || 1} color="bg-brand-emerald" formatNaira={formatNaira} />
           )) || <p className="py-10 text-center text-brand-muted">No facility type data available</p>}
         </div>
       </Card>

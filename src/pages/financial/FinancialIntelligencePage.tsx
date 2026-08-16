@@ -28,8 +28,8 @@ export default function FinancialIntelligencePage() {
   const { data, isLoading, isError, error } = useFinancialIntelligence(filters);
   const updateFilter = <K extends keyof FinancialIntelligenceFilters>(key: K, value: FinancialIntelligenceFilters[K]) => setFilters(previous => ({ ...previous, [key]: value || undefined }));
   const clearFilters = () => setFilters({ dataType: 'all', sector: 'all' });
-  const maxProviderValue = data?.providerRanking[0]?.value || 1;
-  const maxLgaValue = data?.lgaRanking[0]?.value || 1;
+  const maxProviderValue = data?.providerRanking?.[0]?.value || 1;
+  const maxLgaValue = data?.lgaRanking?.[0]?.value || 1;
   
   const activeFilterChips = [
     filters.period ? { id: 'period', label: 'Period', value: filters.period } : null,

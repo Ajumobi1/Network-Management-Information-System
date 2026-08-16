@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT count(*) as total_july, count(*) FILTER (WHERE age IS NULL) as null_age_july, count(*) FILTER (WHERE age IS NOT NULL) as populated_age_july FROM public.enrollees WHERE period = '2026-07'; SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'public.enrollees'::regclass AND contype = 'u'; SELECT id, policy_number, first_name, last_name, age, fingerprint FROM public.enrollees WHERE period = '2026-07' AND age IS NULL LIMIT 5;"
+}
