@@ -17,5 +17,5 @@ export default function ExecutiveKpiRow({ intelligence }: ExecutiveKpiRowProps) 
     { title: 'Informal enrollees', value: intelligence.population.informal.toLocaleString(), subtitle: `${intelligence.population.total ? Math.round((intelligence.population.informal / intelligence.population.total) * 100) : 0}% of population`, icon: <UserRound className="h-5 w-5" />, tone: 'warning' as const },
     { title: 'Network expenditure', value: formatNaira(intelligence.financial.totalExpenditure), subtitle: `${intelligence.matchedFinancialRecords.toLocaleString()} linked financial records`, icon: <CircleDollarSign className="h-5 w-5" />, tone: 'neutral' as const, trend: `${Math.abs(financialGrowth)}%`, trendDirection: financialGrowth >= 0 ? 'up' as const : 'down' as const },
   ];
-  return <section aria-label="Executive key performance indicators" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{cards.map(card => <KpiCard key={card.title} {...card} />)}</section>;
+  return <section aria-label="Executive key performance indicators" className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{cards.map(card => <KpiCard key={card.title} {...card} />)}</section>;
 }

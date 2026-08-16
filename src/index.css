@@ -261,8 +261,9 @@ select:focus-visible {
     @apply text-lg font-black tracking-tight tabular-nums sm:text-xl md:text-2xl lg:text-3xl;
     color: var(--color-foreground);
     /* Allow wrapping for very long numbers while maintaining readability */
-    word-break: break-word;
-    overflow-wrap: break-word;
+    word-break: break-all;
+    overflow-wrap: anywhere;
+    line-height: 1.2;
   }
   .nmis-kpi-value::-webkit-scrollbar {
     display: none;
