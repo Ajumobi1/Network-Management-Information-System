@@ -11,6 +11,8 @@ import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
 import { isSecureContractError } from '../../lib/security/secureContracts';
 
+const workflowLabel = (dataType: string) => dataType.toLowerCase() === 'capitation' ? 'Capitation' : 'Claims / FFS';
+
 export default function ImportHistoryPage() {
   const { data: batches = [], isLoading, isError, error, refetch } = useImportBatches();
   const [search, setSearch] = useState('');
@@ -19,7 +21,7 @@ export default function ImportHistoryPage() {
 
   const filteredBatches = useMemo(() => batches.filter(batch => {
     const query = search.toLowerCase().trim();
-    return !query || [batch.fileName, batch.id, batch.dataType, batch.status, batch.periodCovered].some(value => String(value ?? '').toLowerCase().includes(query));
+    return !query || [batch.fileName, batch.id, workflowLabel(batch.dataType), batch.dataType, batch.status, batch.periodCovered].some(value => String(value ?? '').toLowerCase().includes(query));
   }), [batches, search]);
 
   const stats = useMemo(() => ({
@@ -30,8 +32,8 @@ export default function ImportHistoryPage() {
   }), [batches]);
 
   const exportHistory = () => {
-    const headers = ['Batch ID', 'File name', 'Data type', 'Uploaded at', 'Uploaded by', 'Period', 'Total rows', 'Imported rows', 'Warnings', 'Errors', 'Duplicates', 'Unmatched providers', 'Status'];
-    const rows = batches.map(batch => [batch.id, batch.fileName, batch.dataType, batch.uploadedAt, batch.uploadedBy, batch.periodCovered, batch.totalRows, batch.importedRows, batch.warningRows, batch.errorRows, batch.duplicateRows, batch.unmatchedProviders, batch.status]);
+    const headers = ['Batch ID', 'File name', 'Workflow', 'Stored data type', 'Uploaded at', 'Uploaded by', 'Period', 'Total rows', 'Imported rows', 'Warnings', 'Errors', 'Duplicates', 'Unmatched providers', 'Status'];
+    const rows = batches.map(batch => [batch.id, batch.fileName, workflowLabel(batch.dataType), batch.dataType, batch.uploadedAt, batch.uploadedBy, batch.periodCovered, batch.totalRows, batch.importedRows, batch.warningRows, batch.errorRows, batch.duplicateRows, batch.unmatchedProviders, batch.status]);
     const csv = [headers, ...rows].map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
@@ -100,7 +102,7 @@ export default function ImportHistoryPage() {
                         </div>
                       </td>
                       <td>
-                        <Badge variant="info" className="capitalize">{batch.dataType}</Badge>
+                        <Badge variant="info">{workflowLabel(batch.dataType)}</Badge>
                         <p className="mt-1 text-[10px] font-bold text-brand-muted uppercase">{batch.periodCovered || 'N/A'}</p>
                       </td>
                       <td>
@@ -150,7 +152,8 @@ export default function ImportHistoryPage() {
               <div className="p-6 space-y-6">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <DetailItem label="Status" value={selectedBatch.status} isStatus />
-                  <DetailItem label="Data Type" value={selectedBatch.dataType} />
+                  <DetailItem label="Workflow" value={workflowLabel(selectedBatch.dataType)} />
+                  <DetailItem label="Stored Row Type" value={selectedBatch.dataType} />
                   <DetailItem label="Period Covered" value={selectedBatch.periodCovered || 'Not stated'} />
                   <DetailItem label="Uploaded By" value={selectedBatch.uploadedBy} />
                   <DetailItem label="Rows Processed" value={`${selectedBatch.importedRows} / ${selectedBatch.totalRows}`} />
