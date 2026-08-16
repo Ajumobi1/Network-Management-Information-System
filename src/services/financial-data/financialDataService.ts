@@ -153,7 +153,10 @@ export const financialDataService = {
         });
         return;
       }
-      const looksLikeRowType = values.some(value => ['CAPITATION', 'CAP', 'FFS', 'CLAIM', 'CLAIMS', 'FEE FOR SERVICE'].includes(value));
+      const looksLikeRowType = values.some(value => {
+        const marker = value.replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+        return marker === 'CAPITATION' || marker === 'CAP' || marker === 'FFS' || marker === 'F F S' || marker === 'CLAIM' || marker === 'CLAIMS' || marker === 'FEE FOR SERVICE';
+      });
       if (looksLikeRowType) {
         mappings.push({ excelField: header, nmisField: 'dataType', confidence: 'HIGH', confidenceScore: 1 });
         return;
@@ -501,6 +504,18 @@ export const financialDataService = {
 
     const monthColumns = mappings.filter(m => getMonthIndex(m.excelField) >= 0);
     const dataTypeMapping = mappings.find(m => m.nmisField === 'dataType');
+    const allRowFields = [...new Set(rows.flatMap(row => Object.keys(row)))];
+    const classifyTypeMarker = (value: unknown): FinancialDataType | undefined => {
+      const marker = String(value ?? '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (marker === 'FFS' || marker === 'F F S' || marker === 'FEE FOR SERVICE') return 'ffs';
+      if (marker === 'CLAIM' || marker === 'CLAIMS') return 'claims';
+      if (marker === 'CAPITATION' || marker === 'CAP') return 'capitation';
+      return undefined;
+    };
+    const inferredTypeField = dataTypeMapping?.excelField || allRowFields.find(field => {
+      const markers = new Set(rows.map(row => classifyTypeMarker(row[field])).filter(Boolean));
+      return markers.has('capitation') || markers.has('ffs') || markers.has('claims');
+    });
     const providerMapping = mappings.find(m => m.nmisField === 'providerName');
     const codeMapping = mappings.find(m => m.nmisField === 'providerCode');
     const lgaMapping = mappings.find(m => m.nmisField === 'lga');
@@ -513,14 +528,14 @@ export const financialDataService = {
     });
 
     const resolveRowDataType = (row: Record<string, unknown>): FinancialDataType => {
-      const candidates = dataTypeMapping
-        ? [row[dataTypeMapping.excelField]]
-        : Object.values(row);
-      for (const candidate of candidates) {
-        const value = String(candidate ?? '').trim().toUpperCase().replace(/[-_/]+/g, ' ');
-        if (value === 'FFS' || value === 'FEE FOR SERVICE') return 'ffs';
-        if (value === 'CLAIM' || value === 'CLAIMS') return 'claims';
-        if (value === 'CAPITATION' || value === 'CAP') return 'capitation';
+      const preferred = inferredTypeField ? classifyTypeMarker(row[inferredTypeField]) : undefined;
+      if (preferred) return preferred;
+      // If a type cell is blank or a user changed the mapping, perform a safe
+      // semantic fallback over the row so an explicit FFS marker cannot inherit
+      // the Capitation workflow default.
+      for (const candidate of Object.values(row)) {
+        const detected = classifyTypeMarker(candidate);
+        if (detected) return detected;
       }
       return dataType;
     };
