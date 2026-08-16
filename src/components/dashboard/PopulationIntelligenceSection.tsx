@@ -27,18 +27,21 @@ export default function PopulationIntelligenceSection({ intelligence }: Populati
         <Metric label="Dependants" value={intelligence.population.dependant} detail="Source CATEGORY field" tone="slate" />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-sm font-semibold text-slate-800">Sector distribution</p>
-          <div className="mt-5 space-y-4">{intelligence.population.bySector.map(item => { const percentage = intelligence.population.total ? (item.value / intelligence.population.total) * 100 : 0; const isFormal = item.name === 'formal'; return <div key={item.name}><div className="mb-1 flex items-center justify-between text-sm"><span className="capitalize text-slate-600">{item.name}</span><span className="font-semibold text-slate-900">{item.value.toLocaleString()} · {percentage.toFixed(1)}%</span></div><div className="h-2.5 rounded-full bg-white"><div className={`h-2.5 rounded-full ${isFormal ? 'bg-brand-blue' : 'bg-amber-500'}`} style={{ width: `${percentage}%` }} /></div></div>; })}</div>
-          <p className="mt-5 text-xs leading-5 text-slate-500">Sector is based on policy derivation rules; category remains authoritative from the source CATEGORY field.</p>
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 p-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><MapPin className="h-4 w-4 text-brand-blue" />Where people are enrolled</div>
+          <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Senatorial Districts</p><div className="mt-3 space-y-3">{intelligence.population.bySenatorialDistrict.map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxDistrict} tone="blue" />)}</div></div>
+          <div className="mt-6 border-t border-slate-100 pt-5">
+            <p className="text-sm font-semibold text-slate-800">Sector distribution</p>
+            <div className="mt-4 space-y-4">{intelligence.population.bySector.map(item => { const percentage = intelligence.population.total ? (item.value / intelligence.population.total) * 100 : 0; const isFormal = item.name === 'formal'; return <div key={item.name}><div className="mb-1 flex items-center justify-between text-sm"><span className="capitalize text-slate-600">{item.name}</span><span className="font-semibold text-slate-900">{item.value.toLocaleString()} · {percentage.toFixed(1)}%</span></div><div className="h-2.5 rounded-full bg-slate-100"><div className={`h-2.5 rounded-full ${isFormal ? 'bg-brand-blue' : 'bg-amber-500'}`} style={{ width: `${percentage}%` }} /></div></div>; })}</div>
+            <p className="mt-5 text-xs leading-5 text-slate-500">Sector is based on policy derivation rules; category remains authoritative from the source CATEGORY field.</p>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 p-4">
-          <p className="text-sm font-semibold text-slate-800">Where people are enrolled</p>
-          <div className="mt-4"><p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400"><MapPin className="h-3.5 w-3.5" />Senatorial Districts</p><div className="mt-3 space-y-3">{intelligence.population.bySenatorialDistrict.map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxDistrict} tone="blue" />)}</div></div>
-          <div className="mt-5 border-t border-slate-100 pt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top LGAs</p><div className="mt-3 space-y-3">{intelligence.population.byLga.slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxLga} tone="blue" />)}</div></div>
-          <div className="mt-5 border-t border-slate-100 pt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top facilities</p><div className="mt-3 space-y-3">{intelligence.population.topFacilities.slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxFacility} tone="green" />)}</div></div>
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><MapPin className="h-4 w-4 text-brand-blue" />Provider coverage</div>
+          <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top LGAs</p><div className="mt-3 space-y-3">{intelligence.population.byLga.slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxLga} tone="blue" />)}</div></div>
+          <div className="mt-6 border-t border-slate-100 pt-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top facilities</p><div className="mt-3 space-y-3">{intelligence.population.topFacilities.slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxFacility} tone="green" />)}</div></div>
         </div>
       </div>
     </section>
