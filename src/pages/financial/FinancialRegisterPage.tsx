@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { BarChart3, Building2, Calendar, Download, FileText, Filter, Search, Users, ChevronLeft, ChevronRight, ArrowDownUp } from 'lucide-react';
 import { ProviderCategory, ProviderOwnership } from '../../constants/providerNetwork';
 import Badge from '../../components/ui/Badge';
@@ -15,11 +16,20 @@ import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
 import { isSecureContractError } from '../../lib/security/secureContracts';
 
+type RegisterDataType = 'all' | 'claims' | 'capitation' | 'ffs';
+
 interface Props {
-  type: FinancialDataType;
+  type?: RegisterDataType;
 }
 
 const claimCategories = ['Outpatient', 'Inpatient', 'Pharmaceuticals', 'Diagnostics', 'Dental', 'Specialist Services'];
+const recordTypeOptions = [
+  { value: 'all', label: 'All financial records' },
+  { value: 'claims', label: 'Claims' },
+  { value: 'capitation', label: 'Capitation' },
+  { value: 'ffs', label: 'Claims / FFS' },
+];
+
 const months = [
   { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
   { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
@@ -30,8 +40,12 @@ const months = [
 const formatNaira = (amount: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(amount);
 const csvCell = (value: unknown) => { const text = value === undefined || value === null ? '' : String(value); return `"${text.replace(/"/g, '""')}"`; };
 
-export default function FinancialRegisterPage({ type }: Props) {
-  const isClaims = type === 'claims';
+export default function FinancialRegisterPage({ type = 'all' }: Props) {
+  const [searchParams] = useSearchParams();
+  const queryType = searchParams.get('type');
+  const initialDataType: RegisterDataType = queryType === 'claims' || queryType === 'capitation' || queryType === 'ffs' ? queryType : type;
+  const [selectedDataType, setSelectedDataType] = useState<RegisterDataType>(initialDataType);
+  const isClaims = selectedDataType === 'claims';
   const [search, setSearch] = useState('');
   const [year, setYear] = useState('');
   const [month, setMonth] = useState('');
@@ -47,7 +61,7 @@ export default function FinancialRegisterPage({ type }: Props) {
   const pageSize = 15;
 
   const filters = useMemo<FinancialFilters>(() => ({
-    dataType: type,
+    dataType: selectedDataType === 'all' ? undefined : selectedDataType,
     search: search || undefined,
     year: year ? Number(year) : undefined,
     month: month ? Number(month) : undefined,
@@ -60,7 +74,7 @@ export default function FinancialRegisterPage({ type }: Props) {
     maxAmount: maxAmount ? Number(maxAmount) : undefined,
     page,
     pageSize,
-  }), [claimsCategory, facilityType, isClaims, lga, maxAmount, minAmount, month, ownership, search, state, type, year, page]);
+  }), [claimsCategory, facilityType, isClaims, lga, maxAmount, minAmount, month, ownership, search, selectedDataType, state, year, page]);
 
   const { data: records = [], isLoading, isError, error, refetch } = useFinancialRecords(filters);
   const { data: summary, isLoading: isSummaryLoading } = useFinancialRegisterSummary(filters);
@@ -68,16 +82,17 @@ export default function FinancialRegisterPage({ type }: Props) {
   const totalMatching = summary?.totalRecords ?? records[0]?.totalCount ?? records.length;
   const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
 
-  useEffect(() => setPage(1), [search, year, month, facilityType, ownership, state, lga, claimsCategory, minAmount, maxAmount, type]);
+  useEffect(() => setPage(1), [search, year, month, facilityType, ownership, state, lga, claimsCategory, minAmount, maxAmount, selectedDataType]);
 
-  const title = type === 'claims' ? 'Claims Register' : type === 'capitation' ? 'Capitation Analysis' : type === 'ffs' ? 'FFS Register' : 'Enrolment Financials';
+  const title = selectedDataType === 'all' ? 'Financial Register' : selectedDataType === 'claims' ? 'Claims' : selectedDataType === 'capitation' ? 'Capitation' : 'Claims / FFS';
 
   const clearFilters = () => {
-    setSearch(''); setYear(''); setMonth(''); setFacilityType(''); setOwnership('');
+    setSelectedDataType('all'); setSearch(''); setYear(''); setMonth(''); setFacilityType(''); setOwnership('');
     setState(''); setLga(''); setClaimsCategory(''); setMinAmount(''); setMaxAmount('');
   };
 
   const activeFilterChips = [
+    selectedDataType !== 'all' ? { id: 'dataType', label: 'Type', value: recordTypeOptions.find(option => option.value === selectedDataType)?.label || selectedDataType } : null,
     search ? { id: 'search', label: 'Search', value: search } : null,
     year ? { id: 'year', label: 'Year', value: year } : null,
     month ? { id: 'month', label: 'Month', value: months.find(item => String(item.value) === month)?.label || month } : null,
@@ -91,6 +106,7 @@ export default function FinancialRegisterPage({ type }: Props) {
   ].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
 
   const removeFilter = (id: string) => {
+    if (id === 'dataType') setSelectedDataType('all');
     if (id === 'search') setSearch('');
     if (id === 'year') setYear('');
     if (id === 'month') setMonth('');
@@ -106,11 +122,11 @@ export default function FinancialRegisterPage({ type }: Props) {
   const exportCsv = () => {
     if (records.length === 0) return;
     const headers = isClaims
-      ? ['Provider Code', 'Facility Name', 'Facility Type', 'Ownership', 'State', 'LGA', 'Period', 'Claims Category', 'Claim Count', 'Submitted Amount', 'Approved/Paid Amount', 'Rejected/Disallowed Amount', 'Net Paid Amount', 'Source File', 'Import Batch']
-      : ['Provider Code', 'Provider Name', 'Facility Type', 'Ownership', 'State', 'LGA', 'Period', 'Amount', 'Source File', 'Import Batch'];
+      ? ['Provider Code', 'Facility Name', 'Facility Type', 'Ownership', 'State', 'LGA', 'Period', 'Data Type', 'Claims Category', 'Claim Count', 'Submitted Amount', 'Approved/Paid Amount', 'Rejected/Disallowed Amount', 'Net Paid Amount', 'Source File', 'Import Batch']
+      : ['Provider Code', 'Provider Name', 'Facility Type', 'Ownership', 'State', 'LGA', 'Period', 'Data Type', 'Amount', 'Source File', 'Import Batch'];
     const rows = records.map(record => isClaims
-      ? [record.providerCode, record.providerName, record.facilityType, record.ownership, record.state, record.lga, record.period, record.claimsCategory, record.claimCount ?? record.encounterCount, record.amountSubmitted ?? record.amountClaimed, record.amountApproved ?? record.amountPaid, record.amountRejected ?? record.amountDisallowed, record.netAmountPaid ?? record.amountPaid, record.sourceFile, record.importBatchId]
-      : [record.providerCode, record.providerName, record.facilityType, record.ownership, record.state, record.lga, record.period, record.amountPaid ?? record.netAmount ?? record.amount, record.sourceFile, record.importBatchId]);
+      ? [record.providerCode, record.providerName, record.facilityType, record.ownership, record.state, record.lga, record.period, record.dataType, record.claimsCategory, record.claimCount ?? record.encounterCount, record.amountSubmitted ?? record.amountClaimed, record.amountApproved ?? record.amountPaid, record.amountRejected ?? record.amountDisallowed, record.netAmountPaid ?? record.amountPaid, record.sourceFile, record.importBatchId]
+      : [record.providerCode, record.providerName, record.facilityType, record.ownership, record.state, record.lga, record.period, record.dataType, record.amountPaid ?? record.netAmount ?? record.amount, record.sourceFile, record.importBatchId]);
     const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
     const link = document.createElement('a');
@@ -126,9 +142,9 @@ export default function FinancialRegisterPage({ type }: Props) {
     <main className="nmis-page">
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Financial Intelligence"
+          eyebrow="Financial Management"
           title={title}
-          subtitle={isClaims ? 'Processed Claims and payment datasets for Network Management analysis.' : `Operational monitoring for normalized ${type} expenditure.`}
+          subtitle={selectedDataType === 'all' ? 'One authoritative register for Claims, Capitation, and Fee-for-Service records.' : selectedDataType === 'claims' || selectedDataType === 'ffs' ? 'Claims and Fee-for-Service records are shown under the same financial workflow.' : 'Capitation records in the unified financial register.'}
           actions={<Button variant="secondary" onClick={exportCsv} disabled={records.length === 0} className="gap-2"><Download size={16} /> Export CSV</Button>}
         />
 
@@ -142,6 +158,7 @@ export default function FinancialRegisterPage({ type }: Props) {
               <Input placeholder="Search provider, code, facility, state, or LGA..." className="pl-10" value={search} onChange={event => setSearch(event.target.value)} />
             </div>
             <div className="flex flex-wrap gap-2">
+              <Select label="Record type" value={selectedDataType} onChange={e => setSelectedDataType(e.target.value as RegisterDataType)} options={recordTypeOptions} className="w-48" />
               <Select label="Year" value={year} onChange={e => setYear(e.target.value)} options={['2026', '2025'].map(y => ({ label: y, value: y }))} placeholder="All years" className="w-32" />
               <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} placeholder="All months" className="w-40" />
               <Button variant="secondary" onClick={() => setMoreFiltersOpen(!moreFiltersOpen)} className="h-[2.625rem] gap-2">
@@ -155,7 +172,7 @@ export default function FinancialRegisterPage({ type }: Props) {
             <div className="mt-4 grid gap-4 rounded-panel border border-brand-divider bg-brand-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-4">
               <Select label="Facility Type" value={facilityType} onChange={e => setFacilityType(e.target.value)} options={Object.values(ProviderCategory).map(c => ({ label: c, value: c }))} placeholder="All types" />
               <Select label="Ownership" value={ownership} onChange={e => setOwnership(e.target.value)} options={Object.values(ProviderOwnership).map(o => ({ label: o, value: o }))} placeholder="All ownerships" />
-              {isClaims && <Select label="Category" value={claimsCategory} onChange={e => setClaimsCategory(e.target.value)} options={claimCategories.map(c => ({ label: c, value: c }))} placeholder="All categories" />}
+              <Select label="Claims category" value={claimsCategory} onChange={e => setClaimsCategory(e.target.value)} options={claimCategories.map(c => ({ label: c, value: c }))} placeholder="All categories" />
               <Input label="State" placeholder="Filter state" value={state} onChange={e => setState(e.target.value)} />
               <Input label="LGA" placeholder="Filter LGA" value={lga} onChange={e => setLga(e.target.value)} />
               <Input label="Min Amount" placeholder="₦0.00" value={minAmount} onChange={e => setMinAmount(e.target.value.replace(/[^0-9.]/g, ''))} />
@@ -169,7 +186,7 @@ export default function FinancialRegisterPage({ type }: Props) {
         <div className="nmis-table-wrap">
           <div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-<h2 className="text-lg font-black text-brand-foreground">{isClaims ? 'Claims Register' : `${type.toUpperCase()} Register`}</h2>
+<h2 className="text-lg font-black text-brand-foreground">{title}</h2>
 	              <p className="nmis-helper">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p>
 	            </div>
             <Badge variant="info" className="w-fit">Source Traceable</Badge>
@@ -183,6 +200,7 @@ export default function FinancialRegisterPage({ type }: Props) {
                   <th>Classification</th>
                   <th>Location</th>
                   <th>Period</th>
+                  <th>Type</th>
                   {isClaims && <th>Category</th>}
                   {isClaims && <th className="text-right">Claims</th>}
                   <th className="text-right">{isClaims ? 'Submitted' : 'Amount'}</th>
@@ -193,9 +211,9 @@ export default function FinancialRegisterPage({ type }: Props) {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={isClaims ? 10 : 7} className="py-20 text-center"><LoadingState title="Fetching records..." /></td></tr>
+                  <tr><td colSpan={isClaims ? 11 : 8} className="py-20 text-center"><LoadingState title="Fetching records..." /></td></tr>
                 ) : records.length === 0 ? (
-                  <tr><td colSpan={isClaims ? 10 : 7} className="py-20 text-center text-brand-muted">No financial records match the current filter set.</td></tr>
+                  <tr><td colSpan={isClaims ? 11 : 8} className="py-20 text-center text-brand-muted">No financial records match the current filter set.</td></tr>
                 ) : (
                   records.map(record => (
                     <tr key={record.id}>
@@ -211,10 +229,11 @@ export default function FinancialRegisterPage({ type }: Props) {
                       <td><div className="text-xs font-bold text-brand-secondary">{record.facilityType}</div><div className="text-[10px] text-brand-muted">{record.ownership}</div></td>
                       <td><div className="text-xs">{record.state}</div><div className="text-[10px] text-brand-muted">{record.lga}</div></td>
                       <td><Badge variant="default" className="gap-1.5"><Calendar size={12} /> {record.period}</Badge></td>
+                      <td><Badge variant={record.dataType === 'capitation' ? 'success' : record.dataType === 'ffs' ? 'warning' : 'info'}>{record.dataType === 'ffs' ? 'Claims / FFS' : record.dataType}</Badge></td>
                       {isClaims && <td><Badge variant="info">{record.claimsCategory || 'Uncategorised'}</Badge></td>}
                       {isClaims && <td className="text-right font-bold">{(record.claimCount ?? record.encounterCount ?? 0).toLocaleString()}</td>}
-                      <td className="text-right font-medium">{formatNaira(isClaims ? (record.amountSubmitted ?? 0) : (record.amountPaid ?? 0))}</td>
-                      <td className="text-right font-black text-brand-foreground">{formatNaira(record.netAmountPaid ?? record.amountPaid ?? 0)}</td>
+                      <td className="text-right font-medium">{formatNaira(isClaims ? (record.amountSubmitted ?? record.amountClaimed ?? 0) : (record.amountPaid ?? record.netAmountPaid ?? record.amount ?? record.netAmount ?? 0))}</td>
+                      <td className="text-right font-black text-brand-foreground">{formatNaira(record.netAmountPaid ?? record.amountPaid ?? record.netAmount ?? record.amount ?? 0)}</td>
                       {isClaims && <td className="text-right font-bold text-status-error">{formatNaira(record.amountRejected ?? 0)}</td>}
                       <td className="text-center">
                         <div className="max-w-[150px] mx-auto truncate text-[10px] font-bold text-brand-muted" title={record.sourceFile}>{record.sourceFile}</div>

@@ -18,7 +18,6 @@ import CredentialingPage from '../pages/CredentialingPage';
 import CapitationPage from '../pages/CapitationPage';
 import PerformancePage from '../pages/PerformancePage';
 import FinancialRegisterPage from '../pages/financial/FinancialRegisterPage';
-import ClaimsAnalyticsPage from '../pages/financial/ClaimsAnalyticsPage';
 import DataUploadCentrePage from '../pages/financial/DataUploadCentrePage';
 import ImportHistoryPage from '../pages/financial/ImportHistoryPage';
 import EnrolmentUploadPage from '../pages/enrolment/EnrolmentUploadPage';
@@ -55,11 +54,12 @@ export default function AppRoutes() {
         <Route path="/capitation" element={<CapitationPage />} />
         <Route path="/financial/dashboard" element={<Navigate to="/dashboard" replace />} />
         <Route path="/analytics/financial-intelligence" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/financial/claims" element={<FinancialRegisterPage type="claims" />} />
-        <Route path="/financial/claims/analytics" element={<ClaimsAnalyticsPage />} />
-        <Route path="/financial/capitation" element={<FinancialRegisterPage type="capitation" />} />
-        <Route path="/financial/ffs" element={<FinancialRegisterPage type="ffs" />} />
-        <Route path="/financial/enrolment" element={<FinancialRegisterPage type="enrolment" />} />
+        <Route path="/financial/register" element={<FinancialRegisterPage />} />
+        <Route path="/financial/claims" element={<Navigate to="/financial/register?type=claims" replace />} />
+        <Route path="/financial/claims/analytics" element={<Navigate to="/financial/register?type=claims" replace />} />
+        <Route path="/financial/capitation" element={<Navigate to="/financial/register?type=capitation" replace />} />
+        <Route path="/financial/ffs" element={<Navigate to="/financial/register?type=ffs" replace />} />
+        <Route path="/financial/enrolment" element={<Navigate to="/financial/register" replace />} />
         <Route path="/population/enrolment/register" element={<EnrolmentRegisterPage />} />
         <Route path="/population/enrolment/new" element={<NewEnrolleePage />} />
         <Route path="/financial/upload" element={<DataUploadCentrePage />} />
