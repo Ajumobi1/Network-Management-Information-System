@@ -33,17 +33,17 @@ export default function KpiCard({ title, value, subtitle, icon, tone = 'primary'
 
   // Dynamic font scaling for long financial/enrollee figures
   const valueString = typeof value === 'string' ? value : '';
-  const isLongValue = valueString.length > 14;
-  const isVeryLongValue = valueString.length > 18;
+  const isLongValue = valueString.length > 12;
+  const isVeryLongValue = valueString.length > 15;
 
   const valueFontSize = isVeryLongValue
-    ? 'text-base sm:text-lg lg:text-xl'
+    ? 'text-sm sm:text-base lg:text-lg'
     : isLongValue
-      ? 'text-lg sm:text-xl lg:text-2xl'
+      ? 'text-base sm:text-lg lg:text-xl'
       : '';
 
   return (
-    <article className={`nmis-card nmis-card-interactive relative overflow-hidden p-5 ${className}`.trim()}>
+    <article className={`nmis-card nmis-card-interactive relative overflow-hidden px-4 py-5 ${className}`.trim()}>
       <span className={`absolute inset-x-0 top-0 h-0.5 ${colors.accent}`} aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">

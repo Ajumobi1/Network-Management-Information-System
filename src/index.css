@@ -137,7 +137,7 @@ select:focus-visible {
 
 @layer components {
   .nmis-page {
-    @apply mx-auto w-full max-w-[1440px] space-y-6;
+    @apply mx-auto w-full max-w-[1600px] space-y-6;
   }
 
   .nmis-page-header {

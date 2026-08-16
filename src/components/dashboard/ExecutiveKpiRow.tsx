@@ -30,5 +30,5 @@ export default function ExecutiveKpiRow({ intelligence }: ExecutiveKpiRowProps) 
       trendDirection: financialGrowth >= 0 ? 'up' as const : 'down' as const
     },
   ];
-  return <section aria-label="Executive key performance indicators" className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">{cards.map(card => <KpiCard key={card.title} {...card} />)}</section>;
+  return <section aria-label="Executive key performance indicators" className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">{cards.map(card => <KpiCard key={card.title} {...card} />)}</section>;
 }
