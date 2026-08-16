@@ -17,10 +17,15 @@ import {
   FileText,
   Clock,
   Loader2,
-  Coins
+  Coins,
+  X,
+  Search,
+  Copy,
+  Calendar
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import Input from '../../components/ui/Input';
 import { useAuth } from '../../contexts/AuthContext';
 import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
 import { FinancialDataType, ColumnMapping, FinancialRecord, ProviderMatch } from '../../types/financial-data';
@@ -29,7 +34,7 @@ import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
 
-type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'match' | 'preview' | 'commit';
+type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type UploadWorkflow = 'claims-ffs' | 'capitation';
 type RawRow = Record<string, unknown>;
 
@@ -62,10 +67,11 @@ interface FileQueueItem {
     reportingMonth?: string;
     periodDetection: DetectedPeriod;
     horizontalSchedule: boolean;
+    extractedContext: { facilityName?: string; lga?: string; period?: string };
   };
 }
 
-const steps: UploadStep[] = ['upload', 'inspect', 'identify', 'map', 'match', 'preview', 'commit'];
+const steps: UploadStep[] = ['upload', 'inspect', 'identify', 'map', 'classify', 'match', 'preview', 'commit'];
 const normalizeProviderKey = (value: unknown) => String(value ?? '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 const isMonthColumn = (value: string) => ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec', 'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december'].includes(value.trim().toLowerCase());
 const amountMappingFields = new Set(['amount', 'amountSubmitted', 'amountClaimed', 'amountApproved', 'amountRejected', 'amountPaid', 'netAmountPaid', 'netAmount', 'grossAmount']);
@@ -75,10 +81,18 @@ const stepLabels: Record<UploadStep, string> = {
   inspect: 'Inspect',
   identify: 'Period',
   map: 'Map',
+  classify: 'Classify',
   match: 'Match',
   preview: 'Preview',
   commit: 'Commit',
 };
+
+const months = [
+  { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
+  { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
+  { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
+  { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' },
+];
 
 const mappingOptions = [
   { value: 'ignored', label: 'Ignore this column' },
@@ -108,17 +122,20 @@ const mappingOptions = [
 export default function DataUploadCentrePage() {
   const [searchParams] = useSearchParams();
   const initialWorkflow: UploadWorkflow = searchParams.get('type') === 'capitation' ? 'capitation' : 'claims-ffs';
-  
+
   const [step, setStep] = useState<UploadStep>('upload');
   const [queue, setQueue] = useState<FileQueueItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [uploadWorkflow, setUploadWorkflow] = useState<UploadWorkflow>(initialWorkflow);
   const [dataType, setDataType] = useState<FinancialDataType>(initialWorkflow === 'capitation' ? 'capitation' : 'claims');
-  
+
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [matchSearch, setMatchSearch] = useState<Record<string, string>>({});
+  const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
+  const [errorSearch, setErrorSearch] = useState('');
+  const [errorTypeFilter, setErrorTypeFilter] = useState<string>('all');
   const { session } = useAuth();
   const createBatch = useCreateImportBatch();
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
@@ -131,9 +148,9 @@ export default function DataUploadCentrePage() {
 
   const updateActiveData = (updates: Partial<NonNullable<FileQueueItem['data']>>) => {
     if (!activeFileId) return;
-    setQueue(prev => prev.map(item => item.id === activeFileId ? { 
-      ...item, 
-      data: item.data ? { ...item.data, ...updates } : undefined 
+    setQueue(prev => prev.map(item => item.id === activeFileId ? {
+      ...item,
+      data: item.data ? { ...item.data, ...updates } : undefined
     } : item));
   };
 
@@ -169,6 +186,22 @@ export default function DataUploadCentrePage() {
     }));
 
     setQueue(prev => [...prev, ...newItems]);
+
+    // Pre-inspect files for row counts
+    for (const item of newItems) {
+      try {
+        const wb = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+        const hIdx = financialDataService.detectHeaderRowIndex(matrix);
+        const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIdx, defval: '', raw: false })
+          .filter(r => Object.values(r).some(v => String(v).trim() !== ''));
+        updateQueueItem(item.id, { rows: rows.length });
+      } catch (e) {
+        // Silently skip pre-inspection failures
+      }
+    }
+
     if (!activeFileId) processFile(newItems[0]);
   };
 
@@ -195,12 +228,14 @@ export default function DataUploadCentrePage() {
       const sheet = workbook.Sheets[sheetName];
       if (!sheet) throw new Error(`Worksheet "${sheetName}" could not be found.`);
       const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+      const hIndex = financialDataService.detectHeaderRowIndex(matrix);
+      const context = financialDataService.extractWorkbookContext(matrix, hIndex);
       const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
 
-      const hIndex = 0;
       const detectedHeaders = (matrix[hIndex] || []).map((value, index) => String(value ?? '').trim() || `Column ${index + 1}`);
       const detectedType = financialDataService.detectDataType(detectedHeaders, item.file.name);
       const inferredType: FinancialDataType = item.workflow === 'capitation' ? 'capitation' : detectedType === 'ffs' ? 'ffs' : 'claims';
+
       const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { header: detectedHeaders, range: hIndex + 1, defval: '', raw: false })
         .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
       const horizontalSchedule = detectedHeaders.some(isMonthColumn);
@@ -224,6 +259,7 @@ export default function DataUploadCentrePage() {
           reportingMonth: detectedPeriod.month,
           periodDetection: detectedPeriod,
           horizontalSchedule,
+          extractedContext: context,
         }
       });
       // Horizontal month-column schedules need only a year; ordinary files need both year and month.
@@ -269,16 +305,16 @@ export default function DataUploadCentrePage() {
       });
 
       const results = await Promise.all([...uniqueProviders.values()].map(p => financialDataService.matchProvider(p.name, p.code, p.lga, p.state)));
-      updateActiveData({ matches: results });
-      setStep('match');
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Matching failed');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+    updateActiveData({ matches: results });
+    setStep('classify');
+  } catch (error) {
+    setErrorMessage(error instanceof Error ? error.message : 'Matching failed');
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
 
-  const generatePreview = () => {
+const generatePreview = () => {
     if (!activeItem?.data) return;
     const { rawRows, mappings, matches, reportingYear, reportingMonth, horizontalSchedule } = activeItem.data;
     const hasAmountField = mappings.some(mapping => amountMappingFields.has(mapping.nmisField));
@@ -423,6 +459,7 @@ export default function DataUploadCentrePage() {
   };
 
   return (
+    <>
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -454,7 +491,7 @@ export default function DataUploadCentrePage() {
               <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Batch Queue</h3>
               <Badge variant="default">{queue.length}</Badge>
             </div>
-            
+
             <div className="mt-4 space-y-2 max-h-[500px] overflow-y-auto pr-1">
               {queue.length === 0 ? (
                 <div className="py-10 text-center">
@@ -462,8 +499,8 @@ export default function DataUploadCentrePage() {
                   <p className="mt-2 text-xs text-slate-400">Queue is empty</p>
                 </div>
               ) : queue.map(item => (
-                <div 
-                  key={item.id} 
+                <div
+                  key={item.id}
                   onClick={() => processFile(item)}
                   className={`group relative cursor-pointer rounded-2xl border p-3 transition-all ${activeFileId === item.id ? 'border-brand-blue bg-blue-50/50' : 'border-slate-100 hover:border-slate-200 bg-white'}`}
                 >
@@ -512,7 +549,7 @@ export default function DataUploadCentrePage() {
                   </div>
                   <h2 className="mt-5 text-xl font-bold text-slate-900">Upload {uploadWorkflow === 'capitation' ? 'Capitation' : 'Claims/FFS'} Workbooks</h2>
                   <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Choose the workflow first, then drop multiple folders or select a folder of processed workbooks. A mapped row-level type remains authoritative.</p>
-                  
+
                   <div className="mt-6 flex justify-center gap-2">
                     {([
                       { value: 'claims-ffs', label: 'Claims/FFS' },
@@ -634,7 +671,7 @@ export default function DataUploadCentrePage() {
                         </div>
                         <ArrowRight className="mx-4 h-4 w-4 text-slate-300" />
                         <div className="w-1/2">
-                          <select 
+                          <select
                             className="w-full rounded-lg border-slate-200 text-sm py-1.5"
                             value={mapping.nmisField}
                             onChange={e => {
@@ -653,16 +690,68 @@ export default function DataUploadCentrePage() {
                 </Panel>
               )}
 
+              {step === 'classify' && activeItem?.data && (
+                <Panel title="Classification Rules" description="NMIS applies smart rules to identify row-level financial types and handle horizontal schedules.">
+                  <div className="space-y-8">
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      <div className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-brand-blue">
+                          <ListChecks className="h-5 w-5" />
+                        </div>
+                        <h3 className="mt-4 text-sm font-bold text-slate-900 uppercase tracking-wider">Type Rule</h3>
+                        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                          {activeItem.workflow === 'capitation'
+                            ? 'All records are classified as CAPITATION. Any row-level overrides in the workbook will be respected.'
+                            : 'Records are classified as CLAIMS by default. Rows containing "FFS" or "Fee for Service" are automatically detected.'}
+                        </p>
+                      </div>
+
+                      <div className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600">
+                          <Calendar className="h-5 w-5" />
+                        </div>
+                        <h3 className="mt-4 text-sm font-bold text-slate-900 uppercase tracking-wider">Schedule Rule</h3>
+                        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                          {activeItem.data.horizontalSchedule
+                            ? 'Horizontal month columns detected. The AI engine will pivot each month column into a distinct vertical record.'
+                            : 'Single-period schedule detected. Records will be mapped to the identified reporting month and year.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-blue-100 bg-blue-50/30 p-6">
+                      <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">AI Classification Summary</h3>
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500">Workflow Mode</span>
+                          <span className="font-bold text-slate-900">{activeItem.workflow === 'capitation' ? 'Capitation' : 'Claims/FFS'}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500">Detected Records</span>
+                          <span className="font-bold text-slate-900">{activeItem.rows.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500">Reporting Period</span>
+                        <span className="font-bold text-slate-900">
+                          {activeItem.data.reportingYear} {activeItem.data.reportingMonth ? months[Number(activeItem.data.reportingMonth) - 1].label : (activeItem.data.horizontalSchedule ? '(Multi-month)' : '')}
+                        </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <Actions onBack={() => setStep('map')} onNext={() => setStep('match')} />
+                </Panel>
+              )}
+
               {step === 'match' && activeItem?.data && (
-                <Panel title="Facility Matching" description="Linking source records to the authoritative Provider Directory.">
-                  <div className="space-y-3">
+                <Panel title="Match Providers" description="Matching source names against authoritative providers and approved aliases.">
+                  <div className="space-y-4">
                     {activeItem.data.matches.map((match, idx) => (
                       <div key={idx} className="rounded-2xl border border-slate-100 p-4 bg-white">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                          <div className="flex items-start gap-3">
-                            <div className="mt-1 rounded-lg bg-slate-50 p-2"><MapPin className="h-4 w-4 text-slate-400" /></div>
-                            <div>
-                              <p className="text-xs font-bold text-slate-400 uppercase">Source Name</p>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+                          <div className="flex-1">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Workbook Name</p>
+                            <div className="mt-1 flex items-center gap-3">
                               <p className="text-sm font-bold text-slate-900">{match.excelName}</p>
                               <Badge variant={match.status === 'confirmed' ? 'success' : 'warning'} className="mt-1 text-[10px]">{match.status === 'confirmed' ? '✓ MATCHED' : '⚠ REVIEW'}</Badge>
                             </div>
@@ -673,36 +762,69 @@ export default function DataUploadCentrePage() {
                           </div>
                         </div>
                         {match.status !== 'confirmed' && (
-                          <div className="mt-4 space-y-2">
-                            <input
-                              className="w-full rounded-xl border-slate-200 text-sm"
-                              value={matchSearch[match.excelName] || ''}
-                              onChange={event => setMatchSearch(previous => ({ ...previous, [match.excelName]: event.target.value }))}
-                              placeholder="Search suggested providers by name, code, or LGA..."
-                            />
-                            <select className="w-full rounded-xl border-slate-200 text-sm" value="" onChange={async (e) => {
-                              const c = match.candidates?.find(candidate => candidate.id === e.target.value);
-                              if (!c) return;
-                              await financialDataService.resolveMatch(match, session?.user?.email, activeItem.id, c.id, match.excelName);
-                              const newMatches = [...activeItem.data!.matches];
-                              newMatches[idx] = { ...match, matchedProviderId: c.id, matchedProviderName: c.name, matchedProviderCode: c.code, matchedProviderLga: c.lga, matchedProviderState: c.state, status: 'confirmed', confidence: 1 };
-                              updateActiveData({ matches: newMatches });
-                            }}>
-                              <option value="">Resolve to...</option>
+                          <div className="mt-4 space-y-3">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                              <input
+                                className="w-full rounded-xl border-slate-200 pl-9 text-xs focus:ring-brand-blue"
+                                value={matchSearch[match.excelName] || ''}
+                                onChange={event => setMatchSearch(previous => ({ ...previous, [match.excelName]: event.target.value }))}
+                                placeholder="Search Provider Directory to resolve & learn alias..."
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-2">
                               {(match.candidates || [])
                                 .filter(candidate => {
                                   const query = (matchSearch[match.excelName] || '').toLowerCase().trim();
                                   return !query || [candidate.name, candidate.code, candidate.lga, candidate.state].filter(Boolean).join(' ').toLowerCase().includes(query);
                                 })
-                                .map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.name} ({candidate.code})</option>)}
-                            </select>
-                            {(!match.candidates || match.candidates.length === 0) && <p className="text-xs text-amber-700">No candidates were returned. Refine the source facility name or use the Provider Directory to confirm the authoritative facility.</p>}
+                                .slice(0, 5)
+                                .map(candidate => (
+                                  <button
+                                    key={candidate.id}
+                                    onClick={async () => {
+                                      await financialDataService.resolveMatch(match, session?.user?.email, activeItem.id, candidate.id, match.excelName);
+                                      const newMatches = [...activeItem.data!.matches];
+                                      newMatches[idx] = {
+                                        ...match,
+                                        matchedProviderId: candidate.id,
+                                        matchedProviderName: candidate.name,
+                                        matchedProviderCode: candidate.code,
+                                        matchedProviderLga: candidate.lga,
+                                        matchedProviderState: candidate.state,
+                                        matchedProviderFacilityType: candidate.facilityType,
+                                        matchedProviderOwnership: candidate.ownership,
+                                        status: 'confirmed',
+                                        confidence: 1,
+                                        matchType: 'manual'
+                                      };
+                                      updateActiveData({ matches: newMatches });
+                                    }}
+                                    className="flex items-center justify-between rounded-xl border border-slate-100 p-3 text-left hover:border-brand-blue hover:bg-blue-50/30 transition-all group"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-slate-900 group-hover:text-brand-blue transition-colors">{candidate.name}</p>
+                          </div>
+                                      <p className="mt-0.5 text-[10px] text-slate-500">{candidate.code} · {candidate.lga} · {candidate.ownership}</p>
+                                    </div>
+                                    <ArrowRight size={14} className="text-slate-300 group-hover:text-brand-blue transition-all" />
+                                  </button>
+                                ))}
+
+                              {(!match.candidates || match.candidates.length === 0) && (
+                                <div className="rounded-xl border border-amber-100 bg-amber-50/30 p-3 text-center">
+                                  <p className="text-xs text-amber-700">No candidates were returned. Refine the search to resolve.</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
                     ))}
                   </div>
-                  <Actions onBack={() => setStep('map')} onNext={generatePreview} nextLabel="Generate Preview" />
+                  <Actions onBack={() => setStep('classify')} onNext={generatePreview} nextLabel="Generate Preview" />
                 </Panel>
               )}
 
@@ -721,14 +843,14 @@ export default function DataUploadCentrePage() {
                       <p className="text-[10px] font-bold text-amber-600 uppercase">REVIEW</p>
                       <p className="mt-1 text-xl font-bold text-amber-700">{activeItem.review.toLocaleString()}</p>
                     </div>
-                    <div className="rounded-2xl bg-rose-50 p-4 border border-rose-100">
+                    <button onClick={() => { setErrorTypeFilter('error'); setIsErrorModalOpen(true); }} className="rounded-2xl bg-rose-50 p-4 border border-rose-100 text-left hover:bg-rose-100 transition-colors">
                       <p className="text-[10px] font-bold text-rose-600 uppercase">ERRORS</p>
                       <p className="mt-1 text-xl font-bold text-rose-700">{activeItem.errors.toLocaleString()}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+                    </button>
+                    <button onClick={() => { setErrorTypeFilter('duplicate'); setIsErrorModalOpen(true); }} className="rounded-2xl bg-slate-50 p-4 border border-slate-200 text-left hover:bg-slate-100 transition-colors">
                       <p className="text-[10px] font-bold text-slate-500 uppercase">DUPLICATES</p>
                       <p className="mt-1 text-xl font-bold text-slate-700">{(activeItem.duplicates || 0).toLocaleString()}</p>
-                    </div>
+                    </button>
                   </div>
                   <div className="overflow-x-auto rounded-2xl border border-slate-100">
                     <table className="w-full text-left text-sm">
@@ -781,6 +903,88 @@ export default function DataUploadCentrePage() {
         </main>
       </div>
     </div>
+
+    {isErrorModalOpen && activeItem?.data && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="w-full max-w-5xl max-h-[90vh] rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col">
+          <div className="flex items-start justify-between bg-slate-50 p-6 border-b border-slate-200">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">AI Validation Inspector</p>
+              <h2 className="mt-1 text-2xl font-bold text-slate-900">Record-Level Issues</h2>
+              <p className="mt-1 text-sm text-slate-500">Review and correct individual validation errors or provider matching issues.</p>
+            </div>
+            <button className="rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-900 transition-all" onClick={() => setIsErrorModalOpen(false)}><X size={20} /></button>
+          </div>
+
+          <div className="flex-1 overflow-hidden flex flex-col p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input placeholder="Search by provider or error..." className="pl-10" value={errorSearch} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setErrorSearch(e.target.value)} />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-400 uppercase">Filter</span>
+                <select className="rounded-xl border-slate-200 text-sm" value={errorTypeFilter} onChange={e => setErrorTypeFilter(e.target.value)}>
+                  <option value="all">All Issues</option>
+                  <option value="error">Validation Errors</option>
+                  <option value="review">Unmatched Providers</option>
+                  <option value="duplicate">Duplicates</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto rounded-2xl border border-slate-100">
+              <table className="w-full text-left text-sm border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-4 py-3 border-b border-slate-100">Row</th>
+                    <th className="px-4 py-3 border-b border-slate-100">Provider</th>
+                    <th className="px-4 py-3 border-b border-slate-100">Issue</th>
+                    <th className="px-4 py-3 border-b border-slate-100 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {activeItem.data.normalizedRecords
+                    .filter(r => {
+                      const hasIssue = (r.validationErrors?.length || 0) > 0 || !r.providerId || r.recordStatus === 'duplicate';
+                      if (!hasIssue) return false;
+
+                      const matchesSearch = !errorSearch || [r.providerName, ...(r.validationErrors || [])].some(v => String(v).toLowerCase().includes(errorSearch.toLowerCase()));
+                      const matchesType = errorTypeFilter === 'all'
+                        || (errorTypeFilter === 'error' && (r.validationErrors?.length || 0) > 0)
+                        || (errorTypeFilter === 'review' && !r.providerId && (!r.validationErrors || r.validationErrors.length === 0))
+                        || (errorTypeFilter === 'duplicate' && r.recordStatus === 'duplicate');
+
+                      return matchesSearch && matchesType;
+                    })
+                    .map((r, i) => (
+                      <tr key={i} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-4 font-mono text-xs text-slate-400">{r.sourceRow}</td>
+                        <td className="px-4 py-4 font-semibold text-slate-900">{r.providerName}</td>
+                        <td className="px-4 py-4">
+                          {r.validationErrors?.map((e, idx) => <p key={idx} className="text-xs text-rose-600 flex items-center gap-1.5"><AlertCircle size={12} /> {e}</p>)}
+                          {!r.providerId && (!r.validationErrors || r.validationErrors.length === 0) && <p className="text-xs text-amber-600 flex items-center gap-1.5"><MapPin size={12} /> Provider matching required</p>}
+                          {r.recordStatus === 'duplicate' && <p className="text-xs text-slate-500 flex items-center gap-1.5"><Copy size={12} /> Duplicate record skipped</p>}
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <Badge variant={r.recordStatus === 'duplicate' ? 'default' : r.validationErrors?.length ? 'error' : 'warning'}>
+                            {r.recordStatus === 'duplicate' ? 'DUPLICATE' : r.validationErrors?.length ? 'FIX REQUIRED' : 'MATCHING'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 p-6 border-t border-slate-200 flex justify-end">
+            <Button onClick={() => setIsErrorModalOpen(false)} className="rounded-2xl px-8">Close Inspector</Button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

@@ -37,12 +37,12 @@ export const isSummaryRow = (providerName: string): boolean => {
   // Exact matches for summary keywords
   const exactKeywords = ['TOTAL', 'GRAND TOTAL', 'SUBTOTAL', 'SUMMARY', 'TOTALS'];
   if (exactKeywords.includes(normalized)) return true;
-  
+
   // Check for "TOTAL" followed by common summary labels, but exclude valid provider name parts
   // We avoid startsWith('TOTAL ') because it catches "Total Care", "Total Health", etc.
   const summaryPrefixes = ['TOTAL ', 'GRAND TOTAL ', 'SUBTOTAL '];
   const summaryLabels = ['AMOUNT', 'COUNT', 'RECORDS', 'ENROLLEES', 'BENEFICIARIES', 'PAYABLE', 'GROSS', 'NET'];
-  
+
   for (const prefix of summaryPrefixes) {
     if (normalized.startsWith(prefix)) {
       const remainder = normalized.substring(prefix.length).trim();
@@ -52,7 +52,7 @@ export const isSummaryRow = (providerName: string): boolean => {
       }
     }
   }
-  
+
   return false;
 };
 
@@ -60,6 +60,50 @@ export const isSummaryRow = (providerName: string): boolean => {
  * Service to handle business logic for financial data hub
  */
 export const financialDataService = {
+  /**
+   * Automatically identify the header row index by looking for common financial keywords.
+   */
+  detectHeaderRowIndex(matrix: unknown[][]): number {
+    const keywords = ['provider', 'facility', 'hospital', 'amount', 'date', 'month', 'year', 'claims', 'capitation', 'ffs', 'fee for service', 'category', 's/n', 'sn'];
+    for (let i = 0; i < Math.min(matrix.length, 20); i++) {
+      const row = matrix[i];
+      if (!Array.isArray(row)) continue;
+      const matchCount = row.filter(cell => {
+        const val = String(cell ?? '').toLowerCase();
+        return keywords.some(k => val.includes(k));
+      }).length;
+      if (matchCount >= 3) return i;
+    }
+    return 0;
+  },
+
+  /**
+   * Extract workbook-level metadata from rows above the header.
+   */
+  extractWorkbookContext(matrix: unknown[][], headerIndex: number): { facilityName?: string; lga?: string; period?: string } {
+    const context: { facilityName?: string; lga?: string; period?: string } = {};
+    const lgaNames = ['akoko north east', 'akoko north west', 'akoko south east', 'akoko south west', 'akure north', 'akure south', 'ese odo', 'idanre', 'ifedore', 'ilaje', 'ile oluji', 'irele', 'odigbo', 'okitipupa', 'ondo east', 'ondo west', 'ose', 'owo'];
+
+    for (let i = 0; i < headerIndex; i++) {
+      const row = matrix[i];
+      if (!Array.isArray(row)) continue;
+      const text = row.join(' ').toLowerCase();
+
+      // Look for facility name (often follows "name of facility:" or "provider:")
+      if (!context.facilityName) {
+        const nameMatch = text.match(/(?:facility|provider|hospital|clinic)(?:\s+name)?\s*[:\-]\s*([^,\|]+)/i);
+        if (nameMatch) context.facilityName = nameMatch[1].trim().toUpperCase();
+      }
+
+      // Look for LGA
+      if (!context.lga) {
+        const lgaMatch = lgaNames.find(lga => text.includes(lga));
+        if (lgaMatch) context.lga = lgaMatch.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      }
+    }
+    return context;
+  },
+
   /**
    * Suggest a data type based on headers
    */
@@ -196,7 +240,7 @@ export const financialDataService = {
     }
 
     if (numericFields.has(String(field))) return toNumber(value);
-    
+
     return text;
   },
 
