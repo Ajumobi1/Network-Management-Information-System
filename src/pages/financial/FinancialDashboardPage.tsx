@@ -51,12 +51,7 @@ export default function FinancialDashboardPage() {
       </>} 
     />
 
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <KpiCard title="Total Expenditure" value={formatNaira(intelligence?.totalExpenditure || 0)} subtitle="Processed spend" icon={<DollarSign className="h-5 w-5" />} tone="primary" trend={`${intelligence?.comparison?.percentageChange}%`} trendDirection="up" />
-      <KpiCard title="Network PEPM" value={formatNaira(intelligence?.pepm || 0)} subtitle="Spend per enrollee" icon={<TrendingUp className="h-5 w-5" />} tone="danger" trend={`${intelligence?.comparison?.pepmChange}%`} trendDirection="up" />
-      <KpiCard title="Total Enrolment" value={(intelligence?.totalEnrolment || 0).toLocaleString()} subtitle="Eligible denominator" icon={<Users className="h-5 w-5" />} tone="info" />
-      <KpiCard title="Claims Volume" value={formatNaira(intelligence?.claimsExpenditure || 0)} subtitle="Processed claims" icon={<FileText className="h-5 w-5" />} tone="success" />
-    </section>
+
 
     <section className="grid gap-6 lg:grid-cols-3">
       <Card className="lg:col-span-2">
