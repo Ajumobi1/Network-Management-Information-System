@@ -143,18 +143,21 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
 
         {/* Filter Section */}
         <section className="nmis-card p-4 sm:p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-end">
-            <div className="relative min-w-0 flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-subtle" />
-              <Input placeholder="Search provider, code, facility, state, or LGA..." className="pl-10" value={search} onChange={event => setSearch(event.target.value)} />
+          <div className="space-y-4">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_12rem_12rem] lg:items-end">
+              <div className="relative min-w-0">
+                <Input label="Search records" placeholder="Provider, code, facility, state, or LGA..." className="pl-10" value={search} onChange={event => setSearch(event.target.value)} />
+                <Search className="pointer-events-none absolute left-3.5 top-[2.35rem] h-4 w-4 text-brand-subtle" />
+              </div>
+              <Select label="Year" value={year} onChange={e => setYear(e.target.value)} options={['2026', '2025'].map(y => ({ label: y, value: y }))} placeholder="All years" />
+              <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} placeholder="All months" />
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Select label="Year" value={year} onChange={e => setYear(e.target.value)} options={['2026', '2025'].map(y => ({ label: y, value: y }))} placeholder="All years" className="w-32" />
-              <Select label="Month" value={month} onChange={e => setMonth(e.target.value)} options={months.map(m => ({ label: m.label, value: m.value }))} placeholder="All months" className="w-40" />
+            <div className="flex flex-wrap items-center gap-2 border-t border-brand-divider pt-4">
+              <span className="mr-2 text-xs font-bold uppercase tracking-wider text-brand-muted">Additional filters</span>
               <Button variant="secondary" onClick={() => setMoreFiltersOpen(!moreFiltersOpen)} className="h-[2.625rem] gap-2">
-                <Filter size={16} /> {moreFiltersOpen ? 'Hide' : 'More'}
+                <Filter size={16} /> {moreFiltersOpen ? 'Hide filters' : 'More filters'}
               </Button>
-              <Button variant="secondary" onClick={clearFilters} className="h-[2.625rem]">Reset</Button>
+              <Button variant="secondary" onClick={clearFilters} className="h-[2.625rem]">Reset all</Button>
             </div>
           </div>
 
@@ -260,11 +263,10 @@ function SummaryGrid({ summary, isClaims, isLoading }: { summary?: FinancialRegi
       { label: 'Providers', value: summary?.providerCount?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <Building2 size={18} /> },
     ]
     : [
-      { label: 'Total Records', value: summary?.totalRecords?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <FileText size={18} /> },
       { label: 'Total Capitation', value: formatNaira(summary?.totalPaidAmount ?? 0), tone: 'success' as const, icon: <BarChart3 size={18} /> },
       { label: 'Avg Capitation', value: formatNaira(summary?.averageClaimValue ?? 0), tone: 'info' as const, icon: <BarChart3 size={18} /> },
       { label: 'Providers', value: summary?.providerCount?.toLocaleString() ?? '0', tone: 'primary' as const, icon: <Building2 size={18} /> },
     ];
 
-  return <div className={`grid gap-4 sm:grid-cols-2 ${isClaims ? 'lg:grid-cols-4 xl:grid-cols-7' : 'lg:grid-cols-4'}`}>{cards.map((card) => <KpiCard key={card.label} title={card.label} value={card.value} tone={card.tone} icon={card.icon} />)}</div>;
+  return <div className={`grid gap-4 sm:grid-cols-2 ${isClaims ? 'lg:grid-cols-4 xl:grid-cols-7' : 'lg:grid-cols-3'}`}>{cards.map((card) => <KpiCard key={card.label} title={card.label} value={card.value} tone={card.tone} icon={card.icon} />)}</div>;
 }
