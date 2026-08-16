@@ -7,6 +7,7 @@ import {
 import { getProviderDirectory, getPersistedProviderMatches, saveProviderMatchResolution } from '../../repositories/providers/providersRepository';
 import { providerMatchingService } from '../reconciliation/providerMatchingService';
 import { useMockData } from '../../repositories/common';
+import { aiIngestionEngine } from '../ingestion/aiIngestionEngine';
 
 const normalizeText = (value: unknown) => String(value ?? '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
 const numericFields = new Set<string>([
@@ -34,31 +35,7 @@ const buildFingerprint = (record: Partial<FinancialRecord>) => [
   record.amountPaid ?? record.netAmountPaid ?? record.amount ?? '',
 ].map(value => normalizeText(value)).join('|');
 
-export const isSummaryRow = (providerName: string): boolean => {
-  const normalized = providerName.trim().toUpperCase();
-  // Exact matches for summary keywords
-  const exactKeywords = ['TOTAL', 'GRAND TOTAL', 'SUBTOTAL', 'SUMMARY', 'TOTALS', 'PAYMENT SCHEDULE', 'GRAND TOTALS'];
-  if (exactKeywords.includes(normalized)) return true;
-
-  // Check for common header/summary noise
-  if (normalized.includes('PAYMENT SCHEDULE') || normalized.includes('ORANGHIS PROVIDERS')) return true;
-
-  // Check for "TOTAL" followed by common summary labels, but exclude valid provider name parts
-  const summaryPrefixes = ['TOTAL ', 'GRAND TOTAL ', 'SUBTOTAL ', 'TOTALS '];
-  const summaryLabels = ['AMOUNT', 'COUNT', 'RECORDS', 'ENROLLEES', 'BENEFICIARIES', 'PAYABLE', 'GROSS', 'NET', 'PAID', 'DUE'];
-
-  for (const prefix of summaryPrefixes) {
-    if (normalized.startsWith(prefix)) {
-      const remainder = normalized.substring(prefix.length).trim();
-      // If the remainder is just a summary label or a number/punctuation, it's a summary row
-      if (summaryLabels.includes(remainder) || /^[0-9#,\.\-\/ ]+$/.test(remainder)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-};
+export const isSummaryRow = (providerName: string): boolean => aiIngestionEngine.isSummaryRow(providerName);
 
 /**
  * Service to handle business logic for financial data hub
@@ -68,44 +45,18 @@ export const financialDataService = {
    * Automatically identify the header row index by looking for common financial keywords.
    */
   detectHeaderRowIndex(matrix: unknown[][]): number {
-    const keywords = ['provider', 'facility', 'hospital', 'amount', 'date', 'month', 'year', 'claims', 'capitation', 'ffs', 'fee for service', 'category', 's/n', 'sn'];
-    for (let i = 0; i < Math.min(matrix.length, 20); i++) {
-      const row = matrix[i];
-      if (!Array.isArray(row)) continue;
-      const matchCount = row.filter(cell => {
-        const val = String(cell ?? '').toLowerCase();
-        return keywords.some(k => val.includes(k));
-      }).length;
-      if (matchCount >= 3) return i;
-    }
-    return 0;
+    return aiIngestionEngine.detectHeaderRowIndex(matrix);
   },
 
   /**
    * Extract workbook-level metadata from rows above the header.
    */
   extractWorkbookContext(matrix: unknown[][], headerIndex: number): { facilityName?: string; lga?: string; period?: string } {
-    const context: { facilityName?: string; lga?: string; period?: string } = {};
-    const lgaNames = ['akoko north east', 'akoko north west', 'akoko south east', 'akoko south west', 'akure north', 'akure south', 'ese odo', 'idanre', 'ifedore', 'ilaje', 'ile oluji', 'irele', 'odigbo', 'okitipupa', 'ondo east', 'ondo west', 'ose', 'owo'];
+    return aiIngestionEngine.extractWorkbookContext(matrix, headerIndex);
+  },
 
-    for (let i = 0; i < headerIndex; i++) {
-      const row = matrix[i];
-      if (!Array.isArray(row)) continue;
-      const text = row.join(' ').toLowerCase();
-
-      // Look for facility name (often follows "name of facility:" or "provider:")
-      if (!context.facilityName) {
-        const nameMatch = text.match(/(?:facility|provider|hospital|clinic)(?:\s+name)?\s*[:\-]\s*([^,\|]+)/i);
-        if (nameMatch) context.facilityName = nameMatch[1].trim().toUpperCase();
-      }
-
-      // Look for LGA
-      if (!context.lga) {
-        const lgaMatch = lgaNames.find(lga => text.includes(lga));
-        if (lgaMatch) context.lga = lgaMatch.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      }
-    }
-    return context;
+  extractFacilityNameFromFilename(fileName: string): string | undefined {
+    return aiIngestionEngine.extractFacilityNameFromFilename(fileName);
   },
 
   /**
@@ -414,6 +365,8 @@ export const financialDataService = {
     return buildFingerprint(record);
   },
 
+  aiIngestionEngine,
+
   /**
    * Normalize raw Excel data into FinancialRecord objects
    */
@@ -424,7 +377,8 @@ export const financialDataService = {
     batchId: string,
     fileName: string,
     sourceSheet?: string,
-    periodOverride?: { reportingYear: number; reportingMonth: number }
+    periodOverride?: { reportingYear: number; reportingMonth: number },
+    fallbackContext?: { facilityName?: string; lga?: string; state?: string }
   ): FinancialRecord[] {
     const records: FinancialRecord[] = [];
     const now = new Date().toISOString();
@@ -447,25 +401,33 @@ export const financialDataService = {
     };
 
     const monthColumns = mappings.filter(m => getMonthIndex(m.excelField) >= 0);
+    const providerMapping = mappings.find(m => m.nmisField === 'providerName');
+    const codeMapping = mappings.find(m => m.nmisField === 'providerCode');
+    const lgaMapping = mappings.find(m => m.nmisField === 'lga');
+    const stateMapping = mappings.find(m => m.nmisField === 'state');
+    const enrichedRows = aiIngestionEngine.inheritRowContext(rows, {
+      providerName: providerMapping?.excelField,
+      providerCode: codeMapping?.excelField,
+      lga: lgaMapping?.excelField,
+      state: stateMapping?.excelField,
+    });
 
-    let inheritedProviderName = '';
+    let inheritedProviderName = fallbackContext?.facilityName || '';
     let inheritedProviderCode = '';
-    let inheritedLga = '';
+    let inheritedLga = fallbackContext?.lga || '';
+    let inheritedState = fallbackContext?.state || 'Ondo';
 
-    rows.forEach((row, index) => {
-      // AI Self-Healing: Row Inheritance
-      // Financial schedules commonly put the provider only on the CAPITATION row and leave it blank on the following FFS row.
-      const providerMapping = mappings.find(m => m.nmisField === 'providerName');
-      const codeMapping = mappings.find(m => m.nmisField === 'providerCode');
-      const lgaMapping = mappings.find(m => m.nmisField === 'lga');
-
+    enrichedRows.forEach((row, index) => {
+      // AI Self-Healing: provider context was inherited by the shared engine.
       const explicitProviderName = providerMapping ? String(row[providerMapping.excelField] || '').trim() : '';
       const explicitProviderCode = codeMapping ? String(row[codeMapping.excelField] || '').trim() : '';
       const explicitLga = lgaMapping ? String(row[lgaMapping.excelField] || '').trim() : '';
+      const explicitState = stateMapping ? String(row[stateMapping.excelField] || '').trim() : '';
 
       if (explicitProviderName) inheritedProviderName = explicitProviderName;
       if (explicitProviderCode) inheritedProviderCode = explicitProviderCode;
       if (explicitLga) inheritedLga = explicitLga;
+      if (explicitState) inheritedState = explicitState;
 
       const rawProviderName = explicitProviderName || inheritedProviderName;
       const rawProviderCode = explicitProviderCode || inheritedProviderCode;
@@ -489,6 +451,7 @@ export const financialDataService = {
         providerName: rawProviderName,
         providerCode: rawProviderCode,
         lga: rawLga,
+        state: inheritedState,
       };
 
       mappings.forEach(mapping => {

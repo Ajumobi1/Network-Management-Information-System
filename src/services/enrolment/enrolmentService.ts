@@ -8,6 +8,7 @@ import {
   EnrolmentErrorCode,
 } from '../../types/enrolment/enrolmentTypes';
 import { ProviderMatch } from '../../types/financial-data';
+import { aiIngestionEngine } from '../ingestion/aiIngestionEngine';
 import {
   fetchEnrolleeById,
   fetchEnrollees,
@@ -63,34 +64,7 @@ function readMappedValue(row: Record<string, unknown>, mappings: EnrolmentColumn
 }
 
 export function detectHeaderRowIndex(matrix: unknown[][]): number {
-  // Increase search range to 20 rows to handle large titles
-  for (let i = 0; i < Math.min(matrix.length, 20); i++) {
-    const row = matrix[i];
-    if (!row || !Array.isArray(row)) continue;
-    
-    const rowText = row.map(cell => String(cell ?? '').toLowerCase()).join(' ');
-    
-    // Comprehensive keyword matching for enrolment headers
-    const hasIdentity = rowText.includes('policy') || rowText.includes('member') || rowText.includes('number') || rowText.includes('s/n') || rowText.includes('sn ') || rowText.includes('id');
-    const hasName = rowText.includes('name') || rowText.includes('beneficiary') || rowText.includes('first') || rowText.includes('surname') || rowText.includes('provider');
-    const hasCategory = rowText.includes('category') || rowText.includes('sector') || rowText.includes('type');
-    
-    if ((hasIdentity && hasName) || (hasName && hasCategory)) {
-      return i;
-    }
-  }
-  
-  // Fallback: Find the first row that has at least 3 non-empty cells
-  for (let i = 0; i < Math.min(matrix.length, 15); i++) {
-    const row = matrix[i];
-    if (!row || !Array.isArray(row)) continue;
-    const nonEmptyCount = row.filter(cell => String(cell ?? '').trim() !== '').length;
-    if (nonEmptyCount >= 3) {
-      return i;
-    }
-  }
-  
-  return 0;
+  return aiIngestionEngine.detectHeaderRowIndex(matrix);
 }
 
 export function deriveSectorFromPolicy(policyNumber: string): EnrolmentSector | undefined {
@@ -113,56 +87,8 @@ export function normalizeEnrolmentCategory(value: unknown): EnrolmentCategory | 
  * Suggest enrolment mappings using fuzzy AI-like logic
  */
 export function extractWorkbookContext(matrix: unknown[][]): { facilityName?: string; lga?: string; period?: string } {
-  let facilityName: string | undefined;
-  let lga: string | undefined;
-  let period: string | undefined;
-
-  // Scan top 6 rows before column headers for metadata
-  for (let i = 0; i < Math.min(matrix.length, 6); i++) {
-    const row = matrix[i];
-    if (!row) continue;
-    const rowText = row.map(cell => String(cell ?? '').trim()).filter(Boolean).join(' ');
-    const upper = rowText.toUpperCase();
-
-    // Detect LGA
-    if (upper.includes('LOCAL GOVERNMENT') || upper.includes('LGA')) {
-      const lgaMatch = rowText.match(/([A-Z\s]+(?:LOCAL GOVERNMENT|LGA))/i);
-      if (lgaMatch) {
-        lga = lgaMatch[1].replace(/LOCAL GOVERNMENT|LGA/gi, '').trim();
-      } else {
-        // common LGAs in Ondo
-        const lgas = ['AKOKO NORTH EAST', 'AKOKO NORTH WEST', 'AKOKO SOUTH AKURE', 'AKOKO SOUTH EAST', 'AKOKO SOUTH WEST', 'AKURE SOUTH', 'AKURE NORTH', 'IDANRE', 'ODIGBO', 'OKITIPUPA', 'ILE OLUJI', 'IFE', 'OWO', 'OJEBU'];
-        for (const l of lgas) {
-          if (upper.includes(l)) {
-            lga = l;
-            break;
-          }
-        }
-      }
-    }
-
-    // Detect Facility Name (contains Hospital, Clinic, Medical, Healthcare, Health Center)
-    if (!facilityName && (upper.includes('HOSPITAL') || upper.includes('HOSP') || upper.includes('CLINIC') || upper.includes('MEDICAL') || upper.includes('HEALTH CENTER') || upper.includes('HEALTH CENTRE') || upper.includes('ST.'))) {
-      for (const cell of row) {
-        const text = String(cell ?? '').trim();
-        const uText = text.toUpperCase();
-        if (uText.length > 5 && (uText.includes('HOSPITAL') || uText.includes('HOSP') || uText.includes('CLINIC') || uText.includes('MEDICAL') || uText.includes('CENTER') || uText.includes('CENTRE') || uText.includes('ST.'))) {
-          facilityName = text.replace(/^["']|["']$/g, '').trim();
-          break;
-        }
-      }
-    }
-
-    // Detect Period / Month / Year
-    if (upper.includes('JULY') || upper.includes('JANUARY') || upper.includes('FEBRUARY') || upper.includes('MARCH') || upper.includes('APRIL') || upper.includes('MAY') || upper.includes('JUNE') || upper.includes('AUGUST') || upper.includes('SEPTEMBER') || upper.includes('OCTOBER') || upper.includes('NOVEMBER') || upper.includes('DECEMBER')) {
-      const yearMatch = rowText.match(/20\d\d/);
-      if (yearMatch) {
-        period = yearMatch[0];
-      }
-    }
-  }
-
-  return { facilityName, lga, period };
+  const headerIndex = detectHeaderRowIndex(matrix);
+  return aiIngestionEngine.extractWorkbookContext(matrix, headerIndex);
 }
 
 /**
@@ -170,19 +96,7 @@ export function extractWorkbookContext(matrix: unknown[][]): { facilityName?: st
  * worksheet does not include a provider/facility metadata row or column.
  */
 export function extractFacilityNameFromFilename(fileName: string): string | undefined {
-  const baseName = fileName
-    .replace(/\.[^.]+$/, '')
-    .replace(/[._-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-
-  if (baseName.length < 8) return undefined;
-
-  const facilityTerms = /(hospital|hosp|clinic|medical|med\.?|health|centre|center|maternity|diagnostic|community|pharmacy|laboratory)/i;
-  const genericOnly = /^(capitation|enrol?ment|enrollee|beneficiar(?:y|ies)|member|data|upload|workbook|sheet|file|list)(?:[ _-]*(?:list|data|upload|workbook|sheet|file|202[0-9]|20[0-9]{2}))?$/i;
-
-  if (genericOnly.test(baseName) || !facilityTerms.test(baseName)) return undefined;
-  return baseName;
+  return aiIngestionEngine.extractFacilityNameFromFilename(fileName);
 }
 
 export function suggestEnrolmentMappings(headers: string[]): EnrolmentColumnMapping[] {
@@ -227,29 +141,7 @@ export function buildEnrolleeFingerprint(policyNumber: string, period: string): 
   return `${policyNumber.replace(/\s+/g, '').toLowerCase()}|${period.trim()}`;
 }
 
-const isSummaryRow = (providerName: string): boolean => {
-  const normalized = providerName.trim().toUpperCase();
-  // Exact matches for summary keywords
-  const exactKeywords = ['TOTAL', 'GRAND TOTAL', 'SUBTOTAL', 'SUMMARY', 'TOTALS'];
-  if (exactKeywords.includes(normalized)) return true;
-  
-  // Check for "TOTAL" followed by common summary labels, but exclude valid provider name parts
-  // We avoid startsWith('TOTAL ') because it catches "Total Care", "Total Health", etc.
-  const summaryPrefixes = ['TOTAL ', 'GRAND TOTAL ', 'SUBTOTAL '];
-  const summaryLabels = ['AMOUNT', 'COUNT', 'RECORDS', 'ENROLLEES', 'BENEFICIARIES', 'PAYABLE', 'GROSS', 'NET'];
-  
-  for (const prefix of summaryPrefixes) {
-    if (normalized.startsWith(prefix)) {
-      const remainder = normalized.substring(prefix.length).trim();
-      // If the remainder is just a summary label or a number/punctuation, it's a summary row
-      if (summaryLabels.includes(remainder) || /^[0-9#,\.\-\/ ]+$/.test(remainder)) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-};
+const isSummaryRow = (providerName: string): boolean => aiIngestionEngine.isSummaryRow(providerName);
 
 /**
  * Smart normalization for enrolment values (standardizing ownership and categories)
@@ -297,8 +189,18 @@ export function normalizeEnrolmentRows(
   const [periodYear, periodMonth] = period.split('-').map(Number);
 
   const fallbackMatch = matches[0];
+  const providerNameField = mappings.find(mapping => mapping.enrolmentField === 'providerName')?.excelField;
+  const providerCodeField = mappings.find(mapping => mapping.enrolmentField === 'providerCode')?.excelField;
+  const lgaField = mappings.find(mapping => mapping.enrolmentField === 'lga')?.excelField;
+  const stateField = mappings.find(mapping => mapping.enrolmentField === 'state')?.excelField;
+  const enrichedRows = aiIngestionEngine.inheritRowContext(rows, {
+    providerName: providerNameField,
+    providerCode: providerCodeField,
+    lga: lgaField,
+    state: stateField,
+  });
 
-  const normalized = rows.filter(row => {
+  const normalized = enrichedRows.filter(row => {
     const sourceProviderName = normalizeText(readMappedValue(row, mappings, 'providerName')) || (fallbackMatch ? fallbackMatch.excelName : '');
     return sourceProviderName && !isSummaryRow(sourceProviderName);
   }).map((row, index) => {
@@ -547,4 +449,5 @@ export const enrolmentService = {
   createEnrolmentImportBatch,
   checkDuplicateEnrolmentBatch,
   smartNormalizeEnrolmentValue,
+  aiIngestionEngine,
 };

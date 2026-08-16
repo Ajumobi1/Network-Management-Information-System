@@ -229,7 +229,11 @@ export default function DataUploadCentrePage() {
       if (!sheet) throw new Error(`Worksheet "${sheetName}" could not be found.`);
       const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
       const hIndex = financialDataService.detectHeaderRowIndex(matrix);
-      const context = financialDataService.extractWorkbookContext(matrix, hIndex);
+      const detectedContext = financialDataService.extractWorkbookContext(matrix, hIndex);
+      const context = {
+        ...detectedContext,
+        facilityName: detectedContext.facilityName || financialDataService.extractFacilityNameFromFilename(item.file.name),
+      };
       const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
 
       const detectedHeaders = (matrix[hIndex] || []).map((value, index) => String(value ?? '').trim() || `Column ${index + 1}`);
@@ -286,14 +290,16 @@ export default function DataUploadCentrePage() {
       const hasAmountField = mappings.some(mapping => amountMappingFields.has(mapping.nmisField));
       const lowConfidence = mappings.filter(mapping => mapping.nmisField !== 'ignored' && mapping.confidence === 'LOW');
 
-      if (!providerField) throw new Error('Map a facility/provider name column before continuing.');
+      if (!providerField && !activeItem.data.extractedContext.facilityName) {
+        throw new Error('Could not detect a facility/provider name. Add a provider column or use a descriptive workbook filename.');
+      }
       if (!hasAmountField && !horizontalSchedule) throw new Error('Map at least one financial amount column before continuing.');
       if (lowConfidence.length > 0) throw new Error(`Review or ignore ${lowConfidence.length} low-confidence mapping${lowConfidence.length === 1 ? '' : 's'} before continuing.`);
       if (!headers.some(header => header.trim())) throw new Error('The workbook does not contain usable headers.');
 
       const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
       rawRows.forEach(row => {
-        const name = String(row[providerField] ?? '').trim();
+        const name = String(providerField ? row[providerField] ?? '' : '').trim();
         if (!name || isSummaryRow(name)) return;
         const key = `${name.toLowerCase()}|${String(row[providerCodeField || ''] ?? '').trim().toLowerCase()}`;
         uniqueProviders.set(key, {
@@ -304,8 +310,16 @@ export default function DataUploadCentrePage() {
         });
       });
 
-      const results = await Promise.all([...uniqueProviders.values()].map(p => financialDataService.matchProvider(p.name, p.code, p.lga, p.state)));
-    updateActiveData({ matches: results });
+      let results = await Promise.all([...uniqueProviders.values()].map(p => financialDataService.matchProvider(p.name, p.code, p.lga, p.state)));
+      if (results.length === 0 && activeItem.data.extractedContext.facilityName) {
+        results = [await financialDataService.matchProvider(
+          activeItem.data.extractedContext.facilityName,
+          undefined,
+          activeItem.data.extractedContext.lga,
+          'Ondo',
+        )];
+      }
+      updateActiveData({ matches: results });
     setStep('classify');
   } catch (error) {
     setErrorMessage(error instanceof Error ? error.message : 'Matching failed');
@@ -319,8 +333,8 @@ const generatePreview = () => {
     const { rawRows, mappings, matches, reportingYear, reportingMonth, horizontalSchedule } = activeItem.data;
     const hasAmountField = mappings.some(mapping => amountMappingFields.has(mapping.nmisField));
     const lowConfidence = mappings.filter(mapping => mapping.nmisField !== 'ignored' && mapping.confidence === 'LOW');
-    if (!mappings.some(mapping => mapping.nmisField === 'providerName')) {
-      setErrorMessage('Map the required facility/provider name field before continuing.');
+    if (!mappings.some(mapping => mapping.nmisField === 'providerName') && !activeItem.data.extractedContext.facilityName) {
+      setErrorMessage('Map the required facility/provider name field or confirm a facility was detected from the workbook context.');
       return;
     }
     if (!hasAmountField && !horizontalSchedule) {
@@ -340,6 +354,7 @@ const generatePreview = () => {
       activeItem.file.name,
       activeItem.data.sourceSheet,
       reportingYear && (reportingMonth || horizontalSchedule) ? { reportingYear: Number(reportingYear), reportingMonth: Number(reportingMonth || 1) } : undefined,
+      activeItem.data.extractedContext,
     );
     const records = rawRecords.map(record => {
       const match = matches.find(candidate => {

@@ -617,8 +617,8 @@ export default function EnrolmentUploadPage() {
               {step === 'inspect' && activeItem?.data && (
                 <Panel title="Inspect workbook structure" description="Confirm the worksheet and column headers. The AI has detected the core table structure.">
                   <div className="space-y-4">
-                    <div className="flex flex-wrap gap-4">
-                      <div className="flex-1 min-w-[200px]">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="min-w-[200px]">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Worksheet</label>
                         <select 
                           className="mt-2 w-full rounded-xl border-slate-200 text-sm"
@@ -627,6 +627,32 @@ export default function EnrolmentUploadPage() {
                         >
                           {activeItem.data.sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
                         </select>
+                      </div>
+                      <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                        <div className="flex items-center gap-2 text-brand-blue">
+                          <CheckCircle2 size={14} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">AI Autonomous Detection</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-600 font-medium">Header row detected at index {activeItem.data.headerRowIndex + 1}.</p>
+                        {activeItem.data.extractedContext.facilityName && (
+                          <p className="mt-1 text-[10px] text-slate-500 italic">Facility context: {activeItem.data.extractedContext.facilityName}{activeItem.data.extractedContext.lga ? ` · ${activeItem.data.extractedContext.lga} LGA` : ''}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Header intelligence</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-700">Scans the first 25 rows</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Context inheritance</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-700">Provider, code, and LGA propagate safely</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Noise suppression</p>
+                          <p className="mt-1 text-xs font-semibold text-slate-700">Totals and summary rows excluded</p>
+                        </div>
                       </div>
                     </div>
                     <div className="rounded-2xl border border-slate-100 overflow-hidden">
@@ -752,6 +778,17 @@ export default function EnrolmentUploadPage() {
 
               {step === 'classify' && activeItem?.data && (
                 <Panel title="Classification Rules" description="NMIS preserves source CATEGORY values while deriving SECTOR from policy identifiers.">
+                  <div className="mb-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4">
+                    <div className="flex items-center gap-2 text-brand-blue">
+                      <CheckCircle2 size={14} />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">AI Normalization Engine</span>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <p className="text-xs font-semibold text-slate-700">Row inheritance enabled</p>
+                      <p className="text-xs font-semibold text-slate-700">Summary suppression enabled</p>
+                      <p className="text-xs font-semibold text-slate-700">Filename context fallback enabled</p>
+                    </div>
+                  </div>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/50">
                       <p className="text-[10px] font-bold text-brand-blue uppercase tracking-widest">CATEGORY RULE</p>
