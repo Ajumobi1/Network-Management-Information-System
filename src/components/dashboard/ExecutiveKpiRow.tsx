@@ -22,8 +22,8 @@ export default function ExecutiveKpiRow({ intelligence }: ExecutiveKpiRowProps) 
     { title: 'Informal enrollees', value: intelligence.population.informal.toLocaleString(), subtitle: `${intelligence.population.total ? Math.round((intelligence.population.informal / intelligence.population.total) * 100) : 0}% of population`, icon: <UserRound className="h-5 w-5" />, tone: 'warning' as const },
     {
       title: 'Network expenditure',
-      value: formatNaira(intelligence.financial.totalExpenditure, true),
-      subtitle: `Total: ${formatNaira(intelligence.financial.totalExpenditure)}`,
+      value: formatNaira(intelligence.financial.totalExpenditure),
+      subtitle: `${intelligence.matchedFinancialRecords.toLocaleString()} linked financial records`,
       icon: <CircleDollarSign className="h-5 w-5" />,
       tone: 'neutral' as const,
       trend: `${Math.abs(financialGrowth)}%`,

@@ -260,9 +260,8 @@ select:focus-visible {
   .nmis-kpi-value {
     @apply text-lg font-black tracking-tight tabular-nums sm:text-xl md:text-2xl lg:text-3xl;
     color: var(--color-foreground);
-    /* Prevent mid-digit breaks while allowing natural wrapping */
-    word-break: normal;
-    overflow-wrap: break-word;
+    /* Prevent all digit wrapping to ensure 10/10 display quality */
+    white-space: nowrap;
     line-height: 1.1;
   }
   .nmis-kpi-value::-webkit-scrollbar {
