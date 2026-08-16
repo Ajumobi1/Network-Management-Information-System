@@ -15,13 +15,15 @@ const numericFields = new Set<string>([
   'amountApproved', 'amountRejected', 'amountDisallowed', 'amountPaid', 'netAmountPaid',
   'netAmount', 'rate', 'grossAmount', 'adjustments', 'deductions',
 ]);
+
 const toNumber = (value: unknown) => {
   if (typeof value === 'number') return value;
   if (value === null || value === undefined || String(value).trim() === '') return undefined;
   const parsed = Number(String(value).replace(/[₦,\s]/g, ''));
   return Number.isFinite(parsed) ? parsed : undefined;
 };
-const buildFingerprint = (record: FinancialRecord) => [
+
+const buildFingerprint = (record: Partial<FinancialRecord>) => [
   record.providerCode || normalizeText(record.providerName),
   record.period,
   record.dataType,
@@ -35,13 +37,15 @@ const buildFingerprint = (record: FinancialRecord) => [
 export const isSummaryRow = (providerName: string): boolean => {
   const normalized = providerName.trim().toUpperCase();
   // Exact matches for summary keywords
-  const exactKeywords = ['TOTAL', 'GRAND TOTAL', 'SUBTOTAL', 'SUMMARY', 'TOTALS'];
+  const exactKeywords = ['TOTAL', 'GRAND TOTAL', 'SUBTOTAL', 'SUMMARY', 'TOTALS', 'PAYMENT SCHEDULE', 'GRAND TOTALS'];
   if (exactKeywords.includes(normalized)) return true;
 
+  // Check for common header/summary noise
+  if (normalized.includes('PAYMENT SCHEDULE') || normalized.includes('ORANGHIS PROVIDERS')) return true;
+
   // Check for "TOTAL" followed by common summary labels, but exclude valid provider name parts
-  // We avoid startsWith('TOTAL ') because it catches "Total Care", "Total Health", etc.
-  const summaryPrefixes = ['TOTAL ', 'GRAND TOTAL ', 'SUBTOTAL '];
-  const summaryLabels = ['AMOUNT', 'COUNT', 'RECORDS', 'ENROLLEES', 'BENEFICIARIES', 'PAYABLE', 'GROSS', 'NET'];
+  const summaryPrefixes = ['TOTAL ', 'GRAND TOTAL ', 'SUBTOTAL ', 'TOTALS '];
+  const summaryLabels = ['AMOUNT', 'COUNT', 'RECORDS', 'ENROLLEES', 'BENEFICIARIES', 'PAYABLE', 'GROSS', 'NET', 'PAID', 'DUE'];
 
   for (const prefix of summaryPrefixes) {
     if (normalized.startsWith(prefix)) {
@@ -144,15 +148,15 @@ export const financialDataService = {
     const amountFields = new Set<keyof FinancialRecord>(['amount', 'amountSubmitted', 'amountClaimed', 'amountApproved', 'amountRejected', 'amountPaid', 'netAmountPaid', 'netAmount', 'grossAmount']);
     const knownMappings: Array<{ field: keyof FinancialRecord | 'ignored'; keywords: string[]; weight: number; context?: FinancialDataType[] }> = [
       { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id', 'account number', 'bank', 'number of enrollees', 'number of formal enrollees', 'number of informal enrollees', 'number of enrollees on capitation list'], weight: 1.0 },
-      { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'outlet', 'health facility', 'account name as it appears'], weight: 1.0 },
+      { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'outlet', 'health facility', 'account name as it appears', 'name of facility'], weight: 1.0 },
       { field: 'providerCode', keywords: ['provider code', 'facility code', 'hcp code', 'code'], weight: 0.95 },
-      { field: 'ownership', keywords: ['ownership', 'category', 'sector'], weight: 0.8, context: ['provider-network'] },
-      { field: 'facilityType', keywords: ['facility type', 'type of facility'], weight: 0.8, context: ['provider-network'] },
-      { field: 'amountPaid', keywords: ['amount paid', 'total paid', 'net paid', 'payment', 'paid'], weight: 1.0 },
-      { field: 'amountClaimed', keywords: ['amount claimed', 'gross claimed', 'claimed', 'submission'], weight: 0.95 },
-      { field: 'amountApproved', keywords: ['amount approved', 'approved', 'vetted', 'vetting'], weight: 0.95 },
-      { field: 'amountRejected', keywords: ['amount rejected', 'rejected', 'disallowed'], weight: 0.95 },
-      { field: 'amount', keywords: ['capitation fee', 'gross amount', 'total amount', 'amount'], weight: 0.8 },
+      { field: 'ownership', keywords: ['ownership', 'category', 'sector', 'ownership type'], weight: 0.8 },
+      { field: 'facilityType', keywords: ['facility type', 'type of facility', 'level'], weight: 0.8 },
+      { field: 'amountPaid', keywords: ['amount paid', 'total paid', 'net paid', 'payment', 'paid', 'amt paid', 'payable'], weight: 1.0 },
+      { field: 'amountClaimed', keywords: ['amount claimed', 'gross claimed', 'claimed', 'submission', 'amt claimed'], weight: 0.95 },
+      { field: 'amountApproved', keywords: ['amount approved', 'approved', 'vetted', 'vetting', 'amt approved'], weight: 0.95 },
+      { field: 'amountRejected', keywords: ['amount rejected', 'rejected', 'disallowed', 'amt rejected'], weight: 0.95 },
+      { field: 'amount', keywords: ['capitation fee', 'gross amount', 'total amount', 'amount', 'amt'], weight: 0.8 },
       { field: 'claimsCategory', keywords: ['claims category', 'service type', 'benefit'], weight: 0.8 },
       { field: 'state', keywords: ['state', 'region'], weight: 0.7 },
       { field: 'lga', keywords: ['lga', 'local government', 'area'], weight: 0.7 },
@@ -305,35 +309,36 @@ export const financialDataService = {
     // 0. Check persisted manual resolutions first
     const persistedMatch = persistedMatches[name.toLowerCase().trim()];
     if (persistedMatch) {
-      return { ...persistedMatch, status: 'confirmed', confidence: 1 };
+      return { ...persistedMatch, status: 'confirmed', confidence: 1, matchType: 'manual' };
     }
 
-    const asCandidates = (items: typeof providers) => items.map(provider => ({ id: provider.id, name: provider.providerName, code: provider.providerCode, lga: provider.lga, state: provider.state, senatorialDistrict: undefined, facilityType: provider.category, ownership: provider.ownership }));
-    const confirmed = (provider: (typeof providers)[number], confidence: number, matchType: ProviderMatch['matchType']): ProviderMatch => ({
+    const confirmed = (p: any, conf: number, type: any): ProviderMatch => ({
       excelName: name,
-      matchedProviderId: provider.id,
-      matchedProviderName: provider.providerName,
-      matchedProviderCode: provider.providerCode,
-      matchedProviderLga: provider.lga,
-      matchedProviderState: provider.state,
-      matchedProviderFacilityType: provider.category,
-      matchedProviderOwnership: provider.ownership,
-      confidence,
-      matchType,
+      matchedProviderId: p.id,
+      matchedProviderName: p.providerName,
+      matchedProviderCode: p.providerCode,
+      matchedProviderLga: p.lga,
+      matchedProviderState: p.state,
+      matchedProviderFacilityType: p.facilityType,
+      matchedProviderOwnership: p.ownership,
+      confidence: conf,
+      matchType: type,
       status: 'confirmed',
     });
-    const pending = (items: typeof providers, confidence: number, matchType: ProviderMatch['matchType']): ProviderMatch => ({
+
+    const pending = (matches: any[], conf: number, type: any): ProviderMatch => ({
       excelName: name,
-      matchedProviderId: items.length === 1 ? items[0].id : undefined,
-      matchedProviderName: items.length === 1 ? items[0].providerName : undefined,
-      matchedProviderCode: items.length === 1 ? items[0].providerCode : undefined,
-      matchedProviderLga: items.length === 1 ? items[0].lga : undefined,
-      matchedProviderState: items.length === 1 ? items[0].state : undefined,
-      matchedProviderFacilityType: items.length === 1 ? items[0].category : undefined,
-      matchedProviderOwnership: items.length === 1 ? items[0].ownership : undefined,
-      candidates: asCandidates(items),
-      confidence,
-      matchType,
+      candidates: matches.map(p => ({
+        id: p.id,
+        name: p.providerName,
+        code: p.providerCode,
+        lga: p.lga,
+        state: p.state,
+        facilityType: p.facilityType,
+        ownership: p.ownership,
+      })),
+      confidence: conf,
+      matchType: type,
       status: 'pending',
     });
 
@@ -403,6 +408,13 @@ export const financialDataService = {
   },
 
   /**
+   * Generate a unique fingerprint for a financial record
+   */
+  generateFingerprint(record: Partial<FinancialRecord>): string {
+    return buildFingerprint(record);
+  },
+
+  /**
    * Normalize raw Excel data into FinancialRecord objects
    */
   normalizeData(
@@ -420,23 +432,44 @@ export const financialDataService = {
     // Identify month columns for horizontal-to-vertical transformation
     const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
     const monthShortNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    const monthColumnIndex = (fieldName: string) => {
+    const getMonthIndex = (fieldName: string) => {
       const field = fieldName.toLowerCase().trim();
       const fullIndex = monthNames.indexOf(field);
       if (fullIndex >= 0) return fullIndex;
       if (field === 'sept') return 8;
-      return monthShortNames.indexOf(field);
+      const shortIndex = monthShortNames.indexOf(field);
+      if (shortIndex >= 0) return shortIndex;
+      // Also check for "JAN 2025" or "JAN-25"
+      const firstPart = field.split(/[\s\-]/)[0];
+      const shortIdxPart = monthShortNames.indexOf(firstPart);
+      if (shortIdxPart >= 0) return shortIdxPart;
+      return -1;
     };
 
-    const monthColumns = mappings.filter(m => monthColumnIndex(m.excelField) >= 0);
+    const monthColumns = mappings.filter(m => getMonthIndex(m.excelField) >= 0);
 
     let inheritedProviderName = '';
+    let inheritedProviderCode = '';
+    let inheritedLga = '';
+
     rows.forEach((row, index) => {
+      // AI Self-Healing: Row Inheritance
       // Financial schedules commonly put the provider only on the CAPITATION row and leave it blank on the following FFS row.
       const providerMapping = mappings.find(m => m.nmisField === 'providerName');
+      const codeMapping = mappings.find(m => m.nmisField === 'providerCode');
+      const lgaMapping = mappings.find(m => m.nmisField === 'lga');
+
       const explicitProviderName = providerMapping ? String(row[providerMapping.excelField] || '').trim() : '';
+      const explicitProviderCode = codeMapping ? String(row[codeMapping.excelField] || '').trim() : '';
+      const explicitLga = lgaMapping ? String(row[lgaMapping.excelField] || '').trim() : '';
+
       if (explicitProviderName) inheritedProviderName = explicitProviderName;
+      if (explicitProviderCode) inheritedProviderCode = explicitProviderCode;
+      if (explicitLga) inheritedLga = explicitLga;
+
       const rawProviderName = explicitProviderName || inheritedProviderName;
+      const rawProviderCode = explicitProviderCode || inheritedProviderCode;
+      const rawLga = explicitLga || inheritedLga;
 
       if (!rawProviderName || isSummaryRow(rawProviderName)) {
         return; // Skip empty or summary rows
@@ -448,101 +481,57 @@ export const financialDataService = {
         sourceFile: fileName,
         sourceSheet,
         sourceRow: index + 2,
-        dataType,
+        recordStatus: 'pending' as any,
         createdAt: now,
         updatedAt: now,
-        recordStatus: 'valid'
+        reportingYear: periodOverride?.reportingYear,
+        reportingMonth: periodOverride?.reportingMonth,
+        providerName: rawProviderName,
+        providerCode: rawProviderCode,
+        lga: rawLga,
       };
 
-      // Map fixed columns
       mappings.forEach(mapping => {
-        if (mapping.nmisField !== 'ignored' && !monthColumns.includes(mapping)) {
-          const rawValue = mapping.nmisField === 'providerName' && !row[mapping.excelField]
-            ? inheritedProviderName
-            : row[mapping.excelField];
-          const normalizedValue = this.smartNormalize(mapping.nmisField as keyof FinancialRecord, rawValue);
-          (baseData as any)[mapping.nmisField] = normalizedValue;
+        if (mapping.nmisField === 'ignored') return;
+        const val = row[mapping.excelField];
+        if (val !== undefined && val !== null && String(val).trim() !== '') {
+          (baseData as any)[mapping.nmisField] = this.smartNormalize(mapping.nmisField as keyof FinancialRecord, val);
         }
       });
-      // The inherited provider is authoritative for companion rows whose provider cell is blank.
-      baseData.providerName = inheritedProviderName;
 
-
-      // Apply the shared workbook/file detection or the manual fallback selected by the user.
-      if (periodOverride) {
-        baseData.reportingYear = periodOverride.reportingYear;
-        baseData.reportingMonth = periodOverride.reportingMonth;
-      }
-
-      // Last-resort filename detection for callers outside the uploader UI.
-      // Never substitute the current date when the workbook has no period.
-      if (!baseData.reportingYear || !baseData.reportingMonth) {
-        const lowerName = fileName.toLowerCase();
-        const monthNamesList = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-        const mIdx = monthNamesList.findIndex(m => lowerName.includes(m) || lowerName.includes(m.slice(0, 3)));
-        const yMatch = lowerName.match(/20\d{2}/);
-        if (!baseData.reportingMonth && mIdx !== -1) baseData.reportingMonth = mIdx + 1;
-        if (!baseData.reportingYear && yMatch) baseData.reportingYear = Number(yMatch[0]);
-      }
-
-      const hasValidYear = Number.isInteger(baseData.reportingYear) && Number(baseData.reportingYear) >= 2000 && Number(baseData.reportingYear) <= 2100;
-      const hasValidMonth = Number.isInteger(baseData.reportingMonth) && Number(baseData.reportingMonth) >= 1 && Number(baseData.reportingMonth) <= 12;
       if (monthColumns.length > 0) {
-        // A horizontal schedule derives the month from each month column. Only the year is required at this stage.
-        if (!hasValidYear) {
-          baseData.reportingYear = 0;
-          baseData.reportingMonth = 0;
-          baseData.period = '';
-          baseData.recordStatus = 'error';
-          baseData.validationErrors = [...(baseData.validationErrors || []), 'Reporting year is required for a month-column schedule.'];
-        } else {
-          baseData.reportingMonth = 0;
-          baseData.period = '';
-        }
-      } else if (hasValidYear && hasValidMonth) {
-        baseData.period = baseData.period || `${baseData.reportingYear}-${Number(baseData.reportingMonth).toString().padStart(2, '0')}`;
-      } else {
-        baseData.reportingYear = 0;
-        baseData.reportingMonth = 0;
-        baseData.period = '';
-        baseData.recordStatus = 'error';
-        baseData.validationErrors = [...(baseData.validationErrors || []), 'Reporting month and year are required.'];
-      }
+        // Horizontal-to-vertical transformation
+        monthColumns.forEach(m => {
+          const amount = toNumber(row[m.excelField]);
+          // Autonomous Cleaning: Skip months with no amount
+          if (amount === undefined || amount === 0) return;
 
-      // Handle horizontal months if present
-      if (monthColumns.length > 0) {
-        monthColumns.forEach(mCol => {
-          const monthVal = row[mCol.excelField];
-          if (monthVal !== undefined && monthVal !== null && monthVal !== '') {
-            const finalMonthIdx = monthColumnIndex(mCol.excelField);
+          const monthIdx = getMonthIndex(m.excelField);
+          const finalRecord: FinancialRecord = {
+            ...baseData,
+            dataType: baseData.dataType || dataType,
+            reportingMonth: monthIdx + 1,
+            amountPaid: amount,
+            period: `${baseData.reportingYear}-${String(monthIdx + 1).padStart(2, '0')}`,
+          } as FinancialRecord;
 
-            const monthRecord: FinancialRecord = {
-              ...(baseData as FinancialRecord),
-              id: `${baseData.id}-${mCol.excelField}`,
-              reportingMonth: finalMonthIdx + 1,
-              reportingYear: Number(baseData.reportingYear || 0),
-              period: hasValidYear && finalMonthIdx >= 0 ? `${baseData.reportingYear}-${(finalMonthIdx + 1).toString().padStart(2, '0')}` : '',
-              amount: toNumber(monthVal)
-            };
-            monthRecord.fingerprint = buildFingerprint(monthRecord);
-            records.push(monthRecord);
-          }
+          records.push({ ...finalRecord, fingerprint: buildFingerprint(finalRecord) });
         });
       } else {
-        // Single record per row
-        const record = baseData as FinancialRecord;
-        record.fingerprint = buildFingerprint(record);
-        records.push(record);
+        // Autonomous Cleaning: Skip rows that have no financial amount
+        const hasAmount = ['amount', 'amountSubmitted', 'amountClaimed', 'amountApproved', 'amountPaid', 'netAmountPaid'].some(f => (baseData as any)[f] !== undefined);
+        if (!hasAmount) return;
+
+        const finalRecord: FinancialRecord = {
+          ...baseData,
+          dataType: baseData.dataType || dataType,
+          period: baseData.reportingYear && baseData.reportingMonth ? `${baseData.reportingYear}-${String(baseData.reportingMonth).padStart(2, '0')}` : undefined,
+        } as FinancialRecord;
+
+        records.push({ ...finalRecord, fingerprint: buildFingerprint(finalRecord) });
       }
     });
 
     return records;
   },
-
-  /**
-   * Generate a fingerprint for a record to detect duplicates
-   */
-  generateFingerprint(record: FinancialRecord): string {
-    return buildFingerprint(record);
-  }
 };

@@ -577,12 +577,24 @@ const generatePreview = () => {
 
               {step === 'inspect' && activeItem?.data && (
                 <Panel title="Inspect workbook" description="Confirm the worksheet and core table structure.">
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Worksheet</label>
-                        <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={activeItem.data.sourceSheet} onChange={e => processFile(activeItem, e.target.value)}>
-                        {activeItem.data.sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
-                      </select>
+                  <div className="space-y-6">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Worksheet</label>
+                          <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={activeItem.data.sourceSheet} onChange={e => processFile(activeItem, e.target.value)}>
+                          {activeItem.data.sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
+                        </select>
+                      </div>
+                      <div className="rounded-2xl bg-blue-50/50 p-4 border border-blue-100">
+                        <div className="flex items-center gap-2 text-brand-blue">
+                          <CheckCircle2 size={14} />
+                          <span className="text-[10px] font-bold uppercase tracking-wider">AI Autonomous Detection</span>
+                        </div>
+                        <p className="mt-1 text-xs text-slate-600 font-medium">Header row detected at index **{activeItem.data.headerRowIndex + 1}**.</p>
+                        {activeItem.data.extractedContext.facilityName && (
+                          <p className="mt-1 text-[10px] text-slate-500 italic">Extracted facility: {activeItem.data.extractedContext.facilityName}</p>
+                        )}
+                      </div>
                     </div>
                     <div className="rounded-2xl border border-slate-100 overflow-hidden">
                       <table className="w-full text-left text-xs">
@@ -698,12 +710,21 @@ const generatePreview = () => {
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-brand-blue">
                           <ListChecks className="h-5 w-5" />
                         </div>
-                        <h3 className="mt-4 text-sm font-bold text-slate-900 uppercase tracking-wider">Type Rule</h3>
-                        <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                          {activeItem.workflow === 'capitation'
-                            ? 'All records are classified as CAPITATION. Any row-level overrides in the workbook will be respected.'
-                            : 'Records are classified as CLAIMS by default. Rows containing "FFS" or "Fee for Service" are automatically detected.'}
-                        </p>
+                        <h3 className="mt-4 text-sm font-bold text-slate-900 uppercase tracking-wider">AI Normalization Engine</h3>
+                        <div className="mt-4 space-y-3">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={12} className="text-emerald-500" />
+                            <p className="text-[11px] font-semibold text-slate-700">Autonomous Row Inheritance</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={12} className="text-emerald-500" />
+                            <p className="text-[11px] font-semibold text-slate-700">Summary Row Suppression</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={12} className="text-emerald-500" />
+                            <p className="text-[11px] font-semibold text-slate-700">Self-Healing Provider Logic</p>
+                          </div>
+                        </div>
                       </div>
 
                       <div className="rounded-3xl border border-slate-100 bg-slate-50/50 p-6">
