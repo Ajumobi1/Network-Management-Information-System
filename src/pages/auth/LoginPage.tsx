@@ -89,6 +89,9 @@ export default function LoginPage() {
         {/* Right Side: Login Form */}
         <section className="flex flex-col justify-center px-8 py-12 md:px-16 md:py-20">
           <div className="mb-10">
+            <div className="mb-6 flex h-20 w-56 items-center justify-center overflow-hidden rounded-panel border border-brand-divider bg-white p-3 shadow-soft">
+              <img src="/assets/odchc-logo.png" alt="Ondo State Contributory Health Commission logo" className="h-full w-full object-contain" />
+            </div>
             <p className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-brand-muted">Welcome back</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-brand-foreground">Sign in to NMIS</h2>
           </div>
