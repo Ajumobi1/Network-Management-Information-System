@@ -16,7 +16,223 @@ export interface AiIngestionMetadata {
   headers: string[];
 }
 
+export interface AiFinancialBlock {
+  sheetName: string;
+  blockIndex: number;
+  headerRowIndex: number;
+  startColumn: number;
+  endColumn: number;
+  title?: string;
+  providerName?: string;
+  category?: string;
+  headers: string[];
+  rows: Array<Record<string, unknown>>;
+  detectedPeriods: string[];
+}
+
+const normalizeBlockText = (value: unknown): string => String(value ?? '')
+  .toUpperCase()
+  .replace(/[‐‑‒–—-]+/g, ' ')
+  .replace(/[_/]+/g, ' ')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+const monthNames = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+const monthAliases: Record<string, number> = {
+  JAN: 1, JANUARY: 1, FEB: 2, FEBRUARY: 2, MAR: 3, MARCH: 3, APR: 4, APRIL: 4,
+  MAY: 5, JUN: 6, JUNE: 6, JUL: 7, JULY: 7, AUG: 8, AUGUST: 8,
+  SEP: 9, SEPT: 9, SEPTEMBER: 9, OCT: 10, OCTOBER: 10, NOV: 11, NOVEMBER: 11, DEC: 12, DECEMBER: 12,
+};
+
+function monthNumberFromText(value: unknown): number | undefined {
+  const text = normalizeBlockText(value);
+  const token = text.match(/\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEPT?(?:EMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\b/);
+  return token ? monthAliases[token[1]] : undefined;
+}
+
+function uniqueBlockHeader(value: unknown, index: number, used: Set<string>): string {
+  const base = String(value ?? '').trim() || `Column ${index + 1}`;
+  let header = base;
+  let suffix = 2;
+  while (used.has(header)) header = `${base} ${suffix++}`;
+  used.add(header);
+  return header;
+}
+
+function isSerialHeader(value: unknown): boolean {
+  return /^(S\s*N|SN|SERIAL(?: NO| NUMBER)?|INDEX)$/i.test(normalizeBlockText(value));
+}
+
+function isSummaryCell(value: unknown): boolean {
+  const text = normalizeBlockText(value);
+  return text === 'TOTAL' || text === 'GRAND TOTAL' || text === 'SUBTOTAL' || text === 'GRAND TOTALS' || text === 'TOTALS';
+}
+
+function blockCategoryFromText(text: string): string | undefined {
+  const normalized = normalizeBlockText(text);
+  if (normalized.includes('PHARM')) return 'PHARMACY';
+  if (normalized.includes('OPTICAL') || normalized.includes('OPTOMET')) return 'OPTICAL_CENTRE';
+  if (normalized.includes('DENTAL')) return 'DENTAL_CENTRE';
+  if (normalized.includes('DIAGNOSTIC') || normalized.includes('IMAGING') || normalized.includes('LABORATORY')) return 'DIAGNOSTIC_CENTRE';
+  return undefined;
+}
+
+function providerNameFromBlockTitle(title: string | undefined, headerProvider: string | undefined): string | undefined {
+  if (title) {
+    const oranghis = title.match(/^(.+?)\s+ORANGHIS\b/i);
+    if (oranghis?.[1]) return oranghis[1].trim();
+    const report = title.match(/^(.+?)\s+CLAIMS?\s+SUMMARY/i);
+    if (report?.[1]) return report[1].trim();
+  }
+  return headerProvider?.trim() || undefined;
+}
+
+function parseBlockRange(title: string | undefined): { startMonth?: number; startYear?: number; endMonth?: number; endYear?: number } {
+  const text = normalizeBlockText(title);
+  const years = [...text.matchAll(/\b(20\d{2})\b/g)].map(match => Number(match[1]));
+  const monthMatches = [...text.matchAll(/\b(JAN(?:UARY)?|FEB(?:RUARY)?|MAR(?:CH)?|APR(?:IL)?|MAY|JUN(?:E)?|JUL(?:Y)?|AUG(?:UST)?|SEPT?(?:EMBER)?|OCT(?:OBER)?|NOV(?:EMBER)?|DEC(?:EMBER)?)\b/g)]
+    .map(match => monthAliases[match[1]]).filter(Boolean);
+  if (monthMatches.length < 2) return { startYear: years[0], endYear: years[years.length - 1] || years[0] };
+  return {
+    startMonth: monthMatches[0],
+    endMonth: monthMatches[monthMatches.length - 1],
+    startYear: years[0],
+    endYear: years[years.length - 1] || years[0],
+  };
+}
+
+function parseBlockPeriod(value: unknown): { month?: number; year?: number } {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return { month: value.getMonth() + 1, year: value.getFullYear() };
+  const text = normalizeBlockText(value);
+  if (!text) return {};
+  const explicitYear = text.match(/\b(20\d{2})\b/);
+  const month = monthNumberFromText(text);
+  if (month) return { month, year: explicitYear ? Number(explicitYear[1]) : undefined };
+  const numeric = text.match(/^(0?[1-9]|1[0-2])$/);
+  return numeric ? { month: Number(numeric[1]), year: undefined } : {};
+}
+
+function resolveBlockYear(month: number | undefined, explicitYear: number | undefined, range: ReturnType<typeof parseBlockRange>): number | undefined {
+  if (explicitYear) return explicitYear;
+  if (!month) return range.startYear || range.endYear;
+  if (range.startMonth && range.endMonth && range.startYear && range.endYear && range.startYear !== range.endYear) {
+    return month >= range.startMonth ? range.startYear : range.endYear;
+  }
+  return range.startYear || range.endYear;
+}
+
 export const aiIngestionEngine = {
+  /**
+   * Extract one or more provider tables embedded in a worksheet. This handles
+   * grouped side-by-side tables, banner rows, repeated S/N columns, provider
+   * names in titles, and period columns that are not named Month.
+   */
+  extractFinancialBlocks(matrix: unknown[][], sheetName = 'Sheet1'): AiFinancialBlock[] {
+    const candidateScores = matrix.map((row, index) => {
+      if (!Array.isArray(row)) return { index, score: Number.NEGATIVE_INFINITY };
+      const cells = row.map(cell => normalizeBlockText(cell)).filter(Boolean);
+      const schemaMatches = cells.filter(cell =>
+        isSerialHeader(cell) || cell === 'PERIOD' || cell.includes('PAYMENT') || cell.includes('DATE PAID') || cell.includes('AMOUNT') || cell.includes('CLAIM')
+      ).length;
+      const serialCount = cells.filter(isSerialHeader).length;
+      const monthCount = cells.filter(cell => Boolean(monthNumberFromText(cell))).length;
+      const score = (schemaMatches * 4) + (serialCount * 5) + (monthCount * 1.5) + (cells.length >= 3 ? 1 : 0);
+      return { index, score };
+    });
+    const headerRowIndex = candidateScores.sort((a, b) => b.score - a.score)[0]?.index ?? 0;
+    const headerRow = Array.isArray(matrix[headerRowIndex]) ? matrix[headerRowIndex] : [];
+    const serialStarts = headerRow
+      .map((cell, index) => isSerialHeader(cell) ? index : -1)
+      .filter(index => index >= 0);
+    const repeatedTableStarts = headerRow
+      .map((cell, index) => {
+        const normalized = normalizeBlockText(cell);
+        return normalized === 'PERIOD' || normalized === 'MONTH' || normalized === 'REPORTING MONTH' ? Math.max(0, index - 1) : -1;
+      })
+      .filter(index => index >= 0);
+    const starts = [...new Set(serialStarts.length > 0 ? serialStarts : repeatedTableStarts.length > 0 ? repeatedTableStarts : [0])].sort((a, b) => a - b);
+    const blocks: AiFinancialBlock[] = [];
+    const syntheticProviderHeader = 'Provider / facility name (AI inferred)';
+    const syntheticMonthHeader = 'Reporting month (AI inferred)';
+    const syntheticYearHeader = 'Reporting year (AI inferred)';
+    const syntheticCategoryHeader = 'Facility type (AI inferred)';
+
+    starts.forEach((startColumn, blockIndex) => {
+      const endColumn = (starts[blockIndex + 1] ?? headerRow.length) - 1;
+      const titleCells: string[] = [];
+      for (let rowIndex = headerRowIndex - 1; rowIndex >= 0; rowIndex -= 1) {
+        const row = matrix[rowIndex] || [];
+        const values = row.slice(startColumn, endColumn + 1).map(cell => String(cell ?? '').trim()).filter(Boolean);
+        if (values.length > 0) {
+          titleCells.push(values.join(' '));
+          break;
+        }
+      }
+      const title = titleCells[0];
+      const headerEntries: Array<{ column: number; header: string }> = [];
+      const usedHeaders = new Set<string>();
+      for (let column = startColumn; column <= endColumn; column += 1) {
+        const rawHeader = headerRow[column];
+        const hasData = matrix.slice(headerRowIndex + 1).some(row => String(row?.[column] ?? '').trim() !== '');
+        if (!String(rawHeader ?? '').trim() && !hasData) continue;
+        headerEntries.push({ column, header: uniqueBlockHeader(rawHeader, column, usedHeaders) });
+      }
+      if (headerEntries.length === 0) return;
+
+      const periodEntry = headerEntries.find(entry => normalizeBlockText(entry.header) === 'PERIOD' || normalizeBlockText(entry.header).includes('REPORTING MONTH'));
+      const headerProvider = headerEntries
+        .map(entry => entry.header)
+        .find(header => {
+          const normalized = normalizeBlockText(header);
+          return normalized && !isSerialHeader(normalized) && normalized !== 'PERIOD' && !normalized.includes('PAYMENT') && !normalized.includes('DATE') && !normalized.includes('AMOUNT');
+        });
+      const providerName = providerNameFromBlockTitle(title, headerProvider);
+      const category = blockCategoryFromText(`${sheetName} ${title || ''} ${providerName || ''}`);
+      const range = parseBlockRange(title);
+      const rows: Array<Record<string, unknown>> = [];
+      const detectedPeriods = new Set<string>();
+      const rawHeaders = headerEntries.map(entry => entry.header);
+      const headers = [syntheticProviderHeader, syntheticMonthHeader, syntheticYearHeader, syntheticCategoryHeader, ...rawHeaders];
+
+      matrix.slice(headerRowIndex + 1).forEach(row => {
+        const values = headerEntries.map(entry => row?.[entry.column]);
+        if (!values.some(value => String(value ?? '').trim() !== '')) return;
+        if (values.some(value => isSummaryCell(value))) return;
+        const mapped: Record<string, unknown> = {};
+        mapped[syntheticProviderHeader] = providerName || '';
+        mapped[syntheticCategoryHeader] = category || '';
+        const periodValue = periodEntry ? row?.[periodEntry.column] : undefined;
+        const parsedPeriod = parseBlockPeriod(periodValue);
+        const resolvedYear = resolveBlockYear(parsedPeriod.month, parsedPeriod.year, range);
+        if (parsedPeriod.month) mapped[syntheticMonthHeader] = parsedPeriod.month;
+        if (resolvedYear) mapped[syntheticYearHeader] = resolvedYear;
+        if (parsedPeriod.month && resolvedYear) detectedPeriods.add(`${resolvedYear}-${String(parsedPeriod.month).padStart(2, '0')}`);
+        headerEntries.forEach((entry, index) => {
+          mapped[entry.header] = values[index];
+        });
+        rows.push(mapped);
+      });
+
+      if (rows.length > 0) {
+        blocks.push({
+          sheetName,
+          blockIndex,
+          headerRowIndex,
+          startColumn,
+          endColumn,
+          title,
+          providerName,
+          category,
+          headers,
+          rows,
+          detectedPeriods: [...detectedPeriods].sort(),
+        });
+      }
+    });
+
+    return blocks;
+  },
+
   /**
    * Automatically detect the strongest header row anywhere in the worksheet.
    * The scan is deliberately whole-file rather than limited to the first N rows.

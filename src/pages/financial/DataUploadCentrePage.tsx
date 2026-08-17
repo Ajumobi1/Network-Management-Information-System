@@ -33,11 +33,13 @@ import { useCreateImportBatch } from '../../hooks/financial-data/financialDataHo
 import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
+import { aiIngestionEngine } from '../../services/ingestion/aiIngestionEngine';
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type UploadWorkflow = 'claims-ffs' | 'capitation';
 type RowTypeSelection = 'auto' | 'capitation' | 'claims-ffs';
 type RawRow = Record<string, unknown>;
+const AUTO_SHEET_VALUE = '__AUTO__';
 
 interface FileQueueItem {
   id: string;
@@ -58,6 +60,18 @@ interface FileQueueItem {
     sourceSheet: string;
     sheetNames: string[];
     headerRowIndex: number;
+    autonomousMode?: boolean;
+    blockCount?: number;
+    autonomousPeriodDetection?: boolean;
+    detectedPeriods?: string[];
+    autonomousBlocks?: Array<{
+      sheetName: string;
+      blockIndex: number;
+      providerName?: string;
+      facilityType?: string;
+      detectedPeriods: string[];
+      rowCount: number;
+    }>;
     headers: string[];
     rawRows: RawRow[];
     mappings: ColumnMapping[];
@@ -227,6 +241,76 @@ export default function DataUploadCentrePage() {
       if (workbook.SheetNames.length === 0) throw new Error('The workbook is empty.');
 
       workbookRef.current = workbook;
+      const autonomousMode = !requestedSheet || requestedSheet === AUTO_SHEET_VALUE;
+
+      if (autonomousMode) {
+        const blocks = workbook.SheetNames.flatMap(sheetName => {
+          const matrix = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: '' });
+          return aiIngestionEngine.extractFinancialBlocks(matrix, sheetName);
+        });
+
+        if (blocks.length > 0) {
+          const headers = [...new Set(blocks.flatMap(block => block.headers))];
+          const rawRows = blocks.flatMap(block => block.rows);
+          const titles = blocks.map(block => block.title || '').filter(Boolean);
+          const detectedType = financialDataService.detectDataType([...headers, ...titles], item.file.name);
+          const inferredType: FinancialDataType = item.workflow === 'capitation' ? 'capitation' : detectedType === 'ffs' ? 'ffs' : 'claims';
+          const detectedPeriods = [...new Set(blocks.flatMap(block => block.detectedPeriods))].sort();
+          const firstDetectedPeriod = detectedPeriods[0]?.match(/^(\\d{4})-(\\d{2})$/);
+          const fallbackPeriod = detectPeriodFromWorkbook(item.file.name, [], workbook.SheetNames);
+          const detectedPeriod: DetectedPeriod = firstDetectedPeriod
+            ? { year: firstDetectedPeriod[1], month: String(Number(firstDetectedPeriod[2])), source: 'workbook-metadata' }
+            : fallbackPeriod;
+          const firstBlock = blocks[0];
+          const context = {
+            facilityName: blocks.length === 1 ? firstBlock.providerName : undefined,
+            lga: undefined,
+            period: detectedPeriods[0],
+          };
+          const headerRowIndex = Math.min(...blocks.map(block => block.headerRowIndex));
+          const horizontalSchedule = headers.some(isMonthColumn);
+          const hasAutonomousRowPeriods = detectedPeriods.length > 0;
+
+          updateQueueItem(item.id, {
+            status: 'processing',
+            dataType: inferredType,
+            rows: rawRows.length,
+            data: {
+              workbook,
+              sourceSheet: AUTO_SHEET_VALUE,
+              sheetNames: [AUTO_SHEET_VALUE, ...workbook.SheetNames],
+              headerRowIndex,
+              autonomousMode: true,
+              blockCount: blocks.length,
+              autonomousPeriodDetection: hasAutonomousRowPeriods,
+              detectedPeriods,
+              autonomousBlocks: blocks.map(block => ({
+                sheetName: block.sheetName,
+                blockIndex: block.blockIndex,
+                providerName: block.providerName,
+                facilityType: block.category,
+                detectedPeriods: block.detectedPeriods,
+                rowCount: block.rows.length,
+              })),
+              headers,
+              rawRows,
+              mappings: financialDataService.suggestMappings(headers, inferredType, rawRows),
+              matches: [],
+              normalizedRecords: [],
+              validationErrors: [],
+              reportingYear: detectedPeriod.year,
+              reportingMonth: detectedPeriod.month,
+              periodDetection: detectedPeriod,
+              horizontalSchedule,
+              extractedContext: context,
+              rowTypeSelection: item.workflow === 'capitation' ? 'capitation' : 'claims-ffs',
+            }
+          });
+          setStep(detectedPeriod.year && (detectedPeriod.month || horizontalSchedule || hasAutonomousRowPeriods) ? 'inspect' : 'identify');
+          return;
+        }
+      }
+
       const sheetName = requestedSheet || item.data?.sourceSheet || workbook.SheetNames[0];
       const sheet = workbook.Sheets[sheetName];
       if (!sheet) throw new Error(`Worksheet "${sheetName}" could not be found.`);
@@ -238,11 +322,9 @@ export default function DataUploadCentrePage() {
         facilityName: detectedContext.facilityName || financialDataService.extractFacilityNameFromFilename(item.file.name),
       };
       const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
-
       const detectedHeaders = (matrix[hIndex] || []).map((value, index) => String(value ?? '').trim() || `Column ${index + 1}`);
       const detectedType = financialDataService.detectDataType(detectedHeaders, item.file.name);
       const inferredType: FinancialDataType = item.workflow === 'capitation' ? 'capitation' : detectedType === 'ffs' ? 'ffs' : 'claims';
-
       const rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { header: detectedHeaders, range: hIndex + 1, defval: '', raw: false })
         .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
       const horizontalSchedule = detectedHeaders.some(isMonthColumn);
@@ -270,7 +352,6 @@ export default function DataUploadCentrePage() {
           rowTypeSelection: item.workflow === 'capitation' ? 'capitation' : 'claims-ffs',
         }
       });
-      // Horizontal month-column schedules need only a year; ordinary files need both year and month.
       setStep(detectedPeriod.year && (detectedPeriod.month || horizontalSchedule) ? 'inspect' : 'identify');
     } catch (error) {
       updateQueueItem(item.id, { status: 'error', message: error instanceof Error ? error.message : 'Inspection failed' });
@@ -608,35 +689,75 @@ const generatePreview = () => {
                   <div className="space-y-6">
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Worksheet</label>
-                          <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={activeItem.data.sourceSheet} onChange={e => processFile(activeItem, e.target.value)}>
-                          {activeItem.data.sheetNames.map(name => <option key={name} value={name}>{name}</option>)}
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Workbook handling</label>
+                        <select className="mt-2 w-full rounded-xl border-slate-200 text-sm" value={activeItem.data.sourceSheet} onChange={e => processFile(activeItem, e.target.value)}>
+                          {activeItem.data.sheetNames.map(name => <option key={name} value={name}>{name === AUTO_SHEET_VALUE ? 'AI scan all worksheets and blocks' : name}</option>)}
                         </select>
+                        {activeItem.data.autonomousMode && (
+                          <p className="mt-2 text-[10px] font-semibold text-emerald-700">Automatic mode is active. No worksheet or column selection is required.</p>
+                        )}
                       </div>
                       <div className="rounded-2xl bg-blue-50/50 p-4 border border-blue-100">
                         <div className="flex items-center gap-2 text-brand-blue">
                           <CheckCircle2 size={14} />
                           <span className="text-[10px] font-bold uppercase tracking-wider">AI Autonomous Detection</span>
                         </div>
-                        <p className="mt-1 text-xs text-slate-600 font-medium">Header row detected at index **{activeItem.data.headerRowIndex + 1}**.</p>
+                        <p className="mt-1 text-xs text-slate-600 font-medium">Header row detected at index <strong>{activeItem.data.headerRowIndex + 1}</strong>.</p>
+                        {activeItem.data.autonomousMode && <p className="mt-1 text-[10px] text-slate-500">Scanned {activeItem.data.sheetNames.length - 1} worksheet(s), {activeItem.data.blockCount || 0} provider table block(s), and {activeItem.rows.toLocaleString()} source row(s).</p>}
+                        {activeItem.data.autonomousMode && (activeItem.data.detectedPeriods?.length || 0) > 0 && (
+                          <p className="mt-1 text-[10px] font-semibold text-slate-600">Detected periods: {activeItem.data.detectedPeriods!.join(', ')}</p>
+                        )}
                         {activeItem.data.extractedContext.facilityName && (
                           <p className="mt-1 text-[10px] text-slate-500 italic">Extracted facility: {activeItem.data.extractedContext.facilityName}</p>
                         )}
                       </div>
                     </div>
+                    {activeItem.data.autonomousMode && (activeItem.data.autonomousBlocks?.length || 0) > 0 && (
+                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/30 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-bold uppercase tracking-wider text-emerald-800">Autonomous scan results</p>
+                          <span className="text-[10px] font-semibold text-emerald-700">{activeItem.data.autonomousBlocks!.length} blocks</span>
+                        </div>
+                        <div className="mt-3 max-h-56 overflow-y-auto rounded-xl border border-emerald-100 bg-white">
+                          <table className="w-full text-left text-[11px]">
+                            <thead className="sticky top-0 bg-emerald-50 text-emerald-800">
+                              <tr>
+                                <th className="px-3 py-2">Worksheet / block</th>
+                                <th className="px-3 py-2">Provider context</th>
+                                <th className="px-3 py-2">Category</th>
+                                <th className="px-3 py-2">Periods</th>
+                                <th className="px-3 py-2 text-right">Rows</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-emerald-50">
+                              {activeItem.data.autonomousBlocks!.slice(0, 25).map(block => (
+                                <tr key={`${block.sheetName}-${block.blockIndex}`}>
+                                  <td className="px-3 py-2 font-semibold text-slate-700">{block.sheetName} · {block.blockIndex + 1}</td>
+                                  <td className="px-3 py-2 text-slate-600">{block.providerName || 'Row-level provider column'}</td>
+                                  <td className="px-3 py-2 text-slate-600">{block.facilityType || 'Inferred from data'}</td>
+                                  <td className="px-3 py-2 text-slate-600">{block.detectedPeriods.length > 0 ? block.detectedPeriods.join(', ') : 'Context / filename'}</td>
+                                  <td className="px-3 py-2 text-right font-mono text-slate-600">{block.rowCount.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {(activeItem.data.autonomousBlocks!.length > 25) && <p className="mt-2 text-[10px] text-emerald-700">Showing the first 25 blocks; all blocks remain included in normalization.</p>}
+                      </div>
+                    )}
                     <div className="rounded-2xl border border-slate-100 overflow-hidden">
                       <table className="w-full text-left text-xs">
                         <thead className="bg-slate-50 text-slate-400">
                           <tr>
                             <th className="px-4 py-2">Row</th>
-                            {activeItem.data.headers.slice(0, 5).map((h, i) => <th key={i} className="px-4 py-2">{h}</th>)}
+                            {activeItem.data.headers.slice(0, activeItem.data.autonomousMode ? 6 : 5).map((h, i) => <th key={i} className="px-4 py-2">{h}</th>)}
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
                           {activeItem.data.rawRows.slice(0, 5).map((row, i) => (
                             <tr key={i}>
                               <td className="px-4 py-2 font-mono text-slate-300">{i + 1}</td>
-                              {activeItem.data!.headers.slice(0, 5).map((h, j) => <td key={j} className="px-4 py-2 truncate max-w-[150px]">{String(row[h] || '')}</td>)}
+                              {activeItem.data!.headers.slice(0, activeItem.data!.autonomousMode ? 6 : 5).map((h, j) => <td key={j} className="px-4 py-2 truncate max-w-[150px]">{String(row[h] || '')}</td>)}
                             </tr>
                           ))}
                         </tbody>

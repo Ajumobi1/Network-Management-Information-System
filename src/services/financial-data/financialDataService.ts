@@ -18,9 +18,16 @@ const numericFields = new Set<string>([
 ]);
 
 const toNumber = (value: unknown) => {
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
   if (value === null || value === undefined || String(value).trim() === '') return undefined;
-  const parsed = Number(String(value).replace(/[₦,\s]/g, ''));
+  const text = String(value).trim();
+  if (text.startsWith('=')) return undefined;
+  // Accept human-entered amounts such as "74,000 (OUTST)" while ignoring
+  // labels and payment annotations. The first currency-like token is the
+  // amount represented by the cell.
+  const token = text.match(/-?\d+(?:,\d{3})*(?:\.\d+)?/);
+  if (!token) return undefined;
+  const parsed = Number(token[0].replace(/,/g, ''));
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
@@ -120,7 +127,7 @@ export const financialDataService = {
     const normalized = (value: string) => value.toLowerCase().trim().replace(/[^a-z0-9/ ]/g, '');
     const amountFields = new Set<keyof FinancialRecord>(['amount', 'amountSubmitted', 'amountClaimed', 'amountApproved', 'amountRejected', 'amountPaid', 'netAmountPaid', 'netAmount', 'grossAmount']);
     const knownMappings: Array<{ field: keyof FinancialRecord | 'ignored'; keywords: string[]; weight: number; context?: FinancialDataType[] }> = [
-      { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id', 'account number', 'bank', 'number of enrollees', 'number of formal enrollees', 'number of informal enrollees', 'number of enrollees on capitation list'], weight: 1.0 },
+      { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id', 'account number', 'bank', 'date', 'date paid', 'paid date', 'payment date', 'number of enrollees', 'number of formal enrollees', 'number of informal enrollees', 'number of enrollees on capitation list'], weight: 1.0 },
       { field: 'providerName', keywords: ['provider', 'facility', 'hospital', 'outlet', 'health facility', 'account name as it appears', 'name of facility'], weight: 1.0 },
       { field: 'providerCode', keywords: ['provider code', 'facility code', 'hcp code', 'code'], weight: 0.95 },
       { field: 'ownership', keywords: ['ownership', 'category', 'sector', 'ownership type'], weight: 0.8 },
@@ -133,7 +140,7 @@ export const financialDataService = {
       { field: 'claimsCategory', keywords: ['claims category', 'service type', 'benefit'], weight: 0.8 },
       { field: 'state', keywords: ['state', 'region'], weight: 0.7 },
       { field: 'lga', keywords: ['lga', 'local government', 'area'], weight: 0.7 },
-      { field: 'reportingMonth', keywords: ['reporting month', 'month'], weight: 0.8 },
+      { field: 'reportingMonth', keywords: ['reporting month', 'month', 'period'], weight: 0.9 },
       { field: 'reportingYear', keywords: ['reporting year', 'year'], weight: 0.8 },
       { field: 'eligibleLives', keywords: ['eligible lives', 'total enrollees', 'enrollee count', 'population'], weight: 0.8 },
       { field: 'claimCount', keywords: ['claim count', 'number of claims', 'claims count'], weight: 0.8 },
@@ -142,6 +149,25 @@ export const financialDataService = {
     headers.forEach(header => {
       const normalizedHeader = normalized(header);
       const values = sampleRows.map(row => String(row[header] ?? '').trim().toUpperCase().replace(/[-_/]+/g, ' '));
+      if (normalizedHeader.includes('ai inferred')) {
+        const inferredField = normalizedHeader.includes('provider')
+          ? 'providerName'
+          : normalizedHeader.includes('reporting month')
+            ? 'reportingMonth'
+            : normalizedHeader.includes('reporting year')
+              ? 'reportingYear'
+              : normalizedHeader.includes('facility type')
+                ? 'facilityType'
+                : 'ignored';
+        const hasInferredValue = sampleRows.some(row => String(row[header] ?? '').trim() !== '');
+        mappings.push({
+          excelField: header,
+          nmisField: (hasInferredValue ? inferredField : 'ignored') as any,
+          confidence: hasInferredValue ? 'HIGH' : 'LOW',
+          confidenceScore: hasInferredValue ? 1 : 0,
+        });
+        return;
+      }
       const monthIndex = aiIngestionEngine.getMonthIndex(header);
       if (monthIndex >= 0) {
         mappings.push({
@@ -176,6 +202,25 @@ export const financialDataService = {
           if (score > maxScore) { maxScore = score; bestMatch = config.field; }
         }
       }
+      // Irregular workbooks often use the provider name itself as the claim
+      // amount column. If a column is numerically populated and not a date,
+      // serial, period, or identifier field, infer it as claimed amount.
+      const nonBlankValues = values.filter(value => value !== '');
+      const numericRatio = nonBlankValues.length > 0
+        ? nonBlankValues.filter(value => toNumber(value) !== undefined).length / nonBlankValues.length
+        : 0;
+      const looksLikeDate = normalizedHeader.includes('date') || normalizedHeader.includes('period');
+      const explicitIgnoreMatch = knownMappings.some(config => {
+        if (config.field !== 'ignored') return false;
+        return config.keywords.some(keyword => {
+          const normalizedKeyword = normalized(keyword);
+          return normalizedHeader === normalizedKeyword || normalizedHeader.startsWith(normalizedKeyword) || normalizedHeader.endsWith(normalizedKeyword);
+        });
+      });
+      if (bestMatch === 'ignored' && !explicitIgnoreMatch && numericRatio >= 0.35 && !looksLikeDate && !aiIngestionEngine.isMonthColumn(header)) {
+        bestMatch = 'amountClaimed';
+        maxScore = 0.72;
+      }
       mappings.push({
         excelField: header,
         nmisField: bestMatch,
@@ -184,17 +229,41 @@ export const financialDataService = {
       });
     });
 
-    // Prevent a generic amount mapping from stealing a more specific amount field.
-    const mappedAmountFields = mappings.filter(mapping => amountFields.has(mapping.nmisField as keyof FinancialRecord));
-    if (mappedAmountFields.length > 1) {
-      const strongest = mappedAmountFields.sort((a, b) => b.confidenceScore - a.confidenceScore)[0];
+    // AI-inferred grouped-block fields are authoritative for rows generated by
+    // the autonomous extractor. Do not let a raw PERIOD or category label
+    // overwrite the parsed numeric month/year or canonical facility type.
+    const syntheticFields = new Set([
+      'Provider / facility name (AI inferred)',
+      'Reporting month (AI inferred)',
+      'Reporting year (AI inferred)',
+      'Facility type (AI inferred)',
+    ]);
+    (['providerName', 'reportingMonth', 'reportingYear', 'facilityType'] as const).forEach(field => {
+      if (!mappings.some(mapping => syntheticFields.has(mapping.excelField) && mapping.nmisField === field)) return;
       mappings.forEach(mapping => {
-        if (amountFields.has(mapping.nmisField as keyof FinancialRecord) && mapping !== strongest && mapping.confidenceScore < strongest.confidenceScore) {
+        if (!syntheticFields.has(mapping.excelField) && mapping.nmisField === field) {
           mapping.nmisField = 'ignored';
           mapping.confidence = 'LOW';
         }
       });
-    }
+    });
+
+    // Keep distinct amount columns (for example provider amount and merged
+    // payment). Only collapse duplicate mappings to the same generic field.
+    const strongestByField = new Map<string, ColumnMapping>();
+    mappings.forEach(mapping => {
+      if (!amountFields.has(mapping.nmisField as keyof FinancialRecord)) return;
+      const current = strongestByField.get(mapping.nmisField);
+      if (!current || mapping.confidenceScore > current.confidenceScore) strongestByField.set(mapping.nmisField, mapping);
+    });
+    mappings.forEach(mapping => {
+      if (mapping.nmisField !== 'amount') return;
+      const strongest = strongestByField.get('amount');
+      if (strongest && mapping !== strongest && mapping.confidenceScore < strongest.confidenceScore) {
+        mapping.nmisField = 'ignored';
+        mapping.confidence = 'LOW';
+      }
+    });
     return mappings;
   },
 
