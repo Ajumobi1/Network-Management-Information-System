@@ -2,13 +2,15 @@ import { CircleDollarSign, ShieldCheck, UserRound, UsersRound } from 'lucide-rea
 import KpiCard from '../ui/KpiCard';
 import { Dashboard2Intelligence } from '../../types/dashboard/dashboardIntelligenceTypes';
 
-function formatNaira(value: number, compact = false): string {
+function formatNaira(value: number | string, compact = false): string {
+  const num = Number(value);
+  if (isNaN(num)) return '₦0';
   if (compact) {
-    if (value >= 1_000_000_000) return `₦${(value / 1_000_000_000).toFixed(2)}B`;
-    if (value >= 1_000_000) return `₦${(value / 1_000_000).toFixed(2)}M`;
-    if (value >= 1_000) return `₦${(value / 1_000).toFixed(1)}K`;
+    if (num >= 1_000_000_000) return `₦${(num / 1_000_000_000).toFixed(2)}B`;
+    if (num >= 1_000_000) return `₦${(num / 1_000_000).toFixed(2)}M`;
+    if (num >= 1_000) return `₦${(num / 1_000).toFixed(1)}K`;
   }
-  return `₦${Math.round(value).toLocaleString('en-NG')}`;
+  return `₦${Math.round(num).toLocaleString('en-NG')}`;
 }
 
 type ExecutiveKpiRowProps = { intelligence: Dashboard2Intelligence };
@@ -22,7 +24,7 @@ export default function ExecutiveKpiRow({ intelligence }: ExecutiveKpiRowProps) 
     { title: 'Informal enrollees', value: intelligence.population.informal.toLocaleString(), subtitle: `${intelligence.population.total ? Math.round((intelligence.population.informal / intelligence.population.total) * 100) : 0}% of population`, icon: <UserRound className="h-5 w-5" />, tone: 'warning' as const },
     {
       title: 'Network expenditure',
-      value: formatNaira(intelligence.financial.totalExpenditure, intelligence.financial.totalExpenditure >= 1_000_000),
+      value: formatNaira(intelligence.financial.totalExpenditure, true),
       subtitle: `${intelligence.matchedFinancialRecords.toLocaleString()} linked financial records`,
       icon: <CircleDollarSign className="h-5 w-5" />,
       tone: 'neutral' as const,

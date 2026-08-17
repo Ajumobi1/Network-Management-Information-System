@@ -31,7 +31,7 @@ export default function EnrolmentRegisterPage() {
   const [lga, setLga] = useState('all');
   const [district, setDistrict] = useState('all');
   const [providerId, setProviderId] = useState('all');
-  const [period, setPeriod] = useState(() => livePeriod());
+  const [period, setPeriod] = useState<string>('all');
   const [sortField, setSortField] = useState<SortField>('policyNumber');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
@@ -77,9 +77,9 @@ export default function EnrolmentRegisterPage() {
   const totalMatching = analytics?.totalEnrollees ?? records[0]?.totalCount ?? records.length;
   const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
 
-  const clearFilters = () => { setSearch(''); setSector('all'); setCategory('all'); setGender('all'); setState('all'); setLga('all'); setDistrict('all'); setProviderId('all'); setPeriod(livePeriod()); };
+  const clearFilters = () => { setSearch(''); setSector('all'); setCategory('all'); setGender('all'); setState('all'); setLga('all'); setDistrict('all'); setProviderId('all'); setPeriod('all'); };
   const activeFilterChips = [search ? { id: 'search', label: 'Search', value: search } : null, sector !== 'all' ? { id: 'sector', label: 'Sector', value: sector || '' } : null, category !== 'all' ? { id: 'category', label: 'Category', value: category || '' } : null, gender !== 'all' ? { id: 'gender', label: 'Gender', value: gender } : null, state !== 'all' ? { id: 'state', label: 'State', value: state } : null, lga !== 'all' ? { id: 'lga', label: 'LGA', value: lga } : null, district !== 'all' ? { id: 'district', label: 'District', value: district } : null, providerId !== 'all' ? { id: 'providerId', label: 'Facility', value: options.providers.find(provider => provider.id === providerId)?.name || providerId } : null, period !== 'all' ? { id: 'period', label: 'Period', value: period } : null].filter((chip): chip is { id: string; label: string; value: string } => Boolean(chip));
-  const removeFilter = (id: string) => { if (id === 'search') setSearch(''); if (id === 'sector') setSector('all'); if (id === 'category') setCategory('all'); if (id === 'gender') setGender('all'); if (id === 'state') setState('all'); if (id === 'lga') setLga('all'); if (id === 'district') setDistrict('all'); if (id === 'providerId') setProviderId('all'); if (id === 'period') setPeriod(livePeriod()); };
+  const removeFilter = (id: string) => { if (id === 'search') setSearch(''); if (id === 'sector') setSector('all'); if (id === 'category') setCategory('all'); if (id === 'gender') setGender('all'); if (id === 'state') setState('all'); if (id === 'lga') setLga('all'); if (id === 'district') setDistrict('all'); if (id === 'providerId') setProviderId('all'); if (id === 'period') setPeriod('all'); };
   const toggleSort = (field: SortField) => { if (sortField === field) setSortDirection(direction => direction === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDirection('asc'); } };
 
   const openExportDialog = () => setIsExportDialogOpen(true);

@@ -12,8 +12,7 @@ import { isSecureContractError } from '../../lib/security/secureContracts';
 const emptyOptions: DashboardFilterOptions = { years: [], months: [], states: [], lgas: [], facilityTypes: [], ownerships: [] };
 
 function liveCalendarFilters(): DashboardFilters {
-  const now = new Date();
-  return { year: now.getFullYear(), month: undefined, sector: 'all' };
+  return { year: undefined, month: undefined, sector: 'all' };
 }
 
 export default function ExecutiveDashboardPage() {

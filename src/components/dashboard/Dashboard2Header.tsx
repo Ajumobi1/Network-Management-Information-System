@@ -94,7 +94,7 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
 
         <div className="mt-5 flex flex-wrap items-end gap-3">
           <div className="w-full max-w-[140px]">
-              <Select label="Year" value={filters.year ? String(filters.year) : String(liveCalendarPeriod().year)} options={Array.from(new Set([liveCalendarPeriod().year, ...options.years])).sort((a, b) => b - a).map(y => ({ label: String(y), value: y }))} placeholder="Select year" onChange={event => onChange('year', Number(event.target.value))} />
+              <Select label="Year" value={filters.year ? String(filters.year) : ''} options={options.years.map(y => ({ label: String(y), value: y }))} placeholder="All years" onChange={event => onChange('year', event.target.value ? Number(event.target.value) : undefined)} />
           </div>
           <div className="w-full max-w-[160px]">
               <Select label="Month" value={filters.month ? String(filters.month) : ''} options={monthNames.map((label, index) => ({ label, value: index + 1 }))} placeholder="All months" onChange={event => onChange('month', event.target.value ? Number(event.target.value) : undefined)} />
