@@ -49,11 +49,11 @@ export default function LoginPage() {
         <section className="relative overflow-hidden bg-brand-navy px-10 py-12 text-white md:px-16 md:py-20">
           <div className="relative z-10">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-control bg-white shadow-soft p-1.5">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden">
                 <img src="/assets/odchc-seal.png" alt="ODCHC Seal" className="h-full w-full object-contain" />
               </div>
               <div>
-                <p className="text-[0.75rem] font-bold uppercase tracking-[0.25em] text-white">ODCHC NMIS</p>
+                <p className="text-[0.875rem] font-bold uppercase tracking-[0.25em] text-white">ODCHC NMIS</p>
                 <p className="text-sm font-medium text-white/80">Health Enterprise Cloud</p>
               </div>
             </div>
@@ -89,8 +89,8 @@ export default function LoginPage() {
         {/* Right Side: Login Form */}
         <section className="flex flex-col justify-center px-8 py-12 md:px-16 md:py-20">
           <div className="mb-10">
-            <div className="mb-8 flex max-w-[280px] items-center justify-start overflow-hidden">
-              <img src="/assets/odchc-logo.png" alt="Ondo State Contributory Health Commission logo" className="h-auto w-full object-contain" />
+            <div className="mb-8 flex h-24 w-24 items-center justify-start overflow-hidden">
+              <img src="/assets/odchc-logo.png" alt="Ondo State Contributory Health Commission logo" className="h-full w-full object-contain" />
             </div>
             <p className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-brand-muted">Welcome back</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-brand-foreground">Sign in to NMIS</h2>

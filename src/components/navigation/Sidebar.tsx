@@ -76,7 +76,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                 <p className="mt-1 text-xs capitalize text-white/60">Role: {role.replace('-', ' ')}</p>
               </div>
             ) : (
-              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm">
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden">
                 <img src="/assets/odchc-seal.png" alt="Logo" className="h-full w-full object-contain" />
               </div>
             )}
