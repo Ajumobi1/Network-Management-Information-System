@@ -37,6 +37,7 @@ import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
+import { exportBatchErrorsAndDuplicatesReport } from '../../utils/reportExport';
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type RawRow = Record<string, unknown>;
@@ -286,6 +287,10 @@ export default function EnrolmentUploadPage() {
         const duplicateCount = records.filter(r => r.recordStatus === 'duplicate').length;
         const readyCount = records.filter(r => r.recordStatus === 'valid').length;
         const validationErrors = records.flatMap(r => (r.validationErrors || []).map(msg => `Row ${r.sourceRow}: ${msg}`));
+
+        if (reviewCount > 0 || errorCount > 0 || duplicateCount > 0) {
+          exportBatchErrorsAndDuplicatesReport(item.file.name, records);
+        }
 
         if (reviewCount > 0 || errorCount > 0) {
           updateQueueItem(item.id, { 
