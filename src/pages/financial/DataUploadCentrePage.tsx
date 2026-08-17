@@ -760,14 +760,14 @@ const generatePreview = () => {
 
   return (
     <>
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-blue">Network Financial Data</p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">{uploadWorkflow === 'capitation' ? 'Capitation Upload Centre' : 'Claims/FFS Upload Centre'}</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">Capitation is processed separately. Claims and Fee-for-Service share the **Claims/FFS** workflow, while any row-level CAPITATION or FFS type in the workbook remains authoritative.</p>
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 no-scrollbar sm:w-auto">
           {steps.map((item, index) => (
             <div key={item} className={`flex items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold ${step === item ? 'bg-brand-blue text-white' : 'text-slate-500'}`}>
               <span>{index + 1}</span>
@@ -784,7 +784,7 @@ const generatePreview = () => {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[300px_1fr]">
         <aside className="space-y-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
@@ -792,7 +792,7 @@ const generatePreview = () => {
               <Badge variant="default">{queue.length}</Badge>
             </div>
 
-            <div className="mt-4 space-y-2 max-h-[500px] overflow-y-auto pr-1">
+            <div className="mt-4 max-h-[45dvh] space-y-2 overflow-y-auto pr-1 xl:max-h-[500px]">
               {queue.length === 0 ? (
                 <div className="py-10 text-center">
                   <Clock className="mx-auto h-8 w-8 text-slate-200" />
@@ -843,14 +843,14 @@ const generatePreview = () => {
           ) : (
             <>
               {step === 'upload' && (
-                <section onDragOver={event => event.preventDefault()} onDrop={handleDrop} className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
+                <section onDragOver={event => event.preventDefault()} onDrop={handleDrop} className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-6 text-center shadow-sm sm:p-10 lg:p-16">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue">
                     <Coins className="h-7 w-7" />
                   </div>
                   <h2 className="mt-5 text-xl font-bold text-slate-900">Upload {uploadWorkflow === 'capitation' ? 'Capitation' : 'Claims/FFS'} Workbooks</h2>
                   <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Choose the workflow first, then drop multiple folders or select a folder of processed workbooks. A mapped row-level type remains authoritative.</p>
 
-                  <div className="mt-6 flex justify-center gap-2">
+                  <div className="mt-6 flex flex-wrap justify-center gap-2">
                     {([
                       { value: 'claims-ffs', label: 'Claims/FFS' },
                       { value: 'capitation', label: 'Capitation' },
@@ -869,8 +869,8 @@ const generatePreview = () => {
                   </div>
 
                   <div className="mt-8 flex flex-col items-center justify-center gap-6">
-                    <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-2 pr-4">
-                      <div className="flex items-center gap-1 rounded-xl bg-white p-1 shadow-sm">
+                    <div className="flex w-full max-w-xl flex-col items-stretch gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-2 sm:flex-row sm:items-center sm:pr-4">
+                      <div className="flex items-center justify-center gap-1 rounded-xl bg-white p-1 shadow-sm">
                         <button 
                           onClick={() => setIsAutonomousMode(true)}
                           className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${isAutonomousMode ? 'bg-brand-blue text-white' : 'text-slate-400 hover:text-slate-600'}`}
@@ -889,12 +889,12 @@ const generatePreview = () => {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                    <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
+                      <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95 sm:w-auto">
                         <Upload className="h-4 w-4" /> Choose Files
                         <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
                       </label>
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                      <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95 sm:w-auto">
                         <Folder className="h-4 w-4" /> Add Folder
                         <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
                       </label>
@@ -902,7 +902,7 @@ const generatePreview = () => {
                         <button 
                           onClick={isAutonomousMode ? startAutomatedProcessing : () => setStep('inspect')}
                           disabled={isProcessingQueue}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-bold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95 disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-bold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95 disabled:opacity-50 sm:w-auto"
                         >
                           {isProcessingQueue ? (
                             <><Loader2 className="h-4 w-4 animate-spin" /> Processing Queue...</>
@@ -1314,8 +1314,8 @@ const generatePreview = () => {
                       )}
                     </div>
                   )}
-                  <div className="overflow-x-auto rounded-2xl border border-slate-100">
-                    <table className="w-full text-left text-sm">
+                  <div className="nmis-table-scroll rounded-2xl border border-slate-100">
+                    <table className="w-full min-w-[760px] text-left text-sm">
                       <thead className="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         <tr>
                           <th className="px-4 py-3">Facility</th>
@@ -1355,13 +1355,13 @@ const generatePreview = () => {
 
               {step === 'commit' && (
                 <Panel title="Import Complete" description="Financial data has been successfully imported.">
-                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-10 text-center">
+                  <div className="rounded-3xl border border-emerald-100 bg-emerald-50 p-5 text-center sm:p-10">
                     <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-500" />
                     <h3 className="mt-6 text-xl font-bold text-slate-900">Success</h3>
                     <p className="mt-2 text-slate-600">{commitMessage}</p>
-                    <div className="mt-10 flex justify-center gap-4">
-                      <Button onClick={reset} className="rounded-2xl px-8">New Import</Button>
-                      <Button variant="secondary" className="rounded-2xl px-8" onClick={() => window.location.href = '/financial/overview'}>View Analytics</Button>
+                    <div className="mt-8 flex flex-col justify-center gap-3 sm:mt-10 sm:flex-row sm:gap-4">
+                      <Button onClick={reset} className="w-full rounded-2xl px-8 sm:w-auto">New Import</Button>
+                      <Button variant="secondary" className="w-full rounded-2xl px-8 sm:w-auto" onClick={() => window.location.href = '/financial/overview'}>View Analytics</Button>
                     </div>
                   </div>
                 </Panel>
@@ -1373,9 +1373,9 @@ const generatePreview = () => {
     </div>
 
     {isErrorModalOpen && activeItem?.data && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-        <div className="w-full max-w-5xl max-h-[90vh] rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col">
-          <div className="flex items-start justify-between bg-slate-50 p-6 border-b border-slate-200">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4">
+        <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-3xl">
+          <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">AI Validation Inspector</p>
               <h2 className="mt-1 text-2xl font-bold text-slate-900">{errorTypeFilter === 'records' ? 'All Normalized Records' : 'Record-Level Issues'}</h2>
@@ -1384,7 +1384,7 @@ const generatePreview = () => {
             <button className="rounded-xl p-2 text-slate-400 hover:bg-white hover:text-slate-900 transition-all" onClick={() => setIsErrorModalOpen(false)}><X size={20} /></button>
           </div>
 
-          <div className="flex-1 overflow-hidden flex flex-col p-6 space-y-4">
+          <div className="flex flex-1 flex-col space-y-4 overflow-hidden p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
               <div className="relative w-full sm:w-80">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -1402,8 +1402,8 @@ const generatePreview = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto rounded-2xl border border-slate-100">
-              <table className="w-full text-left text-sm border-collapse">
+            <div className="nmis-table-scroll flex-1 rounded-2xl border border-slate-100">
+              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   <tr>
                     <th className="px-4 py-3 border-b border-slate-100">Row</th>
@@ -1452,7 +1452,7 @@ const generatePreview = () => {
           </div>
 
           <div className="bg-slate-50 p-6 border-t border-slate-200 flex justify-end">
-            <Button onClick={() => setIsErrorModalOpen(false)} className="rounded-2xl px-8">Close Inspector</Button>
+            <Button onClick={() => setIsErrorModalOpen(false)} className="w-full rounded-2xl px-8 sm:w-auto">Close Inspector</Button>
           </div>
         </div>
       </div>
@@ -1463,21 +1463,21 @@ const generatePreview = () => {
 
 function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm animate-in fade-in zoom-in-95 duration-200 sm:p-8">
       <h2 className="text-xl font-bold text-slate-900">{title}</h2>
       <p className="mt-1 text-sm text-slate-500">{description}</p>
-      <div className="mt-8">{children}</div>
+      <div className="mt-6 sm:mt-8">{children}</div>
     </section>
   );
 }
 
 function Actions({ onBack, onNext, nextLabel = 'Continue', disabled = false }: { onBack?: () => void; onNext: () => void; nextLabel?: string; disabled?: boolean }) {
   return (
-    <div className="mt-10 flex items-center justify-between gap-4 border-t border-slate-50 pt-8">
-      <Button variant="secondary" onClick={onBack} disabled={!onBack} className="rounded-2xl px-6 py-3">
+    <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-50 pt-6 sm:mt-10 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pt-8">
+      <Button variant="secondary" onClick={onBack} disabled={!onBack} className="w-full rounded-2xl px-6 py-3 sm:w-auto">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
-      <Button onClick={onNext} disabled={disabled} className="rounded-2xl px-8 py-3 shadow-lg shadow-brand-blue/20">
+      <Button onClick={onNext} disabled={disabled} className="w-full rounded-2xl px-8 py-3 shadow-lg shadow-brand-blue/20 sm:w-auto">
         {nextLabel} <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
     </div>

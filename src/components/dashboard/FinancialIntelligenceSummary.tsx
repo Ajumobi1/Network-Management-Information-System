@@ -42,7 +42,7 @@ export default function FinancialIntelligenceSummary({ intelligence, filters }: 
   const maxFacilityType = byFacilityType?.[0]?.value || 1;
 
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
+    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-4 shadow-soft sm:p-6">
       <div>
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-blue">Financial reporting</p>
         <h2 className="mt-2 text-xl font-semibold text-slate-900">Network expenditure intelligence</h2>
@@ -52,7 +52,7 @@ export default function FinancialIntelligenceSummary({ intelligence, filters }: 
       {isLoading ? <FinancialPanelsLoading /> : null}
       {isError ? <FinancialUnavailable onRetry={() => { void refetch(); }} /> : null}
       {!isLoading && !isError ? <>
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="mt-6 grid min-w-0 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
           <Panel title="Expenditure trend" description="Monthly processed expenditure for the selected reporting context." icon={<BarChart3 className="h-5 w-5" />}>
             <div className="mt-5 flex min-h-44 items-end gap-2 overflow-x-auto pb-1">
               {monthlyTrend.length === 0 ? <EmptyMessage text="No expenditure trend is available for this reporting context." /> : monthlyTrend.map(item => (
@@ -79,7 +79,7 @@ export default function FinancialIntelligenceSummary({ intelligence, filters }: 
           </Panel>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-2">
           <Panel title="Top expenditure by state" description="Concentration of network expenditure." icon={<MapPin className="h-5 w-5" />}>
             <Ranking items={byState.slice(0, 5)} max={maxState} emptyText="No state expenditure data is available." />
           </Panel>
@@ -93,7 +93,7 @@ export default function FinancialIntelligenceSummary({ intelligence, filters }: 
 }
 
 function Panel({ title, description, icon, children }: { title: string; description: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return <div className="rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-sm font-semibold text-slate-800">{icon}{title}</div><p className="mt-1 text-xs text-slate-500">{description}</p></div></div>{children}</div>;
+  return <div className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 p-4"><div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2 text-sm font-semibold text-slate-800">{icon}{title}</div><p className="mt-1 text-xs text-slate-500">{description}</p></div></div>{children}</div>;
 }
 
 function Ranking({ items, max, emptyText }: { items: { name: string; value: number }[]; max: number; emptyText: string }) {
@@ -102,6 +102,6 @@ function Ranking({ items, max, emptyText }: { items: { name: string; value: numb
 
 function EmptyMessage({ text }: { text: string }) { return <p className="py-8 text-center text-sm text-slate-400">{text}</p>; }
 
-function FinancialPanelsLoading() { return <div className="mt-6 grid gap-6 lg:grid-cols-2"><div className="h-64 animate-pulse rounded-2xl bg-slate-100" /><div className="h-64 animate-pulse rounded-2xl bg-slate-100" /><div className="h-52 animate-pulse rounded-2xl bg-slate-100" /><div className="h-52 animate-pulse rounded-2xl bg-slate-100" /></div>; }
+function FinancialPanelsLoading() { return <div className="mt-6 grid min-w-0 gap-6 lg:grid-cols-2"><div className="h-64 animate-pulse rounded-2xl bg-slate-100" /><div className="h-64 animate-pulse rounded-2xl bg-slate-100" /><div className="h-52 animate-pulse rounded-2xl bg-slate-100" /><div className="h-52 animate-pulse rounded-2xl bg-slate-100" /></div>; }
 
 function FinancialUnavailable({ onRetry }: { onRetry: () => void }) { return <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center"><p className="text-sm font-semibold text-slate-700">Financial reporting is temporarily unavailable.</p><p className="mt-1 text-xs text-slate-500">No financial values were fabricated for this dashboard.</p><button type="button" onClick={onRetry} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-brand-blue px-3 py-2 text-xs font-semibold text-white hover:bg-brand-navy"><RefreshCw className="h-3.5 w-3.5" /> Retry</button></div>; }

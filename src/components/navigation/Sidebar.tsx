@@ -65,7 +65,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
 
   return <>
     {mobileOpen ? <button type="button" aria-label="Close navigation" onClick={onClose} className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden" /> : null}
-    <aside className={`${mobileOpen ? 'fixed inset-y-0 left-0 z-50 flex' : 'hidden lg:flex'} ${collapsed ? 'w-[4.75rem]' : 'w-[17rem]'} shrink-0 border-r border-brand-border bg-brand-navy transition-[width] duration-200`}>
+    <aside className={`${mobileOpen ? 'nmis-mobile-sheet fixed inset-y-0 left-0 z-50 flex max-w-[calc(100vw-0.75rem)]' : 'hidden lg:flex'} ${collapsed ? 'w-[4.75rem]' : 'w-[17rem]'} shrink-0 border-r border-brand-border bg-brand-navy transition-[width] duration-200`}>
       <div className="flex h-full min-h-[calc(100vh-4.5rem)] w-full flex-col justify-between px-3 py-5">
         <div className="min-h-0 space-y-5">
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2 px-2`}>

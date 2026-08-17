@@ -43,12 +43,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-brand-background px-4 py-8">
+    <div className="flex min-h-screen items-center justify-center bg-brand-background px-3 py-4 sm:px-4 sm:py-8">
       <div className="grid w-full max-w-[1200px] grid-cols-1 overflow-hidden rounded-panel bg-brand-card shadow-panel md:grid-cols-[1fr_1fr]">
         {/* Left Side: Branding & Value Props */}
-        <section className="relative overflow-hidden bg-brand-navy px-10 py-12 text-white md:px-16 md:py-20">
+        <section className="relative overflow-hidden bg-brand-navy px-6 py-8 text-white sm:px-10 sm:py-12 md:px-16 md:py-20">
           <div className="relative z-10">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden">
                 <img src="/assets/odchc-seal.png" alt="ODCHC Seal" className="h-full w-full object-contain" />
               </div>
@@ -59,7 +59,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <h1 className="mt-12 text-4xl font-black leading-tight tracking-tight lg:text-5xl">
+            <h1 className="mt-8 text-3xl font-black leading-tight tracking-tight sm:mt-12 sm:text-4xl lg:text-5xl">
               Network Management Information System
             </h1>
             <p className="mt-6 max-w-sm text-base leading-relaxed text-white/70">
@@ -88,13 +88,13 @@ export default function LoginPage() {
         </section>
 
         {/* Right Side: Login Form */}
-        <section className="flex flex-col justify-center px-8 py-12 md:px-16 md:py-20">
+        <section className="flex min-w-0 flex-col justify-center px-5 py-8 sm:px-8 sm:py-12 md:px-16 md:py-20">
           <div className="mb-10">
-            <div className="mb-8 flex h-auto w-full max-w-[320px] items-center justify-start overflow-hidden">
+            <div className="mb-6 flex h-auto w-full max-w-[280px] items-center justify-start overflow-hidden sm:mb-8 sm:max-w-[320px]">
               <img src="/assets/odchc-horizontal-logo.png" alt="Ondo State Contributory Health Commission logo" className="h-auto w-full object-contain" />
             </div>
             <p className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-brand-muted">Welcome back</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-brand-foreground">Sign in to Network Management Information System (NMIS)</h2>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-brand-foreground sm:text-3xl">Sign in to Network Management Information System (NMIS)</h2>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
@@ -112,7 +112,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <label className="nmis-label" htmlFor="password">Password</label>
                 <button
                   type="button"

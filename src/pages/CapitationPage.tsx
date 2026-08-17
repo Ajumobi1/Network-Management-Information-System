@@ -223,7 +223,7 @@ export default function CapitationPage() {
           </div>
 
           <div className="nmis-table-wrap">
-            <div className="overflow-x-auto">
+            <div className="nmis-table-scroll">
               <table className="nmis-table">
                 <thead>
                   <tr>
@@ -265,7 +265,7 @@ export default function CapitationPage() {
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between border-t border-brand-divider p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-divider p-4">
               <p className="text-xs font-bold uppercase tracking-widest text-brand-muted">Page {page} of {totalPages}</p>
               <div className="flex gap-2">
                 <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}><ChevronLeft size={16} /></Button>

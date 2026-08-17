@@ -192,12 +192,12 @@ export default function NewEnrolleePage() {
 
   return (
     <main className="nmis-page">
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex items-center justify-between gap-4">
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link to="/population/enrolment">
             <Button variant="secondary" size="sm" className="gap-2"><ArrowLeft size={16} /> Back to Population Overview</Button>
           </Link>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-muted"><UserPlus size={14} /> Secure enrolment entry</div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-muted sm:justify-end"><UserPlus size={14} /> Secure enrolment entry</div>
         </div>
 
         <PageHeader
@@ -233,7 +233,7 @@ export default function NewEnrolleePage() {
             </div>
           </Card>
 
-          <div className="flex justify-end gap-3"><Link to="/population/enrolment"><Button type="button" variant="secondary">Cancel</Button></Link><Button type="submit" disabled={createBatch.isPending || providerQuery.isLoading}>{createBatch.isPending ? 'Saving enrollee...' : 'Save enrollee'}</Button></div>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><Link to="/population/enrolment"><Button type="button" variant="secondary" className="w-full sm:w-auto">Cancel</Button></Link><Button type="submit" disabled={createBatch.isPending || providerQuery.isLoading} className="w-full sm:w-auto">{createBatch.isPending ? 'Saving enrollee...' : 'Save enrollee'}</Button></div>
         </form>
       </div>
     </main>

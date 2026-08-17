@@ -717,14 +717,14 @@ export default function EnrolmentUploadPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-blue">Population &amp; Enrolment</p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">Historical Bulk Import</h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">Upload multiple capitation workbooks. The AI engine automatically detects periods, extracts facility context, and matches against the Provider Master Register.</p>
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 no-scrollbar sm:w-auto">
           {steps.map((item, index) => (
             <div key={item} className={`flex items-center gap-1 rounded-xl px-2 py-2 text-[11px] font-semibold ${step === item ? 'bg-brand-blue text-white' : 'text-slate-500'}`}>
               <span>{index + 1}</span>
@@ -741,7 +741,7 @@ export default function EnrolmentUploadPage() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[300px_1fr]">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[300px_1fr]">
         {/* Sidebar: Queue Management */}
         <aside className="space-y-4">
           <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -750,7 +750,7 @@ export default function EnrolmentUploadPage() {
               <Badge variant="default">{queue.length}</Badge>
             </div>
             
-            <div className="mt-4 space-y-2 max-h-[500px] overflow-y-auto pr-1">
+            <div className="mt-4 max-h-[45dvh] space-y-2 overflow-y-auto pr-1 xl:max-h-[500px]">
               {queue.length === 0 ? (
                 <div className="py-10 text-center">
                   <Clock className="mx-auto h-8 w-8 text-slate-200" />
@@ -811,7 +811,7 @@ export default function EnrolmentUploadPage() {
           ) : (
             <>
               {step === 'upload' && (
-                <section onDragOver={event => event.preventDefault()} onDrop={handleDrop} className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-16 text-center shadow-sm">
+                <section onDragOver={event => event.preventDefault()} onDrop={handleDrop} className="rounded-3xl border-2 border-dashed border-slate-200 bg-white p-6 text-center shadow-sm sm:p-10 lg:p-16">
                   <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-brand-blue">
                     <FileUp className="h-7 w-7" />
                   </div>
@@ -819,8 +819,8 @@ export default function EnrolmentUploadPage() {
                   <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Drop multiple files or folders here. The system supports bulk processing of monthly enrollee workbooks from January 2025 onwards.</p>
                   
                   <div className="mt-8 flex flex-col items-center justify-center gap-6">
-                    <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-2 pr-4">
-                      <div className="flex items-center gap-1 rounded-xl bg-white p-1 shadow-sm">
+                    <div className="flex w-full max-w-xl flex-col items-stretch gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-2 sm:flex-row sm:items-center sm:pr-4">
+                      <div className="flex items-center justify-center gap-1 rounded-xl bg-white p-1 shadow-sm">
                         <button 
                           onClick={() => setIsAutonomousMode(true)}
                           className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${isAutonomousMode ? 'bg-brand-blue text-white' : 'text-slate-400 hover:text-slate-600'}`}
@@ -839,12 +839,12 @@ export default function EnrolmentUploadPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                    <div className="flex w-full flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
+                      <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95 sm:w-auto">
                         <Upload className="h-4 w-4" /> Choose Files
                         <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
                       </label>
-                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                      <label className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95 sm:w-auto">
                         <Folder className="h-4 w-4" /> Add Folder
                         <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
                       </label>
@@ -852,7 +852,7 @@ export default function EnrolmentUploadPage() {
                         <button 
                           onClick={isAutonomousMode ? startAutomatedProcessing : () => setStep('inspect')}
                           disabled={isProcessingQueue}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-bold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95 disabled:opacity-50"
+                          className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-bold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95 disabled:opacity-50 sm:w-auto"
                         >
                           {isProcessingQueue ? (
                             <><Loader2 className="h-4 w-4 animate-spin" /> Processing Queue...</>
@@ -870,7 +870,7 @@ export default function EnrolmentUploadPage() {
                 <Panel title="Inspect workbook structure" description="Confirm the worksheet and column headers. The AI has detected the core table structure.">
                   <div className="space-y-4">
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="min-w-[200px]">
+                      <div className="min-w-0">
                         <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Worksheet</label>
                         <select 
                           className="mt-2 w-full rounded-xl border-slate-200 text-sm"
@@ -907,8 +907,8 @@ export default function EnrolmentUploadPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-slate-100 overflow-hidden">
-                      <table className="w-full text-left text-xs">
+                    <div className="nmis-table-scroll rounded-2xl border border-slate-100">
+                      <table className="w-full min-w-[640px] text-left text-xs">
                         <thead className="bg-slate-50 text-slate-400">
                           <tr>
                             <th className="px-4 py-2">Row</th>
@@ -1441,10 +1441,10 @@ function ErrorInspectionModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-5xl max-h-[90vh] flex flex-col rounded-3xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-2 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4">
+      <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-3xl">
         {/* Header */}
-        <div className="flex items-start justify-between bg-slate-50/80 p-6 border-b border-slate-100">
+        <div className="flex flex-col gap-4 border-b border-slate-100 bg-slate-50/80 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
           <div>
             <div className="flex items-center gap-2">
               <Badge variant="error" className="text-[10px]">IMPORT ISSUES</Badge>
@@ -1453,7 +1453,7 @@ function ErrorInspectionModal({
             <h2 className="mt-1 text-2xl font-black text-slate-900">Issue Inspection & Resolution</h2>
             <p className="mt-1 text-sm text-slate-500">Review validation issues and duplicate records before committing this batch.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                           <Button variant="secondary" size="sm" onClick={downloadErrorReport} className="gap-2">
                 <Download size={14} /> Issue Report
               </Button>
@@ -1473,7 +1473,7 @@ function ErrorInspectionModal({
         {/* Content */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {/* Summary Bar */}
-          <div className="bg-white px-6 py-4 border-b border-slate-50 overflow-x-auto flex items-center gap-6 no-scrollbar">
+          <div className="flex items-center gap-6 overflow-x-auto border-b border-slate-50 bg-white px-4 py-4 no-scrollbar sm:px-6">
             <div className="shrink-0">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Total Issues</p>
               <p className="text-lg font-black text-rose-600">{errorRecords.length}</p>
@@ -1490,7 +1490,7 @@ function ErrorInspectionModal({
           </div>
 
           {/* Filter Bar */}
-          <div className="px-6 py-4 bg-slate-50/30 border-b border-slate-50 flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex flex-col items-center gap-4 border-b border-slate-50 bg-slate-50/30 px-4 py-4 sm:flex-row sm:px-6">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input 
@@ -1517,7 +1517,7 @@ function ErrorInspectionModal({
           </div>
 
           {/* Error List */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/20">
+          <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50/20 p-4 sm:p-6">
             {filteredErrors.length === 0 ? (
               <div className="py-20 text-center">
                 <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
@@ -1588,7 +1588,7 @@ function ErrorInspectionModal({
                     </div>
 
                     {/* Actions */}
-                    <div className="shrink-0 flex flex-row lg:flex-col gap-2">
+                    <div className="flex shrink-0 flex-wrap gap-2 lg:flex-col">
                       {editingId === record.id ? (
                         <>
                           <Button 
@@ -1754,21 +1754,21 @@ function ErrorInspectionModal({
 
 function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+    <section className="min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm animate-in fade-in zoom-in-95 duration-200 sm:p-8">
       <h2 className="text-xl font-bold text-slate-900">{title}</h2>
       <p className="mt-1 text-sm text-slate-500">{description}</p>
-      <div className="mt-8">{children}</div>
+      <div className="mt-6 sm:mt-8">{children}</div>
     </section>
   );
 }
 
 function Actions({ onBack, onNext, nextLabel = 'Continue', disabled = false }: { onBack?: () => void; onNext: () => void; nextLabel?: string; disabled?: boolean }) {
   return (
-    <div className="mt-10 flex items-center justify-between gap-4 border-t border-slate-50 pt-8">
-      <Button variant="secondary" onClick={onBack} disabled={!onBack} className="rounded-2xl px-6 py-3">
+    <div className="mt-8 flex flex-col-reverse gap-3 border-t border-slate-50 pt-6 sm:mt-10 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pt-8">
+      <Button variant="secondary" onClick={onBack} disabled={!onBack} className="w-full rounded-2xl px-6 py-3 sm:w-auto">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
-      <Button onClick={onNext} disabled={disabled} className="rounded-2xl px-8 py-3 shadow-lg shadow-brand-blue/20">
+      <Button onClick={onNext} disabled={disabled} className="w-full rounded-2xl px-8 py-3 shadow-lg shadow-brand-blue/20 sm:w-auto">
         {nextLabel} <ArrowRight className="ml-2 h-4 w-4" />
       </Button>
     </div>

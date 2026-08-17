@@ -67,8 +67,8 @@ export default function ProviderRegistrationPage() {
 
   return (
     <main className="nmis-page">
-      <div className="space-y-6 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between">
+      <div className="mx-auto w-full max-w-4xl space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
             variant="secondary"
             size="sm"
@@ -77,7 +77,7 @@ export default function ProviderRegistrationPage() {
           >
             <ArrowLeft size={16} /> Back to Provider Directory
           </Button>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-muted">
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-muted sm:justify-end">
             <UserPlus size={14} /> Enterprise Registration Workflow
           </div>
         </div>
@@ -257,9 +257,9 @@ export default function ProviderRegistrationPage() {
             </div>
           </Card>
 
-          <div className="flex items-center justify-end gap-3">
-            <Button type="button" variant="secondary" onClick={() => navigate('/providers')}>Cancel</Button>
-            <Button type="submit">Save and Register Provider</Button>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
+            <Button type="button" variant="secondary" onClick={() => navigate('/providers')} className="w-full sm:w-auto">Cancel</Button>
+            <Button type="submit" className="w-full sm:w-auto">Save and Register Provider</Button>
           </div>
         </form>
       </div>

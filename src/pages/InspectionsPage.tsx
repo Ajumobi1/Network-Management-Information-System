@@ -116,12 +116,12 @@ export default function InspectionsPage() {
         </section>
 
         <div className="nmis-table-wrap">
-          <div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
             <SectionHeader title="Inspection Schedule" subtitle={`${inspections.length} records in current view.`} />
             <Badge variant="info">Live Tracking</Badge>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="nmis-table-scroll">
             <table className="nmis-table min-w-[1000px]">
               <thead>
                 <tr>
@@ -209,9 +209,9 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
   const { data: checklist = [], isLoading: isChecklistLoading } = useInspectionChecklist(id);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-brand-navy/40 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="h-full w-full max-w-2xl bg-brand-card shadow-panel animate-in slide-in-from-right duration-300 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between border-b border-brand-divider bg-brand-surface/50 p-6">
+    <div className="fixed inset-0 z-50 flex items-end justify-end bg-brand-navy/40 backdrop-blur-sm animate-in fade-in duration-200 sm:items-stretch">
+      <div className="flex max-h-[92dvh] h-full w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-brand-card shadow-panel animate-in slide-in-from-right duration-300 sm:max-h-none sm:rounded-none">
+        <div className="flex items-start justify-between gap-3 border-b border-brand-divider bg-brand-surface/50 p-4 sm:p-6">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Inspection Review</p>
             <h2 className="mt-1 text-xl font-black text-brand-foreground">
@@ -223,7 +223,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 space-y-8 overflow-y-auto p-4 sm:p-6">
           {isLoading ? (
             <LoadingState title="Loading details..." />
           ) : inspection ? (
@@ -287,9 +287,9 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
           )}
         </div>
 
-        <div className="border-t border-brand-divider bg-brand-surface/50 p-6 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>Close Review</Button>
-          <Button disabled={inspection?.status === 'completed'}>Mark as Completed</Button>
+        <div className="flex flex-col gap-3 border-t border-brand-divider bg-brand-surface/50 p-4 sm:flex-row sm:justify-end sm:p-6">
+          <Button variant="secondary" className="w-full sm:w-auto" onClick={onClose}>Close Review</Button>
+          <Button className="w-full sm:w-auto" disabled={inspection?.status === 'completed'}>Mark as Completed</Button>
         </div>
       </div>
     </div>

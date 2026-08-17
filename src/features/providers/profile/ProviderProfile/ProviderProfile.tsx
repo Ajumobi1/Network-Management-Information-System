@@ -111,18 +111,18 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
         </div>
       </div>
 
-      <div className="border-b border-brand-divider bg-white px-6 py-4 sm:px-8">
+      <div className="border-b border-brand-divider bg-white px-4 py-3 sm:px-8 sm:py-4">
         <ProviderOperationalEditor provider={provider} />
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white border-b border-brand-divider px-6 overflow-x-auto scrollbar-hide">
-        <nav className="flex min-w-max gap-8" aria-label="Profile sections">
+      <div className="nmis-tab-scroll border-b border-brand-divider bg-white px-4 sm:px-6">
+        <nav className="flex min-w-max gap-5 sm:gap-8" aria-label="Profile sections">
           {tabs.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`relative py-4 text-sm font-bold transition-colors ${
+              className={`relative py-3 text-sm font-bold transition-colors sm:py-4 ${
                 activeTab === tab
                   ? 'text-brand-blue'
                   : 'text-brand-muted hover:text-brand-secondary'
@@ -138,7 +138,7 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
       </div>
 
       {/* Tab Content */}
-      <div className="p-6 sm:p-8 bg-white">
+      <div className="bg-white p-4 sm:p-8">
         <div className="mx-auto max-w-5xl animate-in fade-in slide-in-from-bottom-2 duration-300">
           {tabContent[activeTab]}
         </div>

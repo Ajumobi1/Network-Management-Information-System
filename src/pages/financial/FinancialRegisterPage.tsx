@@ -177,7 +177,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
 
         {/* Table Section */}
         <div className="nmis-table-wrap">
-          <div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
             <div>
 <h2 className="text-lg font-black text-brand-foreground">{title}</h2>
 	              <p className="nmis-helper">Showing {records.length.toLocaleString()} of {totalMatching.toLocaleString()} matching records.</p>
@@ -185,7 +185,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
             <Badge variant="info" className="w-fit">Source Traceable</Badge>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="nmis-table-scroll">
             <table className="nmis-table min-w-[1200px]">
               <thead>
                 <tr>
@@ -238,7 +238,7 @@ export default function FinancialRegisterPage({ type = 'claims-ffs' }: Props) {
             </table>
           </div>
 
-<div className="flex items-center justify-between p-4 border-t border-brand-divider">
+<div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-divider p-4">
 	            <p className="text-sm text-brand-muted">Page {page} of {totalPages}</p>
 	            <div className="flex gap-2">
 	              <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft size={16} /></Button>

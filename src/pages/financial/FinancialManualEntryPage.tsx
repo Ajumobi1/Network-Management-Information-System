@@ -222,12 +222,12 @@ export default function FinancialManualEntryPage() {
 
   return (
     <main className="nmis-page">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between gap-4">
+      <div className="mx-auto w-full max-w-5xl space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <Link to={workflow === 'capitation' ? '/financial/capitation' : '/financial/register'}>
             <Button variant="secondary" size="sm" className="gap-2"><ArrowLeft size={16} /> Back to register</Button>
           </Link>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-muted"><ClipboardPenLine size={14} /> Manual financial entry</div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-brand-muted sm:justify-end"><ClipboardPenLine size={14} /> Manual financial entry</div>
         </div>
 
         <PageHeader
@@ -280,7 +280,7 @@ export default function FinancialManualEntryPage() {
             </Card>
           )}
 
-          <div className="flex justify-end gap-3"><Link to={workflow === 'capitation' ? '/financial/capitation' : '/financial/register'}><Button type="button" variant="secondary">Cancel</Button></Link><Button type="submit" disabled={createBatch.isPending || providerQuery.isLoading}>{createBatch.isPending ? 'Saving record...' : 'Save financial record'}</Button></div>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><Link to={workflow === 'capitation' ? '/financial/capitation' : '/financial/register'}><Button type="button" variant="secondary" className="w-full sm:w-auto">Cancel</Button></Link><Button type="submit" disabled={createBatch.isPending || providerQuery.isLoading} className="w-full sm:w-auto">{createBatch.isPending ? 'Saving record...' : 'Save financial record'}</Button></div>
         </form>
       </div>
     </main>

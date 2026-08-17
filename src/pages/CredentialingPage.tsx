@@ -139,8 +139,8 @@ export default function CredentialingPage() {
           <LoadingState title="Fetching applications..." />
         ) : (
           <div className="nmis-table-wrap">
-            <div className="overflow-x-auto">
-              <table className="nmis-table">
+            <div className="nmis-table-scroll">
+              <table className="nmis-table min-w-[900px]">
                 <thead>
                   <tr>
                     <th>Provider</th>
@@ -195,10 +195,10 @@ export default function CredentialingPage() {
 
         {/* Review Drawer Overlay */}
         {selectedApp && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div role="dialog" aria-modal="true" className="max-h-[90vh] w-full max-w-3xl flex flex-col rounded-panel border border-brand-border bg-brand-card shadow-panel overflow-hidden">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-navy/40 p-2 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4">
+            <div role="dialog" aria-modal="true" className="flex max-h-[calc(100dvh-1rem)] w-full max-w-3xl flex-col overflow-hidden rounded-panel border border-brand-border bg-brand-card shadow-panel sm:max-h-[90vh]">
               {/* Drawer Header */}
-              <div className="flex items-center justify-between border-b border-brand-divider bg-brand-surface/50 p-6">
+              <div className="flex items-start justify-between gap-3 border-b border-brand-divider bg-brand-surface/50 p-4 sm:p-6">
                 <div>
                   <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-brand-blue">
                     <span>{selectedApp.providerCode}</span>
@@ -216,7 +216,7 @@ export default function CredentialingPage() {
               </div>
 
               {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              <div className="flex-1 space-y-8 overflow-y-auto p-4 sm:p-6">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
                     <p className="nmis-label">Facility Type</p>
@@ -281,11 +281,11 @@ export default function CredentialingPage() {
               </div>
 
               {/* Drawer Footer */}
-              <div className="border-t border-brand-divider bg-brand-surface/80 backdrop-blur-md p-6 flex flex-wrap gap-3 justify-end">
-                <Button variant="secondary" onClick={() => handleStatusChange(selectedApp.id, 'under-review')}>Set In-Review</Button>
-                <Button variant="outline" className="text-status-warning border-status-warning/30 hover:bg-status-warningSoft" onClick={() => handleStatusChange(selectedApp.id, 'additional-info-required')}>Request Info</Button>
-                <Button variant="outline" className="text-status-error border-status-error/30 hover:bg-status-errorSoft" onClick={() => handleStatusChange(selectedApp.id, 'rejected')}>Reject</Button>
-                <Button className="bg-status-success hover:bg-green-700 text-white shadow-soft" onClick={() => handleStatusChange(selectedApp.id, 'approved')}>Approve Credentialing</Button>
+              <div className="flex flex-col gap-3 border-t border-brand-divider bg-brand-surface/80 p-4 backdrop-blur-md sm:flex-row sm:flex-wrap sm:justify-end sm:p-6">
+                <Button variant="secondary" className="w-full sm:w-auto" onClick={() => handleStatusChange(selectedApp.id, 'under-review')}>Set In-Review</Button>
+                <Button variant="outline" className="w-full text-status-warning sm:w-auto border-status-warning/30 hover:bg-status-warningSoft" onClick={() => handleStatusChange(selectedApp.id, 'additional-info-required')}>Request Info</Button>
+                <Button variant="outline" className="w-full text-status-error sm:w-auto border-status-error/30 hover:bg-status-errorSoft" onClick={() => handleStatusChange(selectedApp.id, 'rejected')}>Reject</Button>
+                <Button className="w-full bg-status-success sm:w-auto hover:bg-green-700 text-white shadow-soft" onClick={() => handleStatusChange(selectedApp.id, 'approved')}>Approve Credentialing</Button>
               </div>
             </div>
           </div>

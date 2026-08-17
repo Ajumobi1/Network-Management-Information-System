@@ -70,11 +70,11 @@ export default function ProviderFilters({ filters, categories, ownerships, lgas,
           />
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="secondary" onClick={handleReset} className="h-[2.625rem]">
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 xl:w-auto">
+          <Button variant="secondary" onClick={handleReset} className="h-[2.625rem] flex-1 xl:flex-none">
             Reset
           </Button>
-          <Button variant="secondary" disabled className="h-[2.625rem] opacity-50" title="More filters are coming soon">
+          <Button variant="secondary" disabled className="h-[2.625rem] flex-1 opacity-50 xl:flex-none" title="More filters are coming soon">
             More filters
           </Button>
         </div>

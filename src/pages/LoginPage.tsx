@@ -5,7 +5,7 @@ function LoginPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-6 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-6 sm:px-6 sm:py-10">
       <div className="relative grid w-full max-w-[1550px] grid-cols-1 overflow-hidden rounded-[2rem] bg-white text-slate-900 shadow-soft lg:grid-cols-[1.1fr_0.9fr]">
         <aside className="relative hidden overflow-hidden bg-[#0D184C] px-12 py-14 text-white lg:block">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.14),transparent_25%)]" />
@@ -56,7 +56,7 @@ function LoginPage() {
           </div>
         </aside>
 
-        <main className="relative bg-slate-50 px-8 py-10 lg:px-14 lg:py-14">
+        <main className="relative bg-slate-50 px-4 py-8 sm:px-8 sm:py-10 lg:px-14 lg:py-14">
           <div className="absolute right-8 top-8 hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm shadow-slate-300/20 lg:flex">
             <GlobeAltIcon className="h-4 w-4 text-slate-500" />
             English
@@ -68,7 +68,7 @@ function LoginPage() {
               <p className="mt-3 text-sm text-slate-500">Sign in to continue to your account</p>
             </div>
 
-            <div className="rounded-[2rem] bg-white p-8 shadow-soft">
+            <div className="rounded-[2rem] bg-white p-5 shadow-soft sm:p-8">
               <form
                 className="space-y-6"
                 onSubmit={e => {
@@ -108,7 +108,7 @@ function LoginPage() {
                   </div>
                 </label>
 
-              <div className="flex items-center justify-between text-sm text-slate-600">
+              <div className="flex flex-col items-start gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
                 <label className="inline-flex items-center gap-2">
                   <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-[#16A34A] focus:ring-[#16A34A]" />
                   Remember me

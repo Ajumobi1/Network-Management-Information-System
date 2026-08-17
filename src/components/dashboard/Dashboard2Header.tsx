@@ -93,17 +93,17 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
         </div>
 
         <div className="mt-5 flex flex-wrap items-end gap-3">
-          <div className="w-full max-w-[140px]">
+          <div className="w-full sm:max-w-[140px]">
               <Select label="Year" value={filters.year ? String(filters.year) : ''} options={options.years.map(y => ({ label: String(y), value: y }))} placeholder="All years" onChange={event => onChange('year', event.target.value ? Number(event.target.value) : undefined)} />
           </div>
-          <div className="w-full max-w-[160px]">
+          <div className="w-full sm:max-w-[160px]">
               <Select label="Month" value={filters.month ? String(filters.month) : ''} options={monthNames.map((label, index) => ({ label, value: index + 1 }))} placeholder="All months" onChange={event => onChange('month', event.target.value ? Number(event.target.value) : undefined)} />
           </div>
-          <div className="w-full max-w-[180px]">
+          <div className="w-full sm:max-w-[180px]">
             <Select label="LGA" value={filters.lga || ''} options={options.lgas.map(l => ({ label: l, value: l }))} placeholder="All LGAs" onChange={event => onChange('lga', event.target.value || undefined)} />
           </div>
-          <button type="button" onClick={() => setMoreFiltersOpen(open => !open)} className="inline-flex min-h-[2.625rem] items-center gap-2 rounded-control border border-brand-border px-4 py-2 text-sm font-semibold text-brand-secondary transition hover:bg-brand-surface"><Filter className="h-4 w-4" />{moreFiltersOpen ? 'Hide Filters' : 'More Filters'}<ChevronDown className={`h-4 w-4 transition-transform ${moreFiltersOpen ? 'rotate-180' : ''}`} /></button>
-          <button type="button" onClick={onClear} className="min-h-[2.625rem] rounded-control px-4 py-2 text-sm font-semibold text-brand-muted transition hover:bg-brand-surface hover:text-brand-foreground">Clear All</button>
+          <button type="button" onClick={() => setMoreFiltersOpen(open => !open)} className="inline-flex min-h-[2.625rem] w-full items-center justify-center gap-2 rounded-control border border-brand-border px-4 py-2 text-sm font-semibold text-brand-secondary transition hover:bg-brand-surface sm:w-auto"><Filter className="h-4 w-4" />{moreFiltersOpen ? 'Hide Filters' : 'More Filters'}<ChevronDown className={`h-4 w-4 transition-transform ${moreFiltersOpen ? 'rotate-180' : ''}`} /></button>
+          <button type="button" onClick={onClear} className="min-h-[2.625rem] w-full rounded-control px-4 py-2 text-sm font-semibold text-brand-muted transition hover:bg-brand-surface hover:text-brand-foreground sm:w-auto">Clear All</button>
         </div>
 
         {moreFiltersOpen ? <div className="mt-4 grid gap-4 rounded-panel border border-brand-divider bg-brand-surface/50 p-4 sm:grid-cols-2 lg:grid-cols-4">

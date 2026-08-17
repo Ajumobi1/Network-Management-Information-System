@@ -49,8 +49,8 @@ export default function ProviderTable({
   return (
     <div className="nmis-table-wrap">
       <ProviderToolbar selectedCount={selected.length} visibleColumnCount={listColumns.length} />
-      <div className="overflow-x-auto">
-        <table className="nmis-table w-full">
+      <div className="nmis-table-scroll">
+        <table className="nmis-table w-full min-w-[960px]">
           <thead>
             <tr>
               <th className="w-12 px-6 py-4">
@@ -85,7 +85,7 @@ export default function ProviderTable({
                 className="hover:bg-slate-50/50 transition-colors cursor-pointer"
                 onClick={() => navigate(`/providers/${provider.id}`)}
               >
-                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                <td className="px-4 py-3 sm:px-6 sm:py-4" onClick={(e) => e.stopPropagation()}>
                   <input
                     aria-label={`Select ${provider.providerName}`}
                     type="checkbox"
@@ -97,17 +97,17 @@ export default function ProviderTable({
                 <td className="px-6 py-4 font-mono text-xs font-bold text-brand-blue bg-brand-blue/5 rounded-lg text-center w-20">
                   {provider.providerCode}
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3 sm:px-6 sm:py-4">
                   <div className="font-black text-slate-900 text-sm hover:text-brand-blue transition-colors">{provider.providerName}</div>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3 sm:px-6 sm:py-4">
                   <Badge variant="info" className="text-[10px] uppercase tracking-wider">{getProviderCategoryLabel(provider.category)}</Badge>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3 sm:px-6 sm:py-4">
                   <span className="text-xs font-semibold text-slate-700">{provider.ownership}</span>
                 </td>
                 <td className="px-6 py-4 text-slate-600 font-medium">{provider.lga}</td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3 sm:px-6 sm:py-4">
                   <ProviderStatusBadge status={provider.status} />
                 </td>
                 <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
@@ -130,7 +130,7 @@ export default function ProviderTable({
           Showing {startItem}–{endItem} of {totalCount} providers <span className="mx-2 opacity-30">|</span> Page {page} of {totalPages}
         </p>
         {totalPages > 1 && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
               size="sm"
@@ -140,7 +140,7 @@ export default function ProviderTable({
             >
               <ChevronLeft size={16} /> Previous
             </Button>
-            <div className="flex items-center gap-1 px-2">
+            <div className="flex max-w-full flex-wrap items-center gap-1 px-2">
               {Array.from({ length: totalPages }).map((_, idx) => {
                 const pageNum = idx + 1;
                 const isCurrent = pageNum === page;

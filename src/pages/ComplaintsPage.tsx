@@ -131,8 +131,8 @@ function ComplaintsPage() {
           ) : complaints.length === 0 ? (
             <div className="p-8 text-center text-slate-500">No complaints found matching criteria.</div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="nmis-table-scroll">
+              <table className="w-full min-w-[900px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/75 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <th className="px-6 py-3">Provider</th>
@@ -193,9 +193,9 @@ function ComplaintsPage() {
 
         {/* Complaint Review Drawer / Modal */}
         {selectedComplaint && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+            <div className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:max-h-[90vh] sm:rounded-3xl sm:p-6">
+              <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
                 <div>
                   <h3 className="text-xl font-semibold text-slate-900">{selectedComplaint.title}</h3>
                   <p className="text-sm text-slate-500">{selectedComplaint.providerName} ({selectedComplaint.providerCode})</p>
@@ -209,7 +209,7 @@ function ComplaintsPage() {
               </div>
 
               <div className="mt-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl">
+                <div className="grid gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Category</p>
                     <p className="mt-1 text-sm font-medium text-slate-900">{COMPLAINT_CATEGORY_LABELS[selectedComplaint.category]}</p>
@@ -284,9 +284,9 @@ function ComplaintsPage() {
 
         {/* New Complaint Modal */}
         {isNewModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
-              <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+            <div className="max-h-[calc(100dvh-1rem)] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:max-h-[90vh] sm:rounded-3xl sm:p-6">
+              <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
                 <h3 className="text-xl font-semibold text-slate-900">Register new complaint</h3>
                 <button
                   onClick={() => setIsNewModalOpen(false)}
@@ -309,7 +309,7 @@ function ComplaintsPage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Category</label>
                     <select
@@ -359,18 +359,18 @@ function ComplaintsPage() {
                   />
                 </div>
 
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
                   <button
                     type="button"
                     onClick={() => setIsNewModalOpen(false)}
-                    className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:w-auto"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={createMutation.isPending}
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="w-full rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50 sm:w-auto"
                   >
                     {createMutation.isPending ? 'Registering...' : 'Register Complaint'}
                   </button>

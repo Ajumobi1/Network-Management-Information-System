@@ -63,7 +63,7 @@ export default function ImportHistoryPage() {
         </section>
 
         <div className="nmis-table-wrap">
-          <div className="flex flex-col gap-4 border-b border-brand-divider bg-brand-surface/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 border-b border-brand-divider bg-brand-surface/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
             <SectionHeader title="Financial Data Batches" subtitle={`${filteredBatches.length} batches matching current view.`} />
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-subtle" />
@@ -71,7 +71,7 @@ export default function ImportHistoryPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="nmis-table-scroll">
             <table className="nmis-table min-w-[1000px]">
               <thead>
                 <tr>
@@ -138,9 +138,9 @@ export default function ImportHistoryPage() {
         </div>
 
         {selectedBatch && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-navy/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl rounded-panel border border-brand-border bg-brand-card shadow-panel overflow-hidden">
-              <div className="flex items-start justify-between bg-brand-surface/50 p-6 border-b border-brand-divider">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-navy/40 p-2 backdrop-blur-sm animate-in fade-in duration-200 sm:p-4">
+            <div className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto rounded-panel border border-brand-border bg-brand-card shadow-panel sm:max-h-[90vh]">
+              <div className="flex items-start justify-between gap-3 border-b border-brand-divider bg-brand-surface/50 p-4 sm:p-6">
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Batch Analysis</p>
                   <h2 className="mt-1 text-2xl font-black text-brand-foreground">{selectedBatch.fileName}</h2>
@@ -149,7 +149,7 @@ export default function ImportHistoryPage() {
                 <button className="rounded-control p-2 text-brand-muted hover:bg-brand-surface hover:text-brand-foreground" onClick={() => setSelectedBatchId(null)}><X size={20} /></button>
               </div>
 
-              <div className="p-6 space-y-6">
+              <div className="space-y-6 p-4 sm:p-6">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <DetailItem label="Status" value={selectedBatch.status} isStatus />
                   <DetailItem label="Workflow" value={workflowLabel(selectedBatch.dataType)} />
@@ -170,8 +170,8 @@ export default function ImportHistoryPage() {
                 )}
               </div>
 
-              <div className="bg-brand-surface/50 p-6 border-t border-brand-divider flex justify-end">
-                <Button onClick={() => setSelectedBatchId(null)}>Close Analysis</Button>
+              <div className="flex justify-end border-t border-brand-divider bg-brand-surface/50 p-4 sm:p-6">
+                <Button className="w-full sm:w-auto" onClick={() => setSelectedBatchId(null)}>Close Analysis</Button>
               </div>
             </div>
           </div>

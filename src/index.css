@@ -135,6 +135,81 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+/* Responsive safety rails: page overflow is never the horizontal scroll surface. */
+.nmis-shell {
+  min-height: 100dvh;
+  overflow-x: clip;
+}
+
+.nmis-tab-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nmis-tab-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.nmis-topbar {
+  padding-top: env(safe-area-inset-top);
+}
+
+.nmis-main {
+  min-width: 0;
+  padding-bottom: calc(var(--space-page-y) + env(safe-area-inset-bottom));
+}
+
+.nmis-mobile-sheet {
+  max-height: 100dvh;
+  padding-top: calc(1.25rem + env(safe-area-inset-top));
+  padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+}
+
+.nmis-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.nmis-table-scroll > table {
+  min-width: max-content;
+}
+
+@media (max-width: 639px) {
+  .nmis-page {
+    gap: 1rem;
+  }
+
+  .nmis-page-title {
+    font-size: 1.5rem;
+    line-height: 1.25;
+  }
+
+  .nmis-page-subtitle {
+    line-height: 1.45;
+  }
+
+  .nmis-page-header > div:last-child {
+    width: 100%;
+  }
+
+  .nmis-page-header > div:last-child > * {
+    flex: 1 1 auto;
+  }
+
+  .nmis-filter-fields > * {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .nmis-table-wrap {
+    max-width: 100%;
+  }
+}
+
 @layer components {
   .nmis-page {
     @apply mx-auto w-full max-w-[1600px] space-y-6;

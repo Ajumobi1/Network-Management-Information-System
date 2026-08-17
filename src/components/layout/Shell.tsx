@@ -15,11 +15,11 @@ type ShellProps = {
 export default function Shell({ title, subtitle, breadcrumb = [], actions, children, hideHeader = false }: ShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  return <div className="min-h-screen bg-brand-background text-brand-foreground transition-colors duration-300">
+  return <div className="nmis-shell bg-brand-background text-brand-foreground transition-colors duration-300">
     <Topbar onMenuOpen={() => setMobileMenuOpen(true)} />
     <div className="flex min-h-[calc(100vh-4rem)]">
       <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      <main className="nmis-main min-w-0 flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
         <div className="nmis-page">
           {!hideHeader ? <PageHeader title={title} subtitle={subtitle} breadcrumb={breadcrumb} actions={actions} /> : null}
           {children}

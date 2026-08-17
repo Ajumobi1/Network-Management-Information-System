@@ -168,13 +168,13 @@ export default function PerformancePage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          <div className="nmis-table-scroll">
             {isRecordsLoading ? (
               <div className="p-8 text-center text-slate-500">Loading performance register...</div>
             ) : records.length === 0 ? (
               <div className="p-8 text-center text-slate-500">No facilities found matching performance criteria.</div>
             ) : (
-              <table className="w-full text-left border-collapse">
+              <table className="w-full min-w-[1000px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                     <th className="px-6 py-3">Facility</th>

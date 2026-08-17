@@ -105,12 +105,12 @@ export default function ExportEnrolmentDialog({ onClose, currentFilters, options
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 p-2 backdrop-blur-sm sm:p-4" onClick={onClose}>
       <div 
-        className="w-full max-w-lg overflow-hidden rounded-2xl border border-brand-border bg-brand-elevated shadow-2xl animate-in fade-in zoom-in duration-200"
+        className="max-h-[calc(100dvh-1rem)] w-full max-w-lg overflow-y-auto rounded-2xl border border-brand-border bg-brand-elevated shadow-2xl animate-in fade-in zoom-in duration-200 sm:max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-brand-divider bg-brand-surface/50 px-6 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-brand-divider bg-brand-surface/50 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-blue/10 text-brand-blue">
               <FileSpreadsheet className="h-5 w-5" />
@@ -128,7 +128,7 @@ export default function ExportEnrolmentDialog({ onClose, currentFilters, options
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 p-4 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {scopeOptions.map((opt) => (
               <button
@@ -198,14 +198,14 @@ export default function ExportEnrolmentDialog({ onClose, currentFilters, options
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-brand-divider bg-brand-surface/50 px-6 py-4">
-          <Button variant="secondary" onClick={onClose} disabled={isExporting}>
+        <div className="flex flex-col-reverse gap-3 border-t border-brand-divider bg-brand-surface/50 px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
+          <Button variant="secondary" className="w-full sm:w-auto" onClick={onClose} disabled={isExporting}>
             Cancel
           </Button>
           <Button 
             onClick={handleExport} 
             disabled={isExporting}
-            className="min-w-[140px]"
+            className="w-full min-w-[140px] sm:w-auto"
           >
             {isExporting ? (
               <>
