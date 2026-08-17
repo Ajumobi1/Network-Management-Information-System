@@ -19,7 +19,9 @@ export default function Topbar({ onMenuOpen }: TopbarProps) {
     <div className="mx-auto flex h-[4.5rem] max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <button type="button" onClick={onMenuOpen} className="inline-flex h-10 w-10 items-center justify-center rounded-control border border-brand-border bg-brand-card text-brand-secondary transition hover:bg-brand-surface lg:hidden" aria-label="Open navigation"><Menu className="h-5 w-5" /></button>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-control bg-brand-blue text-white shadow-soft"><Sparkles className="h-5 w-5" /></div>
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-control bg-white shadow-soft">
+          <img src="/assets/odchc-logo.png" alt="ODCHC Logo" className="h-full w-full object-contain p-0.5" />
+        </div>
         <div className="hidden min-w-0 sm:block"><p className="text-[0.625rem] font-bold uppercase tracking-[0.28em] text-brand-muted">NMIS</p><p className="truncate text-sm font-semibold text-brand-foreground">Health Enterprise Cloud</p></div>
       </div>
       <div className="hidden flex-1 items-center justify-center px-6 md:flex"><div className="relative w-full max-w-2xl"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-subtle" /><input type="search" placeholder="Search providers, policies, inspections..." aria-label="Global search" className="nmis-control bg-brand-surface pl-10 pr-4" /></div></div>
