@@ -60,7 +60,7 @@ function uniqueBlockHeader(value: unknown, index: number, used: Set<string>): st
 }
 
 function isSerialHeader(value: unknown): boolean {
-  return /^(S\s*N|SN|SERIAL(?: NO| NUMBER)?|INDEX)$/i.test(normalizeBlockText(value));
+  return /^(S\s*[/.]?\s*N(?:O)?|SN(?:O)?|SERIAL(?:\s+NO|\s+NUMBER)?|INDEX)$/i.test(normalizeBlockText(value));
 }
 
 function isSummaryCell(value: unknown): boolean {
@@ -184,13 +184,19 @@ export const aiIngestionEngine = {
         .map(entry => entry.header)
         .find(header => {
           const normalized = normalizeBlockText(header);
-          return normalized && !isSerialHeader(normalized) && normalized !== 'PERIOD' && !normalized.includes('PAYMENT') && !normalized.includes('DATE') && !normalized.includes('AMOUNT');
+          const genericProviderHeader = new Set(['PROVIDER', 'PROVIDERS', 'FACILITY', 'FACILITIES', 'OUTLET', 'OUTLETS', 'FACILITY NAME', 'PROVIDER NAME', 'NAME', 'CATEGORY', 'TYPE', 'ROW TYPE', 'FINANCIAL ROW TYPE', 'MONTH', 'YEAR']);
+          return normalized && !/^COLUMN \d+$/.test(normalized) && !monthNumberFromText(normalized) && !genericProviderHeader.has(normalized) && !isSerialHeader(normalized) && normalized !== 'PERIOD' && !normalized.includes('PAYMENT') && !normalized.includes('DATE') && !normalized.includes('AMOUNT') && !normalized.includes('TOTAL');
         });
       const providerName = providerNameFromBlockTitle(title, headerProvider);
       const category = blockCategoryFromText(`${sheetName} ${title || ''} ${providerName || ''}`);
-      const range = parseBlockRange(title);
+      const range = parseBlockRange([sheetName, title].filter(Boolean).join(' '));
       const rows: Array<Record<string, unknown>> = [];
       const detectedPeriods = new Set<string>();
+      const scheduleYear = range.startYear || range.endYear;
+      headerEntries.forEach(entry => {
+        const month = monthNumberFromText(entry.header);
+        if (month && scheduleYear) detectedPeriods.add(`${scheduleYear}-${String(month).padStart(2, '0')}`);
+      });
       const rawHeaders = headerEntries.map(entry => entry.header);
       const headers = [syntheticProviderHeader, syntheticMonthHeader, syntheticYearHeader, syntheticCategoryHeader, ...rawHeaders];
 
