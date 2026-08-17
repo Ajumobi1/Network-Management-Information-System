@@ -77,14 +77,42 @@ function blockCategoryFromText(text: string): string | undefined {
   return undefined;
 }
 
+function cleanProviderName(name: string | undefined): string | undefined {
+  if (!name) return undefined;
+  let cleaned = name.toUpperCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\(IDH\)/g, ' IDH ')
+    .replace(/\bM\.?O\.?H\b/g, ' MINISTRY OF HEALTH ')
+    .replace(/\bS\.?S\.?H\b/g, ' STATE SPECIALIST HOSPITAL ')
+    .replace(/\bG\.?H\b/g, ' GENERAL HOSPITAL ')
+    .replace(/\bC\.?H\.?C\b/g, ' COMPREHENSIVE HEALTH CENTRE ')
+    .replace(/\bP\.?H\.?C\b/g, ' PRIMARY HEALTH CENTRE ')
+    .replace(/\bRD\.?\b/g, ' ROAD ')
+    .replace(/\bLGA\b/g, ' ')
+    .replace(/\bONDO STATE\b/g, ' ')
+    .replace(/\bAKURE\b/g, ' ')
+    .replace(/[,.]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  // If the name is now very short or empty, revert to original uppercase
+  if (cleaned.length < 3) return name.toUpperCase().trim();
+  return cleaned;
+}
+
 function providerNameFromBlockTitle(title: string | undefined, headerProvider: string | undefined): string | undefined {
+  let name: string | undefined;
   if (title) {
     const oranghis = title.match(/^(.+?)\s+ORANGHIS\b/i);
-    if (oranghis?.[1]) return oranghis[1].trim();
-    const report = title.match(/^(.+?)\s+CLAIMS?\s+SUMMARY/i);
-    if (report?.[1]) return report[1].trim();
+    if (oranghis?.[1]) name = oranghis[1].trim();
+    else {
+      const report = title.match(/^(.+?)\s+CLAIMS?\s+SUMMARY/i);
+      if (report?.[1]) name = report[1].trim();
+    }
   }
-  return headerProvider?.trim() || undefined;
+  if (!name) name = headerProvider?.trim();
+  
+  return cleanProviderName(name);
 }
 
 function parseBlockRange(title: string | undefined): { startMonth?: number; startYear?: number; endMonth?: number; endYear?: number } {
