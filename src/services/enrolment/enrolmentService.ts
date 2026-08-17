@@ -404,27 +404,59 @@ export function normalizeEnrolmentRows(
 }
 
 export function markDuplicateEnrollees(records: EnrolleeRecord[]): EnrolleeRecord[] {
-  const seen = new Set<string>();
+  const groups = new Map<string, EnrolleeRecord[]>();
+  
+  // First pass: group by fingerprint
+  records.forEach(record => {
+    const fingerprint = record.fingerprint || buildEnrolleeFingerprint(record.policyNumber, record.period);
+    const group = groups.get(fingerprint) || [];
+    group.push(record);
+    groups.set(fingerprint, group);
+  });
+
+  // Second pass: mark ALL duplicates with context about their peers
   return records.map(record => {
     const fingerprint = record.fingerprint || buildEnrolleeFingerprint(record.policyNumber, record.period);
-    const duplicate = seen.has(fingerprint);
-    seen.add(fingerprint);
-    if (duplicate) {
+    const group = groups.get(fingerprint) || [];
+    const count = group.length;
+    
+    if (count > 1) {
+      // Find other records with same fingerprint to show in the error message
+      const peers = group.filter(r => r.id !== record.id);
+      const peerDetails = peers.slice(0, 2).map(p => `${p.firstName} ${p.lastName} (Row ${p.sourceRow})`).join(', ');
+      const suffix = peers.length > 2 ? ` and ${peers.length - 2} others` : '';
+
       const duplicateError: EnrolmentValidationError = {
         code: 'DUPLICATE_RECORD',
-        message: 'This policy number already exists in this batch for the same reporting period.',
+        message: `Policy number ${record.policyNumber} is shared by ${count} records: ${record.firstName} ${record.lastName} (this row) vs ${peerDetails}${suffix}. All occurrences are excluded.`,
         field: 'policyNumber',
         severity: 'error',
-        suggestedAction: 'Remove the duplicate row from the source Excel or exclude it from the import.'
+        suggestedAction: 'Ensure each beneficiary has a unique policy number in the source Excel, then re-upload.'
       };
+      
+      // Clean existing duplicate errors before adding the fresh one
+      const otherErrors = (record.structuredErrors || []).filter(e => e.code !== 'DUPLICATE_RECORD');
+      
       return { 
         ...record, 
         fingerprint, 
         recordStatus: 'duplicate',
-        structuredErrors: [...(record.structuredErrors || []), duplicateError],
-        validationErrors: [...(record.validationErrors || []), duplicateError.message]
+        structuredErrors: [...otherErrors, duplicateError],
+        validationErrors: [...otherErrors.map(e => e.message), duplicateError.message]
       };
     }
+    
+    // If it's no longer a duplicate (e.g. after a manual edit), restore its status if it was 'duplicate'
+    if (record.recordStatus === 'duplicate') {
+      const remainingErrors = (record.structuredErrors || []).filter(e => e.code !== 'DUPLICATE_RECORD');
+      return {
+        ...record,
+        recordStatus: remainingErrors.length > 0 ? 'error' : 'valid',
+        structuredErrors: remainingErrors,
+        validationErrors: remainingErrors.map(e => e.message)
+      };
+    }
+
     return { ...record, fingerprint };
   });
 }

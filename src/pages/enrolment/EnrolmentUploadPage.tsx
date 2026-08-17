@@ -1619,7 +1619,8 @@ function ErrorInspectionModal({
                               updatedRecord.recordStatus = structuredErrors.length > 0 ? 'error' : 'valid';
                               
                               const finalRecords = records.map(r => r.id === record.id ? updatedRecord : r);
-                              onUpdateRecords(finalRecords);
+                              // Re-run batch-level duplicate detection to update all affected records
+                              onUpdateRecords(enrolmentService.markDuplicateEnrollees(finalRecords));
                               setEditingId(null);
                             }}
                           >
