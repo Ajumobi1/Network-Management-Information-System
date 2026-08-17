@@ -405,8 +405,15 @@ export default function DataUploadCentrePage() {
         )];
       }
       updateActiveData({ matches: results });
-    setStep('classify');
-  } catch (error) {
+      setMatchSearch(() => {
+        const next: Record<string, string> = {};
+        results.forEach(match => {
+          if (match.status !== 'confirmed') next[match.excelName] = match.excelName;
+        });
+        return next;
+      });
+      setStep('classify');
+    } catch (error) {
     setErrorMessage(error instanceof Error ? error.message : 'Matching failed');
   } finally {
     setIsAnalyzing(false);

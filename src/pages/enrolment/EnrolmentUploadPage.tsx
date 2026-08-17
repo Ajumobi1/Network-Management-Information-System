@@ -483,8 +483,8 @@ export default function EnrolmentUploadPage() {
       }
 
       updateActiveData({ matches: results });
-      setProviderSearchTerms(prev => {
-        const next = { ...prev };
+      setProviderSearchTerms(() => {
+        const next: Record<number, string> = {};
         results.forEach((match, index) => {
           if (match.status !== 'confirmed') next[index] = match.excelName;
         });
