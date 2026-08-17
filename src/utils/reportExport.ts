@@ -45,3 +45,36 @@ export function exportBatchErrorsAndDuplicatesReport(
   const safeName = batchName.replace(/[^a-zA-Z0-9_-]/g, '_');
   downloadCsvReport(`nmis-import-report-${safeName}-${timestamp}.csv`, headers, rows);
 }
+
+export function exportUnifiedQueueReport(
+  queueName: string,
+  allIssues: Array<{
+    fileName: string;
+    sourceRow?: number;
+    providerName?: string;
+    period?: string;
+    policyNumber?: string;
+    firstName?: string;
+    lastName?: string;
+    recordStatus?: string;
+    validationErrors?: string[];
+  }>
+) {
+  if (allIssues.length === 0) return;
+
+  const headers = ['Source File', 'Source Row', 'Status', 'Provider / Facility', 'Period', 'Policy Number', 'Beneficiary', 'Error / Issue Details'];
+  const rows = allIssues.map(r => [
+    r.fileName,
+    r.sourceRow ?? '—',
+    r.recordStatus?.toUpperCase() ?? 'ERROR',
+    r.providerName ?? '—',
+    r.period ?? '—',
+    r.policyNumber ?? '—',
+    [r.firstName, r.lastName].filter(Boolean).join(' ') || '—',
+    r.validationErrors?.join('; ') || 'Record flagged by AI validation or duplicate protection',
+  ]);
+
+  const timestamp = new Date().toISOString().split('T')[0];
+  const safeName = queueName.replace(/[^a-zA-Z0-9_-]/g, '_');
+  downloadCsvReport(`nmis-unified-batch-report-${safeName}-${timestamp}.csv`, headers, rows);
+}

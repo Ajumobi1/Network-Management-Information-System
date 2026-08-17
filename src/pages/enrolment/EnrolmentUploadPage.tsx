@@ -37,7 +37,7 @@ import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
-import { exportBatchErrorsAndDuplicatesReport } from '../../utils/reportExport';
+import { exportBatchErrorsAndDuplicatesReport, exportUnifiedQueueReport } from '../../utils/reportExport';
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type RawRow = Record<string, unknown>;
@@ -213,6 +213,7 @@ export default function EnrolmentUploadPage() {
     try {
       // Find all items that are not yet imported
       const pendingItems = queue.filter(item => item.status !== 'imported');
+      const allQueueIssues: Array<any> = [];
       
       for (const item of pendingItems) {
         try {
@@ -354,6 +355,12 @@ export default function EnrolmentUploadPage() {
             records: records.filter(r => r.recordStatus === 'valid')
           });
 
+          // Collect any errors/duplicates for unified batch report
+          const fileIssues = records
+            .filter(r => r.recordStatus === 'error' || r.recordStatus === 'duplicate' || (r.validationErrors && r.validationErrors.length > 0))
+            .map(r => ({ ...r, fileName: item.file.name }));
+          allQueueIssues.push(...fileIssues);
+
           updateQueueItem(item.id, {
             status: 'imported',
             matched: readyCount,
@@ -371,8 +378,12 @@ export default function EnrolmentUploadPage() {
         }
       }
       
+      if (allQueueIssues.length > 0) {
+        exportUnifiedQueueReport('enrolment-batch-queue', allQueueIssues);
+      }
+
       setStep('commit');
-      setCommitMessage('Autonomous processing completed for all files.');
+      setCommitMessage('Autonomous processing completed for all files. Unified issue report downloaded.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Autonomous processing failed');
     } finally {

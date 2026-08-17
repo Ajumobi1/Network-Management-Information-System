@@ -35,7 +35,7 @@ import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
 import { aiIngestionEngine } from '../../services/ingestion/aiIngestionEngine';
-import { exportBatchErrorsAndDuplicatesReport } from '../../utils/reportExport';
+import { exportBatchErrorsAndDuplicatesReport, exportUnifiedQueueReport } from '../../utils/reportExport';
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type UploadWorkflow = 'claims-ffs' | 'capitation';
@@ -599,6 +599,7 @@ const generatePreview = () => {
     
     try {
       const pendingItems = queue.filter(item => item.status !== 'imported');
+      const allQueueIssues: Array<any> = [];
       
       for (const item of pendingItems) {
         try {
@@ -718,6 +719,11 @@ const generatePreview = () => {
             records: classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0))
           });
 
+          const fileIssues = classifiedRecords
+            .filter(r => r.recordStatus === 'error' || r.recordStatus === 'duplicate' || (r.validationErrors && r.validationErrors.length > 0))
+            .map(r => ({ ...r, firstName: r.providerName, lastName: '', fileName: item.file.name }));
+          allQueueIssues.push(...fileIssues);
+
           updateQueueItem(item.id, { status: 'imported', matched: readyCount, duplicates: duplicateCount, errors: errorCount, review: reviewCount });
         } catch (fileError) {
           console.error(`Error processing financial file ${item.file.name}:`, fileError);
@@ -729,8 +735,12 @@ const generatePreview = () => {
         }
       }
       
+      if (allQueueIssues.length > 0) {
+        exportUnifiedQueueReport('financial-batch-queue', allQueueIssues);
+      }
+
       setStep('commit');
-      setCommitMessage('Autonomous processing completed for all financial files.');
+      setCommitMessage('Autonomous processing completed for all financial files. Unified issue report downloaded.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Autonomous processing failed');
     } finally {
