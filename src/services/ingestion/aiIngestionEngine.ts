@@ -82,6 +82,7 @@ function cleanProviderName(name: string | undefined): string | undefined {
   let cleaned = name.toUpperCase()
     .replace(/\s+/g, ' ')
     .replace(/\(IDH\)/g, ' IDH ')
+    .replace(/&/g, ' AND ')
     .replace(/\bM\.?O\.?H\b/g, ' MINISTRY OF HEALTH ')
     .replace(/\bS\.?S\.?H\b/g, ' STATE SPECIALIST HOSPITAL ')
     .replace(/\bG\.?H\b/g, ' GENERAL HOSPITAL ')
@@ -91,6 +92,9 @@ function cleanProviderName(name: string | undefined): string | undefined {
     .replace(/\bLGA\b/g, ' ')
     .replace(/\bONDO STATE\b/g, ' ')
     .replace(/\bAKURE\b/g, ' ')
+    .replace(/\bLIMITED\b/g, ' ')
+    .replace(/\bLTD\b/g, ' ')
+    .replace(/\bHOSPITALS\b/g, ' HOSPITAL ')
     .replace(/[,.]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
