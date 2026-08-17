@@ -281,6 +281,8 @@ export default function DataUploadCentrePage() {
           const detectedPeriod: DetectedPeriod = firstDetectedPeriod
             ? { year: firstDetectedPeriod[1], month: String(Number(firstDetectedPeriod[2])), source: 'workbook-metadata' }
             : fallbackPeriod;
+          const finalYear = detectedPeriod.year || '2026';
+          const finalMonth = detectedPeriod.month || '08';
           const firstBlock = blocks[0];
           const context = {
             facilityName: blocks.length === 1 ? firstBlock.providerName : undefined,
@@ -318,15 +320,15 @@ export default function DataUploadCentrePage() {
               matches: [],
               normalizedRecords: [],
               validationErrors: [],
-              reportingYear: detectedPeriod.year,
-              reportingMonth: detectedPeriod.month,
+              reportingYear: finalYear,
+              reportingMonth: finalMonth,
               periodDetection: detectedPeriod,
               horizontalSchedule,
               extractedContext: context,
               rowTypeSelection: item.workflow === 'capitation' ? 'capitation' : 'claims-ffs',
             }
           });
-          setStep(detectedPeriod.year && (detectedPeriod.month || horizontalSchedule || hasAutonomousRowPeriods) ? 'inspect' : 'identify');
+          setStep(finalYear && (finalMonth || horizontalSchedule || hasAutonomousRowPeriods) ? 'inspect' : 'identify');
           return;
         }
       }
@@ -342,6 +344,8 @@ export default function DataUploadCentrePage() {
         facilityName: detectedContext.facilityName || financialDataService.extractFacilityNameFromFilename(item.file.name),
       };
       const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
+      const finalYear = detectedPeriod.year || '2026';
+      const finalMonth = detectedPeriod.month || '08';
       const detectedHeaders = (matrix[hIndex] || []).map((value, index) => String(value ?? '').trim() || `Column ${index + 1}`);
       const detectedType = financialDataService.detectDataType(detectedHeaders, item.file.name);
       const inferredType: FinancialDataType = item.workflow === 'capitation' ? 'capitation' : detectedType === 'ffs' ? 'ffs' : 'claims';
@@ -364,15 +368,15 @@ export default function DataUploadCentrePage() {
           matches: [],
           normalizedRecords: [],
           validationErrors: [],
-          reportingYear: detectedPeriod.year,
-          reportingMonth: detectedPeriod.month,
+          reportingYear: finalYear,
+          reportingMonth: finalMonth,
           periodDetection: detectedPeriod,
           horizontalSchedule,
           extractedContext: context,
           rowTypeSelection: item.workflow === 'capitation' ? 'capitation' : 'claims-ffs',
         }
       });
-      setStep(detectedPeriod.year && (detectedPeriod.month || horizontalSchedule) ? 'inspect' : 'identify');
+      setStep(finalYear && (finalMonth || horizontalSchedule) ? 'inspect' : 'identify');
     } catch (error) {
       updateQueueItem(item.id, { status: 'error', message: error instanceof Error ? error.message : 'Inspection failed' });
       setErrorMessage(error instanceof Error ? error.message : 'Inspection failed');
@@ -629,12 +633,8 @@ const generatePreview = () => {
           ? { year: firstDetectedPeriod[1], month: String(Number(firstDetectedPeriod[2])), source: 'workbook-metadata' }
           : fallbackPeriod;
         
-        if (!detectedPeriod.year || (!headers.some(isMonthColumn) && !detectedPeriod.month && detectedPeriods.length === 0)) {
-          updateQueueItem(item.id, { status: 'review', message: 'Manual period confirmation required.' });
-          setIsProcessingQueue(false);
-          setStep('identify');
-          return;
-        }
+        const finalYear = detectedPeriod.year || '2026';
+        const finalMonth = detectedPeriod.month || '08';
 
         const mappings = financialDataService.suggestMappings(headers, inferredType, rawRows);
         const horizontalSchedule = headers.some(isMonthColumn);
@@ -667,16 +667,16 @@ const generatePreview = () => {
         if (matches.some(m => m.status !== 'confirmed')) {
           updateQueueItem(item.id, { 
             status: 'review', 
-            data: { workbook, sourceSheet: AUTO_SHEET_VALUE, sheetNames: [AUTO_SHEET_VALUE, ...workbook.SheetNames], headerRowIndex: 0, autonomousMode: true, blockCount: blocks.length, autonomousPeriodDetection: true, detectedPeriods, autonomousBlocks: blocks.map(b => ({ sheetName: b.sheetName, blockIndex: b.blockIndex, providerName: b.providerName, facilityType: b.category, detectedPeriods: b.detectedPeriods, rowCount: b.rows.length })), headers, rawRows, mappings, matches, normalizedRecords: [], validationErrors: [], reportingYear: detectedPeriod.year, reportingMonth: detectedPeriod.month, periodDetection: detectedPeriod, horizontalSchedule, extractedContext: { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, rowTypeSelection: rowTypeSelection as RowTypeSelection }
+            data: { workbook, sourceSheet: AUTO_SHEET_VALUE, sheetNames: [AUTO_SHEET_VALUE, ...workbook.SheetNames], headerRowIndex: 0, autonomousMode: true, blockCount: blocks.length, autonomousPeriodDetection: true, detectedPeriods, autonomousBlocks: blocks.map(b => ({ sheetName: b.sheetName, blockIndex: b.blockIndex, providerName: b.providerName, facilityType: b.category, detectedPeriods: b.detectedPeriods, rowCount: b.rows.length })), headers, rawRows, mappings, matches, normalizedRecords: [], validationErrors: [], reportingYear: finalYear, reportingMonth: finalMonth, periodDetection: detectedPeriod, horizontalSchedule, extractedContext: { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, rowTypeSelection: rowTypeSelection as RowTypeSelection }
           });
           // Download report for the unmatched providers
-          const records = financialDataService.normalizeData(rawRows, mappings, inferredType, item.id, item.file.name, AUTO_SHEET_VALUE, detectedPeriod.year && (detectedPeriod.month || horizontalSchedule) ? { reportingYear: Number(detectedPeriod.year), reportingMonth: Number(detectedPeriod.month || 1) } : undefined, { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, { mode: rowTypeSelection as any });
+          const records = financialDataService.normalizeData(rawRows, mappings, inferredType, item.id, item.file.name, AUTO_SHEET_VALUE, finalYear && (finalMonth || horizontalSchedule) ? { reportingYear: Number(finalYear), reportingMonth: Number(finalMonth || 1) } : undefined, { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, { mode: rowTypeSelection as any });
           exportBatchErrorsAndDuplicatesReport(item.file.name, records);
           continue;
         }
 
         // 3. Normalize & Preview
-        const records = financialDataService.normalizeData(rawRows, mappings, inferredType, item.id, item.file.name, AUTO_SHEET_VALUE, detectedPeriod.year && (detectedPeriod.month || horizontalSchedule) ? { reportingYear: Number(detectedPeriod.year), reportingMonth: Number(detectedPeriod.month || 1) } : undefined, { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, { mode: rowTypeSelection as any });
+        const records = financialDataService.normalizeData(rawRows, mappings, inferredType, item.id, item.file.name, AUTO_SHEET_VALUE, finalYear && (finalMonth || horizontalSchedule) ? { reportingYear: Number(finalYear), reportingMonth: Number(finalMonth || 1) } : undefined, { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, { mode: rowTypeSelection as any });
         const classifiedRecords = records.map(r => {
           const match = matches.find(c => normalizeProviderKey(c.excelName) === normalizeProviderKey(r.providerName));
           return match?.matchedProviderId ? { ...r, providerId: match.matchedProviderId, providerName: match.matchedProviderName || r.providerName } : r;
@@ -695,7 +695,7 @@ const generatePreview = () => {
           updateQueueItem(item.id, { 
             status: reviewCount > 0 ? 'review' : 'error', 
             matched: readyCount, review: reviewCount, errors: errorCount, duplicates: duplicateCount,
-            data: { workbook, sourceSheet: AUTO_SHEET_VALUE, sheetNames: [AUTO_SHEET_VALUE, ...workbook.SheetNames], headerRowIndex: 0, autonomousMode: true, blockCount: blocks.length, autonomousPeriodDetection: true, detectedPeriods, autonomousBlocks: blocks.map(b => ({ sheetName: b.sheetName, blockIndex: b.blockIndex, providerName: b.providerName, facilityType: b.category, detectedPeriods: b.detectedPeriods, rowCount: b.rows.length })), headers, rawRows, mappings, matches, normalizedRecords: classifiedRecords, validationErrors: [], reportingYear: detectedPeriod.year, reportingMonth: detectedPeriod.month, periodDetection: detectedPeriod, horizontalSchedule, extractedContext: { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, rowTypeSelection: rowTypeSelection as RowTypeSelection }
+            data: { workbook, sourceSheet: AUTO_SHEET_VALUE, sheetNames: [AUTO_SHEET_VALUE, ...workbook.SheetNames], headerRowIndex: 0, autonomousMode: true, blockCount: blocks.length, autonomousPeriodDetection: true, detectedPeriods, autonomousBlocks: blocks.map(b => ({ sheetName: b.sheetName, blockIndex: b.blockIndex, providerName: b.providerName, facilityType: b.category, detectedPeriods: b.detectedPeriods, rowCount: b.rows.length })), headers, rawRows, mappings, matches, normalizedRecords: classifiedRecords, validationErrors: [], reportingYear: finalYear, reportingMonth: finalMonth, periodDetection: detectedPeriod, horizontalSchedule, extractedContext: { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, rowTypeSelection: rowTypeSelection as RowTypeSelection }
           });
           if (readyCount === 0) continue;
         }
@@ -705,7 +705,7 @@ const generatePreview = () => {
             batch: {
               fileName: item.file.name,
               dataType: rowTypeSelection === 'capitation' ? 'capitation' : 'claims',
-              periodCovered: detectedPeriod.year ? (horizontalSchedule ? detectedPeriod.year : `${detectedPeriod.year}-${(detectedPeriod.month || '1').padStart(2, '0')}`) : null,
+              periodCovered: finalYear ? (horizontalSchedule ? finalYear : `${finalYear}-${(finalMonth || '1').padStart(2, '0')}`) : null,
               totalRows: classifiedRecords.length,
               status: 'imported',
               uploadedBy: session?.user?.email || 'System',

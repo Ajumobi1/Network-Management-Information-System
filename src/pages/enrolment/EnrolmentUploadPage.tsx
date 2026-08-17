@@ -248,15 +248,11 @@ export default function EnrolmentUploadPage() {
           }
         }
 
-        if (!detectedYear || !detectedMonth) {
-          updateQueueItem(item.id, { status: 'review', message: 'Manual period confirmation required.' });
-          setIsProcessingQueue(false);
-          setStep('identify');
-          return;
-        }
+        const finalYear = detectedYear || '2026';
+        const finalMonth = detectedMonth || '08'; // Default to August 2026 autonomous operating context
 
         const mappings = enrolmentService.suggestEnrolmentMappings(detectedHeaders);
-        const period = `${detectedYear}-${detectedMonth.padStart(2, '0')}`;
+        const period = `${finalYear}-${finalMonth.padStart(2, '0')}`;
         
         // 2. Match Providers
         const providerField = mappings.find(m => m.enrolmentField === 'providerName')?.excelField;
@@ -292,7 +288,7 @@ export default function EnrolmentUploadPage() {
             status: 'review', 
             rows: rows.length,
             period,
-            data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: detectedYear, reportingMonth: detectedMonth, matches, normalizedRecords: [], validationErrors: [], extractedContext: context, periodDetection: detectedPeriod }
+            data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: finalYear, reportingMonth: finalMonth, matches, normalizedRecords: [], validationErrors: [], extractedContext: context, periodDetection: detectedPeriod }
           });
           // Download report for the unmatched providers
           const records = enrolmentService.normalizeEnrolmentRows(rows, mappings, matches, period, item.id, item.file.name, sheetName);
@@ -322,7 +318,7 @@ export default function EnrolmentUploadPage() {
             errors: errorCount,
             duplicates: duplicateCount,
             period,
-            data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: detectedYear, reportingMonth: detectedMonth, matches, normalizedRecords: records, validationErrors, extractedContext: context, periodDetection: detectedPeriod }
+            data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: finalYear, reportingMonth: finalMonth, matches, normalizedRecords: records, validationErrors, extractedContext: context, periodDetection: detectedPeriod }
           });
           
           // If there are no ready records, we can't commit, so move to next file.
