@@ -53,8 +53,9 @@ export default function LoginPage() {
                 <img src="/assets/odchc-seal.png" alt="ODCHC Seal" className="h-full w-full object-contain" />
               </div>
               <div>
-                <p className="text-[0.875rem] font-bold uppercase tracking-[0.25em] text-white">ODCHC NMIS</p>
-                <p className="text-sm font-medium text-white/80">Health Enterprise Cloud</p>
+                <p className="text-[0.875rem] font-bold uppercase tracking-[0.25em] text-white">ODCHC</p>
+                <p className="text-sm font-medium text-white/80">Network Management Information System (NMIS)</p>
+                <p className="text-xs font-medium text-white/60">Ondo State Contributory Health Commission</p>
               </div>
             </div>
 
@@ -93,7 +94,7 @@ export default function LoginPage() {
               <img src="/assets/odchc-horizontal-logo.png" alt="Ondo State Contributory Health Commission logo" className="h-auto w-full object-contain" />
             </div>
             <p className="text-[0.6875rem] font-bold uppercase tracking-[0.2em] text-brand-muted">Welcome back</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-brand-foreground">Sign in to NMIS</h2>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight text-brand-foreground">Sign in to Network Management Information System (NMIS)</h2>
           </div>
 
           <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>

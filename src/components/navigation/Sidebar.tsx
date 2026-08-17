@@ -71,8 +71,8 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
           <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} gap-2 px-2`}>
             {!collapsed ? (
               <div>
-                <p className="text-[0.625rem] font-bold uppercase tracking-[0.24em] text-white/40">Navigation</p>
-                <h2 className="mt-2 text-base font-semibold text-white">Enterprise shell</h2>
+                <p className="text-[0.625rem] font-bold uppercase tracking-[0.24em] text-white/40">ODCHC NMIS</p>
+                <h2 className="mt-2 text-base font-semibold text-white">Network Management Information System</h2>
                 <p className="mt-1 text-xs capitalize text-white/60">Role: {role.replace('-', ' ')}</p>
               </div>
             ) : (

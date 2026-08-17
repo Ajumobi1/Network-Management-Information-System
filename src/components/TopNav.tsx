@@ -8,7 +8,7 @@ function TopNav() {
     <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-soft">
       <div>
         <p className="text-sm font-medium text-slate-500">Hello, {session?.user.name ?? 'Network Manager'}</p>
-        <h2 className="text-2xl font-semibold text-slate-900">NMIS Operations</h2>
+        <h2 className="text-2xl font-semibold text-slate-900">Network Management Information System (NMIS)</h2>
       </div>
       <div className="flex items-center gap-3">
         <button className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-700 transition hover:bg-slate-100">

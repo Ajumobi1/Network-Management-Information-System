@@ -67,9 +67,9 @@ export default function Dashboard2Header({ filters, options, reportingPeriod, la
       <div className="border-b border-slate-100 bg-slate-950 px-5 py-6 text-white sm:px-7">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"><span className="rounded-full bg-white/10 px-3 py-1.5 text-slate-200">Executive Network Intelligence</span><span className="text-slate-500">NMIS command centre</span></div>
-            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Network Management Information System</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">A single operating view of provider coverage, population protection, processed expenditure, and the issues requiring management attention.</p>
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"><span className="rounded-full bg-white/10 px-3 py-1.5 text-slate-200">Executive Network Intelligence</span><span className="text-slate-500">Ondo State Contributory Health Commission</span></div>
+            <h1 className="mt-4 text-2xl font-semibold tracking-tight text-white sm:text-3xl">Network Management Information System (NMIS)</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">The official network management information system for the Ondo State Contributory Health Commission, bringing provider coverage, population protection, and financial operations into one operating view.</p>
           </div>
         </div>
       </div>

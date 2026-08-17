@@ -14,13 +14,13 @@ function LoginPage() {
           <div className="relative z-10 max-w-xl">
             <div className="inline-flex items-center gap-3 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold tracking-[0.18em] text-slate-100 shadow-sm">
               <ShieldCheckIcon className="h-5 w-5 text-white" />
-              NMIS
+              ODCHC NMIS
             </div>
 
             <div className="mt-10">
-              <h1 className="text-4xl font-semibold tracking-tight text-white">Network Management Information System</h1>
+              <h1 className="text-4xl font-semibold tracking-tight text-white">Network Management Information System (NMIS)</h1>
               <p className="mt-5 max-w-lg text-sm leading-7 text-slate-200/90">
-                A comprehensive platform for managing and maintaining a robust healthcare provider network.
+                The official Network Management Information System for the Ondo State Contributory Health Commission.
               </p>
             </div>
 

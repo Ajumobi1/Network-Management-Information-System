@@ -30,7 +30,7 @@ function SideNav() {
       <div className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
         <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Navigation</p>
-          <h2 className="text-xl font-semibold text-slate-900">NMIS Workspace</h2>
+          <h2 className="text-xl font-semibold text-slate-900">Network Management Information System</h2>
         </div>
 
         <nav className="space-y-2">

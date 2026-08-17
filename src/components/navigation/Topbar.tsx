@@ -22,7 +22,7 @@ export default function Topbar({ onMenuOpen }: TopbarProps) {
         <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden">
           <img src="/assets/odchc-logo.png" alt="ODCHC Logo" className="h-full w-full object-contain" />
         </div>
-        <div className="hidden min-w-0 sm:block"><p className="text-[0.625rem] font-bold uppercase tracking-[0.28em] text-brand-muted">NMIS</p><p className="truncate text-sm font-semibold text-brand-foreground">Health Enterprise Cloud</p></div>
+        <div className="hidden min-w-0 sm:block"><p className="text-[0.625rem] font-bold uppercase tracking-[0.28em] text-brand-muted">ODCHC</p><p className="truncate text-sm font-semibold text-brand-foreground">Network Management Information System (NMIS)</p><p className="truncate text-[0.625rem] text-brand-muted">Ondo State Contributory Health Commission</p></div>
       </div>
       <div className="hidden flex-1 items-center justify-center px-6 md:flex"><div className="relative w-full max-w-2xl"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-brand-subtle" /><input type="search" placeholder="Search providers, policies, inspections..." aria-label="Global search" className="nmis-control bg-brand-surface pl-10 pr-4" /></div></div>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">

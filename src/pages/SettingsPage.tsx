@@ -51,7 +51,7 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-7xl space-y-6">
         <PageHeader
           title="System administration"
-          description="Configure users, roles, notifications, and audit settings for the NMIS platform."
+          description="Configure users, roles, notifications, and audit settings for the Network Management Information System (NMIS) of the Ondo State Contributory Health Commission."
           actions={[{ label: 'Manage roles (Coming Soon)', disabled: true }]}
         />
 

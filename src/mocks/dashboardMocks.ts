@@ -19,7 +19,7 @@ export async function getExecutiveSummary(): Promise<ExecutiveSummary> {
   return {
     greeting: 'Welcome',
     userName: 'User',
-    organization: 'NMIS',
+    organization: 'Ondo State Contributory Health Commission · Network Management Information System (NMIS)',
     dateLabel: new Date().toLocaleDateString(),
     todayFocus: 'No immediate tasks found.',
     quickActions: [],

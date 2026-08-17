@@ -106,7 +106,7 @@ export default function ProviderPage() {
         <PageHeader
           eyebrow="Provider Network"
           title="Providers"
-          subtitle="The authoritative official Network Provider Register within NMIS. Search, filter, and inspect facility records and operational status."
+          subtitle="The authoritative official Network Provider Register within the Network Management Information System (NMIS). Search, filter, and inspect facility records and operational status."
           actions={
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" className="gap-2" onClick={() => navigate('/financial/upload?type=provider-network')}>
