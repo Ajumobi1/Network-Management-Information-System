@@ -107,6 +107,24 @@ export default function EnrolmentUploadPage() {
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
 
   const activeItem = useMemo(() => queue.find(item => item.id === activeFileId), [queue, activeFileId]);
+
+  useEffect(() => {
+    if (activeFileId && activeItem?.data) {
+      workbookRef.current = activeItem.data.workbook;
+      // Reset search state when switching files to prevent stale prefills
+      setProviderSearchTerms(() => {
+        const next: Record<number, string> = {};
+        if (activeItem.data?.matches) {
+          activeItem.data.matches.forEach((match, index) => {
+            if (match.status !== 'confirmed') next[index] = match.excelName;
+          });
+        }
+        return next;
+      });
+      setProviderSearchResults({});
+      setProviderSearchErrors({});
+    }
+  }, [activeFileId, activeItem?.id]);
   
   // Helper to update queue item state
   const updateQueueItem = (id: string, updates: Partial<FileQueueItem>) => {
@@ -197,11 +215,12 @@ export default function EnrolmentUploadPage() {
       const pendingItems = queue.filter(item => item.status !== 'imported');
       
       for (const item of pendingItems) {
-        // Switch to this item
-        setActiveFileId(item.id);
-        
-        // 1. Process/Inspect File
-        const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
+        try {
+          // Switch to this item
+          setActiveFileId(item.id);
+          
+          // 1. Process/Inspect File
+          const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
@@ -313,35 +332,43 @@ export default function EnrolmentUploadPage() {
         }
 
         // 4. Commit
-        await createBatch.mutateAsync({
-          batch: {
-            fileName: item.file.name,
-            dataType: 'enrolment',
-            periodCovered: period,
-            totalRows: records.length,
-            status: 'imported',
-            uploadedBy: session?.user?.email || 'System',
-            importedRows: readyCount,
-            warningRows: 0,
-            errorRows: errorCount,
-            duplicateRows: duplicateCount,
-            unmatchedProviders: reviewCount,
-            metadata: { 
-              sourceSheet: sheetName, 
-              extractedContext: context,
-              providerNames: [...new Set(records.map(r => r.providerName).filter(Boolean))] 
-            }
-          },
-          records: records.filter(r => r.recordStatus === 'valid')
-        });
+          await createBatch.mutateAsync({
+            batch: {
+              fileName: item.file.name,
+              dataType: 'enrolment',
+              periodCovered: period,
+              totalRows: records.length,
+              status: 'imported',
+              uploadedBy: session?.user?.email || 'System',
+              importedRows: readyCount,
+              warningRows: 0,
+              errorRows: errorCount,
+              duplicateRows: duplicateCount,
+              unmatchedProviders: reviewCount,
+              metadata: { 
+                sourceSheet: sheetName, 
+                extractedContext: context,
+                providerNames: [...new Set(records.map(r => r.providerName).filter(Boolean))] 
+              }
+            },
+            records: records.filter(r => r.recordStatus === 'valid')
+          });
 
-        updateQueueItem(item.id, {
-          status: 'imported',
-          matched: readyCount,
-          duplicates: duplicateCount,
-          errors: errorCount,
-          review: reviewCount,
-        });
+          updateQueueItem(item.id, {
+            status: 'imported',
+            matched: readyCount,
+            duplicates: duplicateCount,
+            errors: errorCount,
+            review: reviewCount,
+          });
+        } catch (fileError) {
+          console.error(`Error processing file ${item.file.name}:`, fileError);
+          updateQueueItem(item.id, { 
+            status: 'error', 
+            message: fileError instanceof Error ? fileError.message : 'Autonomous processing failed for this file' 
+          });
+          // Continue to next file
+        }
       }
       
       setStep('commit');

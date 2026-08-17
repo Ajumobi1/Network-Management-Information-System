@@ -163,6 +163,22 @@ export default function DataUploadCentrePage() {
 
   const activeItem = useMemo(() => queue.find(item => item.id === activeFileId), [queue, activeFileId]);
 
+  useEffect(() => {
+    if (activeFileId && activeItem?.data) {
+      workbookRef.current = activeItem.data.workbook;
+      // Reset search state when switching files to prevent stale prefills
+      setMatchSearch(() => {
+        const next: Record<string, string> = {};
+        if (activeItem.data?.matches) {
+          activeItem.data.matches.forEach(match => {
+            if (match.status !== 'confirmed') next[match.excelName] = match.excelName;
+          });
+        }
+        return next;
+      });
+    }
+  }, [activeFileId, activeItem?.id]);
+
   const updateQueueItem = (id: string, updates: Partial<FileQueueItem>) => {
     setQueue(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
   };
@@ -585,10 +601,11 @@ const generatePreview = () => {
       const pendingItems = queue.filter(item => item.status !== 'imported');
       
       for (const item of pendingItems) {
-        setActiveFileId(item.id);
-        
-        // 1. Process/Inspect
-        const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
+        try {
+          setActiveFileId(item.id);
+          
+          // 1. Process/Inspect
+          const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
         const blocks = workbook.SheetNames.flatMap(sheetName => {
           const matrix = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: '' });
           return aiIngestionEngine.extractFinancialBlocks(matrix, sheetName);
@@ -683,25 +700,33 @@ const generatePreview = () => {
         }
 
         // 4. Commit
-        await createBatch.mutateAsync({
-          batch: {
-            fileName: item.file.name,
-            dataType: rowTypeSelection === 'capitation' ? 'capitation' : 'claims',
-            periodCovered: detectedPeriod.year ? (horizontalSchedule ? detectedPeriod.year : `${detectedPeriod.year}-${(detectedPeriod.month || '1').padStart(2, '0')}`) : null,
-            totalRows: classifiedRecords.length,
-            status: 'imported',
-            uploadedBy: session?.user?.email || 'System',
-            importedRows: readyCount,
-            warningRows: 0,
-            errorRows: errorCount,
-            duplicateRows: duplicateCount,
-            unmatchedProviders: reviewCount,
-            metadata: { sourceSheet: AUTO_SHEET_VALUE, workflow: item.workflow, detectedDataTypes: [...new Set(classifiedRecords.map(r => r.dataType))], rowTypeSelection: rowTypeSelection as any, providerNames: [...new Set(classifiedRecords.map(r => r.providerName).filter(Boolean))] }
-          },
-          records: classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0))
-        });
+          await createBatch.mutateAsync({
+            batch: {
+              fileName: item.file.name,
+              dataType: rowTypeSelection === 'capitation' ? 'capitation' : 'claims',
+              periodCovered: detectedPeriod.year ? (horizontalSchedule ? detectedPeriod.year : `${detectedPeriod.year}-${(detectedPeriod.month || '1').padStart(2, '0')}`) : null,
+              totalRows: classifiedRecords.length,
+              status: 'imported',
+              uploadedBy: session?.user?.email || 'System',
+              importedRows: readyCount,
+              warningRows: 0,
+              errorRows: errorCount,
+              duplicateRows: duplicateCount,
+              unmatchedProviders: reviewCount,
+              metadata: { sourceSheet: AUTO_SHEET_VALUE, workflow: item.workflow, detectedDataTypes: [...new Set(classifiedRecords.map(r => r.dataType))], rowTypeSelection: rowTypeSelection as any, providerNames: [...new Set(classifiedRecords.map(r => r.providerName).filter(Boolean))] }
+            },
+            records: classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0))
+          });
 
-        updateQueueItem(item.id, { status: 'imported', matched: readyCount, duplicates: duplicateCount, errors: errorCount, review: reviewCount });
+          updateQueueItem(item.id, { status: 'imported', matched: readyCount, duplicates: duplicateCount, errors: errorCount, review: reviewCount });
+        } catch (fileError) {
+          console.error(`Error processing financial file ${item.file.name}:`, fileError);
+          updateQueueItem(item.id, { 
+            status: 'error', 
+            message: fileError instanceof Error ? fileError.message : 'Autonomous processing failed for this file' 
+          });
+          // Continue to next file
+        }
       }
       
       setStep('commit');
