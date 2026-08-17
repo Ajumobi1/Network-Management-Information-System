@@ -27,11 +27,13 @@ import EnrolmentRegisterPage from '../pages/enrolment/EnrolmentRegisterPage';
 import CommunicationPage from '../pages/CommunicationPage';
 import ComplaintsPage from '../pages/ComplaintsPage';
 import SettingsPage from '../pages/SettingsPage';
+import PublicHomePage from '../pages/public/PublicHomePage';
 import ProtectedRoute from './ProtectedRoute';
 
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<PublicHomePage />} />
       <Route path="/setup" element={<OrganizationSetupPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -44,7 +46,6 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/providers" element={<ProviderPage />} />
         <Route path="/providers/new" element={<ProviderRegistrationPage />} />
@@ -78,7 +79,7 @@ export default function AppRoutes() {
         <Route path="/admin/invite-provider" element={<InviteProviderPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
