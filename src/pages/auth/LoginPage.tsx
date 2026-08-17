@@ -48,12 +48,12 @@ export default function LoginPage() {
         {/* Left Side: Branding & Value Props */}
         <section className="relative overflow-hidden bg-brand-navy px-10 py-12 text-white md:px-16 md:py-20">
           <div className="relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-control bg-brand-blue text-white shadow-soft">
-                <Sparkles className="h-5 w-5" />
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-control bg-white shadow-soft p-1">
+                <img src="/assets/odchc-logo.png" alt="ODCHC Logo" className="h-full w-full object-contain" />
               </div>
               <div>
-                <p className="text-[0.625rem] font-bold uppercase tracking-[0.3em] text-white/40">NMIS Enterprise</p>
+                <p className="text-[0.625rem] font-bold uppercase tracking-[0.3em] text-white/40">ODCHC NMIS</p>
                 <p className="text-sm font-semibold text-white">Health Enterprise Cloud</p>
               </div>
             </div>

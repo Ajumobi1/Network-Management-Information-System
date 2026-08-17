@@ -76,8 +76,8 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                 <p className="mt-1 text-xs capitalize text-white/60">Role: {role.replace('-', ' ')}</p>
               </div>
             ) : (
-              <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-white p-0.5 shadow-sm">
-                <img src="/assets/odchc-logo.png" alt="Logo" className="h-full w-full object-contain" />
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm">
+                <img src="/assets/odchc-seal.png" alt="Logo" className="h-full w-full object-contain" />
               </div>
             )}
             <button type="button" onClick={() => setCollapsed(value => !value)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control border border-white/10 text-white/60 transition hover:bg-white/5" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}</button>

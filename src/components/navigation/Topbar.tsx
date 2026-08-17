@@ -19,8 +19,8 @@ export default function Topbar({ onMenuOpen }: TopbarProps) {
     <div className="mx-auto flex h-[4.5rem] max-w-[1600px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <button type="button" onClick={onMenuOpen} className="inline-flex h-10 w-10 items-center justify-center rounded-control border border-brand-border bg-brand-card text-brand-secondary transition hover:bg-brand-surface lg:hidden" aria-label="Open navigation"><Menu className="h-5 w-5" /></button>
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-control bg-white shadow-soft">
-          <img src="/assets/odchc-logo.png" alt="ODCHC Logo" className="h-full w-full object-contain p-0.5" />
+        <div className="flex h-10 w-28 shrink-0 items-center justify-center overflow-hidden rounded-control bg-white shadow-soft px-2">
+          <img src="/assets/odchc-logo.png" alt="ODCHC Logo" className="h-full w-full object-contain" />
         </div>
         <div className="hidden min-w-0 sm:block"><p className="text-[0.625rem] font-bold uppercase tracking-[0.28em] text-brand-muted">NMIS</p><p className="truncate text-sm font-semibold text-brand-foreground">Health Enterprise Cloud</p></div>
       </div>
