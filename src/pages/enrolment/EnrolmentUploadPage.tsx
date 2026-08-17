@@ -201,7 +201,7 @@ export default function EnrolmentUploadPage() {
     }
 
     if (!activeFileId && newItems.length > 0) {
-      processFile(newItems[0]);
+      setActiveFileId(newItems[0].id);
     }
   };
 

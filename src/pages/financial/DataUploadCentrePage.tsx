@@ -239,7 +239,9 @@ export default function DataUploadCentrePage() {
       }
     }
 
-    if (!activeFileId) processFile(newItems[0]);
+    if (!activeFileId && newItems.length > 0) {
+      setActiveFileId(newItems[0].id);
+    }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
