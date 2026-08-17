@@ -54,7 +54,12 @@ export default function ProviderPage() {
     return list;
   }, [rawProviders, sortField, sortDirection]);
 
-  const totalCount = (providers as any).totalCount ?? providers.length;
+  // Sorting creates a new array, so read pagination metadata from the original
+  // repository result rather than the sorted array.
+  const totalCount = (rawProviders as any).totalCount ?? rawProviders.length;
+  const activeCount = (rawProviders as any).activeCount ?? totalCount;
+  const pendingCount = (rawProviders as any).pendingCount ?? 0;
+  const riskCount = (rawProviders as any).riskCount ?? 0;
 
   const handleFilterChange = (newFilters: ProviderDirectoryFilters) => {
     setFilters(newFilters);
@@ -77,10 +82,10 @@ export default function ProviderPage() {
 
   const stats = useMemo(() => ({
     total: totalCount,
-    active: (providers as any).activeCount ?? totalCount,
-    pending: (providers as any).pendingCount ?? 0,
-    risk: (providers as any).riskCount ?? 0,
-  }), [totalCount, providers]);
+    active: activeCount,
+    pending: pendingCount,
+    risk: riskCount,
+  }), [totalCount, activeCount, pendingCount, riskCount]);
 
   if (isError) {
     const secure = isSecureContractError(error);
@@ -147,7 +152,7 @@ export default function ProviderPage() {
         <Card className="bg-brand-soft/30 border-brand-blue/10">
           <SectionHeader
             title="Master Register Integrity"
-            subtitle="All 80 authoritative Ondo State providers are permanently indexed. New registrations automatically receive secure UUIDs and occupy their correct alphabetical position."
+            subtitle={`All ${stats.total.toLocaleString()} authoritative Ondo State providers are indexed. New registrations automatically receive secure UUIDs and occupy their correct alphabetical position.`}
           />
         </Card>
       </div>
