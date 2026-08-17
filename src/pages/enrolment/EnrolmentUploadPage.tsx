@@ -22,7 +22,8 @@ import {
   Search,
   Copy,
   Download,
-  Filter
+  Filter,
+  Folder
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -86,6 +87,8 @@ export default function EnrolmentUploadPage() {
   const [step, setStep] = useState<UploadStep>('upload');
   const [queue, setQueue] = useState<FileQueueItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  const [isAutonomousMode, setIsAutonomousMode] = useState(true);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
@@ -180,6 +183,164 @@ export default function EnrolmentUploadPage() {
 
     if (!activeFileId && newItems.length > 0) {
       processFile(newItems[0]);
+    }
+  };
+
+  const startAutomatedProcessing = async () => {
+    if (isProcessingQueue) return;
+    setIsProcessingQueue(true);
+    setErrorMessage('');
+    
+    try {
+      // Find all items that are not yet imported
+      const pendingItems = queue.filter(item => item.status !== 'imported');
+      
+      for (const item of pendingItems) {
+        // Switch to this item
+        setActiveFileId(item.id);
+        
+        // 1. Process/Inspect File
+        const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+        const workbookContext = enrolmentService.extractWorkbookContext(matrix);
+        const context = {
+          ...workbookContext,
+          facilityName: workbookContext.facilityName || enrolmentService.extractFacilityNameFromFilename(item.file.name),
+        };
+        const detectedPeriod = detectPeriodFromWorkbook(item.file.name, matrix, workbook.SheetNames);
+        const detectedYear = detectedPeriod.year;
+        const detectedMonth = detectedPeriod.month;
+
+        let hIndex = enrolmentService.detectHeaderRowIndex(matrix);
+        let detectedHeaders = (matrix[hIndex] || []).map(value => String(value).trim()).filter(Boolean);
+        let rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false })
+          .filter(row => Object.values(row).some(value => String(value).trim() !== ''));
+
+        if (rows.length === 0 && matrix.length > 0) {
+          const fallbackIndex = matrix.findIndex(r => Array.isArray(r) && r.filter(c => String(c ?? '').trim() !== '').length >= 3);
+          if (fallbackIndex !== -1) {
+            hIndex = fallbackIndex;
+            detectedHeaders = (matrix[hIndex] || []).map(value => String(value ?? '').trim() || `Column_${Math.random().toString(36).substring(7)}`).filter(Boolean);
+            rows = XLSX.utils.sheet_to_json<RawRow>(sheet, { range: hIndex, defval: '', raw: false }).filter(row => Object.values(row).some(value => String(value).trim() !== ''));
+          }
+        }
+
+        if (!detectedYear || !detectedMonth) {
+          updateQueueItem(item.id, { status: 'review', message: 'Manual period confirmation required.' });
+          setIsProcessingQueue(false);
+          setStep('identify');
+          return;
+        }
+
+        const mappings = enrolmentService.suggestEnrolmentMappings(detectedHeaders);
+        const period = `${detectedYear}-${detectedMonth.padStart(2, '0')}`;
+        
+        // 2. Match Providers
+        const providerField = mappings.find(m => m.enrolmentField === 'providerName')?.excelField;
+        const providerCodeField = mappings.find(m => m.enrolmentField === 'providerCode')?.excelField;
+        const lgaField = mappings.find(m => m.enrolmentField === 'lga')?.excelField;
+        const stateField = mappings.find(m => m.enrolmentField === 'state')?.excelField;
+
+        let matches: ProviderMatch[] = [];
+        if (providerField) {
+          const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
+          rows.forEach(row => {
+            const name = String(row[providerField] ?? '').trim();
+            if (!name || isSummaryRow(name)) return;
+            const key = `${name.toLowerCase()}|${String(row[providerCodeField || ''] ?? '').trim().toLowerCase()}`;
+            uniqueProviders.set(key, {
+              name,
+              code: providerCodeField ? String(row[providerCodeField] ?? '').trim() || undefined : undefined,
+              lga: lgaField ? String(row[lgaField] ?? '').trim() || undefined : undefined,
+              state: stateField ? String(row[stateField] ?? '').trim() || undefined : undefined,
+            });
+          });
+          if (uniqueProviders.size > 0) {
+            matches = await Promise.all([...uniqueProviders.values()].map(p => financialDataService.matchProvider(p.name, p.code, p.lga, p.state)));
+          }
+        }
+
+        if (matches.length === 0 && context.facilityName) {
+          matches = [await financialDataService.matchProvider(context.facilityName, undefined, context.lga, 'Ondo')];
+        }
+
+        if (matches.some(m => m.status !== 'confirmed')) {
+          updateQueueItem(item.id, { 
+            status: 'review', 
+            rows: rows.length,
+            period,
+            data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: detectedYear, reportingMonth: detectedMonth, matches, normalizedRecords: [], validationErrors: [], extractedContext: context, periodDetection: detectedPeriod }
+          });
+          setIsProcessingQueue(false);
+          setStep('match');
+          return;
+        }
+
+        // 3. Normalize & Preview
+        const records = enrolmentService.normalizeEnrolmentRows(rows, mappings, matches, period, item.id, item.file.name, sheetName);
+        
+        const reviewCount = records.filter(r => r.recordStatus === 'match-review-required').length;
+        const errorCount = records.filter(r => r.recordStatus === 'error').length;
+        const duplicateCount = records.filter(r => r.recordStatus === 'duplicate').length;
+        const readyCount = records.filter(r => r.recordStatus === 'valid').length;
+        const validationErrors = records.flatMap(r => (r.validationErrors || []).map(msg => `Row ${r.sourceRow}: ${msg}`));
+
+        if (reviewCount > 0 || errorCount > 0) {
+          updateQueueItem(item.id, { 
+            status: reviewCount > 0 ? 'review' : 'error', 
+            rows: records.length,
+            matched: readyCount,
+            review: reviewCount,
+            errors: errorCount,
+            duplicates: duplicateCount,
+            period,
+            data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: detectedYear, reportingMonth: detectedMonth, matches, normalizedRecords: records, validationErrors, extractedContext: context, periodDetection: detectedPeriod }
+          });
+          setIsProcessingQueue(false);
+          setStep(reviewCount > 0 ? 'match' : 'preview');
+          return;
+        }
+
+        // 4. Commit
+        await createBatch.mutateAsync({
+          batch: {
+            fileName: item.file.name,
+            dataType: 'enrolment',
+            periodCovered: period,
+            totalRows: records.length,
+            status: 'imported',
+            uploadedBy: session?.user?.email || 'System',
+            importedRows: readyCount,
+            warningRows: 0,
+            errorRows: errorCount,
+            duplicateRows: duplicateCount,
+            unmatchedProviders: reviewCount,
+            metadata: { 
+              sourceSheet: sheetName, 
+              extractedContext: context,
+              providerNames: [...new Set(records.map(r => r.providerName).filter(Boolean))] 
+            }
+          },
+          records: records.filter(r => r.recordStatus === 'valid')
+        });
+
+        updateQueueItem(item.id, {
+          status: 'imported',
+          matched: readyCount,
+          duplicates: duplicateCount,
+          errors: errorCount,
+          review: reviewCount,
+        });
+      }
+      
+      setStep('commit');
+      setCommitMessage('Autonomous processing completed for all files.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Autonomous processing failed');
+    } finally {
+      setIsProcessingQueue(false);
     }
   };
 
@@ -607,10 +768,52 @@ export default function EnrolmentUploadPage() {
                   </div>
                   <h2 className="mt-5 text-xl font-bold text-slate-900">Select Historical Capitation Files</h2>
                   <p className="mx-auto mt-2 max-w-xl text-sm text-slate-500">Drop multiple files or folders here. The system supports bulk processing of monthly enrollee workbooks from January 2025 onwards.</p>
-                  <label className="mt-7 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
-                    <Upload className="h-4 w-4" /> Choose Files / Folder
-                    <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
-                  </label>
+                  
+                  <div className="mt-8 flex flex-col items-center justify-center gap-6">
+                    <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-2 pr-4">
+                      <div className="flex items-center gap-1 rounded-xl bg-white p-1 shadow-sm">
+                        <button 
+                          onClick={() => setIsAutonomousMode(true)}
+                          className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${isAutonomousMode ? 'bg-brand-blue text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          Autonomous
+                        </button>
+                        <button 
+                          onClick={() => setIsAutonomousMode(false)}
+                          className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${!isAutonomousMode ? 'bg-brand-blue text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          Manual
+                        </button>
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-500">
+                        {isAutonomousMode ? 'AI processes the entire queue automatically' : 'Review each step for every workbook'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                        <Upload className="h-4 w-4" /> Choose Files
+                        <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+                      </label>
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                        <Folder className="h-4 w-4" /> Add Folder
+                        <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
+                      </label>
+                      {queue.length > 0 && (
+                        <button 
+                          onClick={isAutonomousMode ? startAutomatedProcessing : () => setStep('inspect')}
+                          disabled={isProcessingQueue}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-bold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {isProcessingQueue ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Processing Queue...</>
+                          ) : (
+                            <><RefreshCcw className="h-4 w-4" /> {isAutonomousMode ? 'Process Queue' : 'Start Manual Review'}</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </section>
               )}
 
