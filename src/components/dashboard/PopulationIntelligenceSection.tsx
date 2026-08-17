@@ -5,9 +5,10 @@ import { Dashboard2Intelligence } from '../../types/dashboard/dashboardIntellige
 type PopulationIntelligenceSectionProps = { intelligence: Dashboard2Intelligence };
 
 export default function PopulationIntelligenceSection({ intelligence }: PopulationIntelligenceSectionProps) {
-  const maxLga = intelligence.population.byLga[0]?.value || 1;
-  const maxDistrict = intelligence.population.bySenatorialDistrict[0]?.value || 1;
-  const maxFacility = intelligence.population.topFacilities[0]?.value || 1;
+  const population = intelligence.population || { byLga: [], bySenatorialDistrict: [], topFacilities: [], bySector: [], total: 0, formal: 0, informal: 0, principal: 0, dependant: 0 };
+  const maxLga = population.byLga?.[0]?.value || 1;
+  const maxDistrict = population.bySenatorialDistrict?.[0]?.value || 1;
+  const maxFacility = population.topFacilities?.[0]?.value || 1;
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">
@@ -21,27 +22,27 @@ export default function PopulationIntelligenceSection({ intelligence }: Populati
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="Formal" value={intelligence.population.formal} detail="/C/ policy sector" tone="blue" />
-        <Metric label="Informal" value={intelligence.population.informal} detail="/D/ policy sector" tone="amber" />
-        <Metric label="Principals" value={intelligence.population.principal} detail="Source CATEGORY field" tone="green" />
-        <Metric label="Dependants" value={intelligence.population.dependant} detail="Source CATEGORY field" tone="slate" />
+        <Metric label="Formal" value={population.formal || 0} detail="/C/ policy sector" tone="blue" />
+        <Metric label="Informal" value={population.informal || 0} detail="/D/ policy sector" tone="amber" />
+        <Metric label="Principals" value={population.principal || 0} detail="Source CATEGORY field" tone="green" />
+        <Metric label="Dependants" value={population.dependant || 0} detail="Source CATEGORY field" tone="slate" />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><MapPin className="h-4 w-4 text-brand-blue" />Where people are enrolled</div>
-          <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Senatorial Districts</p><div className="mt-3 space-y-3">{intelligence.population.bySenatorialDistrict.map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxDistrict} tone="blue" />)}</div></div>
+          <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Senatorial Districts</p><div className="mt-3 space-y-3">{(population.bySenatorialDistrict || []).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxDistrict} tone="blue" />)}</div></div>
           <div className="mt-6 border-t border-slate-100 pt-5">
             <p className="text-sm font-semibold text-slate-800">Sector distribution</p>
-            <div className="mt-4 space-y-4">{intelligence.population.bySector.map(item => { const percentage = intelligence.population.total ? (item.value / intelligence.population.total) * 100 : 0; const isFormal = item.name === 'formal'; return <div key={item.name}><div className="mb-1 flex items-center justify-between text-sm"><span className="capitalize text-slate-600">{item.name}</span><span className="font-semibold text-slate-900">{item.value.toLocaleString()} · {percentage.toFixed(1)}%</span></div><div className="h-2.5 rounded-full bg-slate-100"><div className={`h-2.5 rounded-full ${isFormal ? 'bg-brand-blue' : 'bg-amber-500'}`} style={{ width: `${percentage}%` }} /></div></div>; })}</div>
+            <div className="mt-4 space-y-4">{(population.bySector || []).map(item => { const percentage = population.total ? (item.value / population.total) * 100 : 0; const isFormal = item.name === 'formal'; return <div key={item.name}><div className="mb-1 flex items-center justify-between text-sm"><span className="capitalize text-slate-600">{item.name}</span><span className="font-semibold text-slate-900">{item.value.toLocaleString()} · {percentage.toFixed(1)}%</span></div><div className="h-2.5 rounded-full bg-slate-100"><div className={`h-2.5 rounded-full ${isFormal ? 'bg-brand-blue' : 'bg-amber-500'}`} style={{ width: `${percentage}%` }} /></div></div>; })}</div>
             <p className="mt-5 text-xs leading-5 text-slate-500">Sector is based on policy derivation rules; category remains authoritative from the source CATEGORY field.</p>
           </div>
         </div>
 
         <div className="rounded-2xl border border-slate-200 p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-800"><MapPin className="h-4 w-4 text-brand-blue" />Provider coverage</div>
-          <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top LGAs</p><div className="mt-3 space-y-3">{intelligence.population.byLga.slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxLga} tone="blue" />)}</div></div>
-          <div className="mt-6 border-t border-slate-100 pt-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top facilities</p><div className="mt-3 space-y-3">{intelligence.population.topFacilities.slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxFacility} tone="green" />)}</div></div>
+          <div className="mt-4"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top LGAs</p><div className="mt-3 space-y-3">{(population.byLga || []).slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxLga} tone="blue" />)}</div></div>
+          <div className="mt-6 border-t border-slate-100 pt-5"><p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Top facilities</p><div className="mt-3 space-y-3">{(population.topFacilities || []).slice(0, 5).map(item => <RankRow key={item.name} name={item.name} value={item.value} max={maxFacility} tone="green" />)}</div></div>
         </div>
       </div>
     </section>

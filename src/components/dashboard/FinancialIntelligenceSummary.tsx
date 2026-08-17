@@ -30,15 +30,16 @@ function mapFilters(filters: DashboardFilters): FinancialIntelligenceFilters {
 
 export default function FinancialIntelligenceSummary({ intelligence, filters }: FinancialIntelligenceSummaryProps) {
   const { data, isLoading, isError, refetch } = useFinancialIntelligence(mapFilters(filters));
-  const monthlyTrend = data?.monthlyTrend || intelligence.financial.monthlyTrend || [];
-  const fundingMix = data?.expenditureMix || intelligence.financial.byFundingType || [];
+  const financial = intelligence.financial || { monthlyTrend: [], byFundingType: [] };
+  const monthlyTrend = data?.monthlyTrend || financial.monthlyTrend || [];
+  const fundingMix = data?.expenditureMix || financial.byFundingType || [];
   const byState = data?.byState || [];
   const byFacilityType = data?.byFacilityType || [];
 
-  const maxTrend = Math.max(...monthlyTrend.map(item => item.value), 1);
-  const maxFunding = Math.max(...fundingMix.map(item => item.value), 1);
-  const maxState = byState[0]?.value || 1;
-  const maxFacilityType = byFacilityType[0]?.value || 1;
+  const maxTrend = Math.max(...(monthlyTrend || []).map(item => item.value || 0), 1);
+  const maxFunding = Math.max(...(fundingMix || []).map(item => item.value || 0), 1);
+  const maxState = byState?.[0]?.value || 1;
+  const maxFacilityType = byFacilityType?.[0]?.value || 1;
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-soft sm:p-6">

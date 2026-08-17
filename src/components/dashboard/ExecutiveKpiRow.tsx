@@ -16,16 +16,16 @@ function formatNaira(value: number | string, compact = false): string {
 type ExecutiveKpiRowProps = { intelligence: Dashboard2Intelligence };
 
 export default function ExecutiveKpiRow({ intelligence }: ExecutiveKpiRowProps) {
-  const financialGrowth = intelligence.financial.growthPercentage ?? 0;
+  const financialGrowth = intelligence.financial?.growthPercentage ?? 0;
   const cards = [
-    { title: 'Active providers', value: intelligence.provider.active.toLocaleString(), subtitle: `${intelligence.provider.inactive.toLocaleString()} not active`, icon: <ShieldCheck className="h-5 w-5" />, tone: 'success' as const },
-    { title: 'Total enrollees', value: intelligence.population.total.toLocaleString(), subtitle: `${intelligence.population.principal.toLocaleString()} principals · ${intelligence.population.dependant.toLocaleString()} dependants`, icon: <UsersRound className="h-5 w-5" />, tone: 'info' as const },
-    { title: 'Formal enrollees', value: intelligence.population.formal.toLocaleString(), subtitle: `${intelligence.population.total ? Math.round((intelligence.population.formal / intelligence.population.total) * 100) : 0}% of population`, icon: <UserRound className="h-5 w-5" />, tone: 'success' as const },
-    { title: 'Informal enrollees', value: intelligence.population.informal.toLocaleString(), subtitle: `${intelligence.population.total ? Math.round((intelligence.population.informal / intelligence.population.total) * 100) : 0}% of population`, icon: <UserRound className="h-5 w-5" />, tone: 'warning' as const },
+    { title: 'Active providers', value: (intelligence.provider?.active || 0).toLocaleString(), subtitle: `${(intelligence.provider?.inactive || 0).toLocaleString()} not active`, icon: <ShieldCheck className="h-5 w-5" />, tone: 'success' as const },
+    { title: 'Total enrollees', value: (intelligence.population?.total || 0).toLocaleString(), subtitle: `${(intelligence.population?.principal || 0).toLocaleString()} principals · ${(intelligence.population?.dependant || 0).toLocaleString()} dependants`, icon: <UsersRound className="h-5 w-5" />, tone: 'info' as const },
+    { title: 'Formal enrollees', value: (intelligence.population?.formal || 0).toLocaleString(), subtitle: `${intelligence.population?.total ? Math.round((intelligence.population.formal / intelligence.population.total) * 100) : 0}% of population`, icon: <UserRound className="h-5 w-5" />, tone: 'success' as const },
+    { title: 'Informal enrollees', value: (intelligence.population?.informal || 0).toLocaleString(), subtitle: `${intelligence.population?.total ? Math.round((intelligence.population.informal / intelligence.population.total) * 100) : 0}% of population`, icon: <UserRound className="h-5 w-5" />, tone: 'warning' as const },
     {
       title: 'Network expenditure',
-      value: formatNaira(intelligence.financial.totalExpenditure, true),
-      subtitle: `${intelligence.matchedFinancialRecords.toLocaleString()} linked financial records`,
+      value: formatNaira(intelligence.financial?.totalExpenditure || 0, true),
+      subtitle: `${(intelligence.matchedFinancialRecords || 0).toLocaleString()} linked financial records`,
       icon: <CircleDollarSign className="h-5 w-5" />,
       tone: 'neutral' as const,
       trend: `${Math.abs(financialGrowth)}%`,
