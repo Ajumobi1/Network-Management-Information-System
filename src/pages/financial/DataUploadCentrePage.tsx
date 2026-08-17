@@ -21,7 +21,8 @@ import {
   X,
   Search,
   Copy,
-  Calendar
+  Calendar,
+  Folder
 } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -34,6 +35,7 @@ import { useMockData } from '../../repositories/common';
 import { collectFilesFromDrop, filterSupportedUploadFiles } from '../../utils/uploadFiles';
 import { detectPeriodFromWorkbook, DetectedPeriod } from '../../utils/periodDetection';
 import { aiIngestionEngine } from '../../services/ingestion/aiIngestionEngine';
+import { exportBatchErrorsAndDuplicatesReport } from '../../utils/reportExport';
 
 type UploadStep = 'upload' | 'inspect' | 'identify' | 'map' | 'classify' | 'match' | 'preview' | 'commit';
 type UploadWorkflow = 'claims-ffs' | 'capitation';
@@ -149,6 +151,8 @@ export default function DataUploadCentrePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isAutonomousMode, setIsAutonomousMode] = useState(true);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [matchSearch, setMatchSearch] = useState<Record<string, string>>({});
   const [isErrorModalOpen, setIsErrorModalOpen] = useState(false);
   const [errorSearch, setErrorSearch] = useState('');
@@ -551,6 +555,12 @@ const generatePreview = () => {
         errors: rejectedRows,
         matched: importedRows,
       });
+
+      // Auto-download issues report if any issues exist
+      if (rejectedRows > 0 || activeItem.review > 0 || duplicateRows > 0) {
+        exportBatchErrorsAndDuplicatesReport(activeItem.file.name, activeItem.data.normalizedRecords);
+      }
+
       setCommitMessage(`${activeItem.file.name}: imported ${importedRows.toLocaleString()}, duplicates ${duplicateRows.toLocaleString()}, rejected ${rejectedRows.toLocaleString()}.`);
 
       const nextPending = queue.find(item => item.id !== activeItem.id && item.status === 'pending');
@@ -563,6 +573,143 @@ const generatePreview = () => {
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Commit failed');
       setIsAnalyzing(false);
+    }
+  };
+
+  const startAutomatedProcessing = async () => {
+    if (isProcessingQueue) return;
+    setIsProcessingQueue(true);
+    setErrorMessage('');
+    
+    try {
+      const pendingItems = queue.filter(item => item.status !== 'imported');
+      
+      for (const item of pendingItems) {
+        setActiveFileId(item.id);
+        
+        // 1. Process/Inspect
+        const workbook = XLSX.read(await item.file.arrayBuffer(), { type: 'array', cellDates: true });
+        const blocks = workbook.SheetNames.flatMap(sheetName => {
+          const matrix = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets[sheetName], { header: 1, defval: '' });
+          return aiIngestionEngine.extractFinancialBlocks(matrix, sheetName);
+        });
+
+        if (blocks.length === 0) {
+          updateQueueItem(item.id, { status: 'error', message: 'No financial blocks detected.' });
+          continue;
+        }
+
+        const headers = [...new Set(blocks.flatMap(block => block.headers))];
+        const rawRows = blocks.flatMap(block => block.rows);
+        const titles = blocks.map(block => block.title || '').filter(Boolean);
+        const detectedType = financialDataService.detectDataType([...headers, ...titles], item.file.name);
+        const inferredType: FinancialDataType = item.workflow === 'capitation' ? 'capitation' : detectedType === 'ffs' ? 'ffs' : 'claims';
+        const detectedPeriods = [...new Set(blocks.flatMap(block => block.detectedPeriods))].sort();
+        const firstDetectedPeriod = detectedPeriods[0]?.match(/^(\d{4})-(\d{2})$/);
+        const fallbackPeriod = detectPeriodFromWorkbook(item.file.name, [], workbook.SheetNames);
+        const detectedPeriod: DetectedPeriod = firstDetectedPeriod
+          ? { year: firstDetectedPeriod[1], month: String(Number(firstDetectedPeriod[2])), source: 'workbook-metadata' }
+          : fallbackPeriod;
+        
+        if (!detectedPeriod.year || (!headers.some(isMonthColumn) && !detectedPeriod.month && detectedPeriods.length === 0)) {
+          updateQueueItem(item.id, { status: 'review', message: 'Manual period confirmation required.' });
+          setIsProcessingQueue(false);
+          setStep('identify');
+          return;
+        }
+
+        const mappings = financialDataService.suggestMappings(headers, inferredType, rawRows);
+        const horizontalSchedule = headers.some(isMonthColumn);
+        const rowTypeSelection = item.workflow === 'capitation' ? 'capitation' : 'claims-ffs';
+        
+        // 2. Match Providers
+        const providerField = mappings.find(m => m.nmisField === 'providerName')?.excelField;
+        const providerCodeField = mappings.find(m => m.nmisField === 'providerCode')?.excelField;
+        const lgaField = mappings.find(m => m.nmisField === 'lga')?.excelField;
+        const stateField = mappings.find(m => m.nmisField === 'state')?.excelField;
+
+        const uniqueProviders = new Map<string, { name: string; code?: string; lga?: string; state?: string }>();
+        rawRows.forEach(row => {
+          const name = String(providerField ? row[providerField] ?? '' : '').trim();
+          if (!name || isSummaryRow(name)) return;
+          const key = `${name.toLowerCase()}|${String(row[providerCodeField || ''] ?? '').trim().toLowerCase()}`;
+          uniqueProviders.set(key, {
+            name,
+            code: providerCodeField ? String(row[providerCodeField] ?? '').trim() || undefined : undefined,
+            lga: lgaField ? String(row[lgaField] ?? '').trim() || undefined : undefined,
+            state: stateField ? String(row[stateField] ?? '').trim() || undefined : undefined,
+          });
+        });
+
+        let matches = await Promise.all([...uniqueProviders.values()].map(p => financialDataService.matchProvider(p.name, p.code, p.lga, p.state)));
+        if (matches.length === 0 && blocks.length === 1 && blocks[0].providerName) {
+          matches = [await financialDataService.matchProvider(blocks[0].providerName, undefined, undefined, 'Ondo')];
+        }
+
+        if (matches.some(m => m.status !== 'confirmed')) {
+          updateQueueItem(item.id, { 
+            status: 'review', 
+            data: { workbook, sourceSheet: AUTO_SHEET_VALUE, sheetNames: [AUTO_SHEET_VALUE, ...workbook.SheetNames], headerRowIndex: 0, autonomousMode: true, blockCount: blocks.length, autonomousPeriodDetection: true, detectedPeriods, autonomousBlocks: blocks.map(b => ({ sheetName: b.sheetName, blockIndex: b.blockIndex, providerName: b.providerName, facilityType: b.category, detectedPeriods: b.detectedPeriods, rowCount: b.rows.length })), headers, rawRows, mappings, matches, normalizedRecords: [], validationErrors: [], reportingYear: detectedPeriod.year, reportingMonth: detectedPeriod.month, periodDetection: detectedPeriod, horizontalSchedule, extractedContext: { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, rowTypeSelection: rowTypeSelection as RowTypeSelection }
+          });
+          // Download report for the unmatched providers
+          const records = financialDataService.normalizeData(rawRows, mappings, inferredType, item.id, item.file.name, AUTO_SHEET_VALUE, detectedPeriod.year && (detectedPeriod.month || horizontalSchedule) ? { reportingYear: Number(detectedPeriod.year), reportingMonth: Number(detectedPeriod.month || 1) } : undefined, { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, { mode: rowTypeSelection as any });
+          exportBatchErrorsAndDuplicatesReport(item.file.name, records);
+          continue;
+        }
+
+        // 3. Normalize & Preview
+        const records = financialDataService.normalizeData(rawRows, mappings, inferredType, item.id, item.file.name, AUTO_SHEET_VALUE, detectedPeriod.year && (detectedPeriod.month || horizontalSchedule) ? { reportingYear: Number(detectedPeriod.year), reportingMonth: Number(detectedPeriod.month || 1) } : undefined, { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, { mode: rowTypeSelection as any });
+        const classifiedRecords = records.map(r => {
+          const match = matches.find(c => normalizeProviderKey(c.excelName) === normalizeProviderKey(r.providerName));
+          return match?.matchedProviderId ? { ...r, providerId: match.matchedProviderId, providerName: match.matchedProviderName || r.providerName } : r;
+        });
+
+        const reviewCount = classifiedRecords.filter(r => !r.providerId && !(r.validationErrors?.length)).length;
+        const errorCount = classifiedRecords.filter(r => (r.validationErrors?.length || 0) > 0).length;
+        const duplicateCount = classifiedRecords.filter(r => r.recordStatus === 'duplicate').length;
+        const readyCount = classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0)).length;
+
+        if (reviewCount > 0 || errorCount > 0 || duplicateCount > 0) {
+          exportBatchErrorsAndDuplicatesReport(item.file.name, classifiedRecords);
+        }
+
+        if (reviewCount > 0 || errorCount > 0) {
+          updateQueueItem(item.id, { 
+            status: reviewCount > 0 ? 'review' : 'error', 
+            matched: readyCount, review: reviewCount, errors: errorCount, duplicates: duplicateCount,
+            data: { workbook, sourceSheet: AUTO_SHEET_VALUE, sheetNames: [AUTO_SHEET_VALUE, ...workbook.SheetNames], headerRowIndex: 0, autonomousMode: true, blockCount: blocks.length, autonomousPeriodDetection: true, detectedPeriods, autonomousBlocks: blocks.map(b => ({ sheetName: b.sheetName, blockIndex: b.blockIndex, providerName: b.providerName, facilityType: b.category, detectedPeriods: b.detectedPeriods, rowCount: b.rows.length })), headers, rawRows, mappings, matches, normalizedRecords: classifiedRecords, validationErrors: [], reportingYear: detectedPeriod.year, reportingMonth: detectedPeriod.month, periodDetection: detectedPeriod, horizontalSchedule, extractedContext: { facilityName: blocks.length === 1 ? blocks[0].providerName : undefined }, rowTypeSelection: rowTypeSelection as RowTypeSelection }
+          });
+          if (readyCount === 0) continue;
+        }
+
+        // 4. Commit
+        await createBatch.mutateAsync({
+          batch: {
+            fileName: item.file.name,
+            dataType: rowTypeSelection === 'capitation' ? 'capitation' : 'claims',
+            periodCovered: detectedPeriod.year ? (horizontalSchedule ? detectedPeriod.year : `${detectedPeriod.year}-${(detectedPeriod.month || '1').padStart(2, '0')}`) : null,
+            totalRows: classifiedRecords.length,
+            status: 'imported',
+            uploadedBy: session?.user?.email || 'System',
+            importedRows: readyCount,
+            warningRows: 0,
+            errorRows: errorCount,
+            duplicateRows: duplicateCount,
+            unmatchedProviders: reviewCount,
+            metadata: { sourceSheet: AUTO_SHEET_VALUE, workflow: item.workflow, detectedDataTypes: [...new Set(classifiedRecords.map(r => r.dataType))], rowTypeSelection: rowTypeSelection as any, providerNames: [...new Set(classifiedRecords.map(r => r.providerName).filter(Boolean))] }
+          },
+          records: classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0))
+        });
+
+        updateQueueItem(item.id, { status: 'imported', matched: readyCount, duplicates: duplicateCount, errors: errorCount, review: reviewCount });
+      }
+      
+      setStep('commit');
+      setCommitMessage('Autonomous processing completed for all financial files.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Autonomous processing failed');
+    } finally {
+      setIsProcessingQueue(false);
     }
   };
 
@@ -684,10 +831,51 @@ const generatePreview = () => {
                     ))}
                   </div>
 
-                  <label className="mt-8 inline-flex cursor-pointer items-center gap-2 rounded-2xl bg-brand-blue px-5 py-3 text-sm font-semibold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95">
-                    <Upload className="h-4 w-4" /> Choose Files / Folder
-                    <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
-                  </label>
+                  <div className="mt-8 flex flex-col items-center justify-center gap-6">
+                    <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/50 p-2 pr-4">
+                      <div className="flex items-center gap-1 rounded-xl bg-white p-1 shadow-sm">
+                        <button 
+                          onClick={() => setIsAutonomousMode(true)}
+                          className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${isAutonomousMode ? 'bg-brand-blue text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          Autonomous
+                        </button>
+                        <button 
+                          onClick={() => setIsAutonomousMode(false)}
+                          className={`rounded-lg px-4 py-1.5 text-xs font-bold transition-all ${!isAutonomousMode ? 'bg-brand-blue text-white' : 'text-slate-400 hover:text-slate-600'}`}
+                        >
+                          Manual
+                        </button>
+                      </div>
+                      <p className="text-[11px] font-medium text-slate-500">
+                        {isAutonomousMode ? 'AI processes the entire queue automatically' : 'Review each step for every workbook'}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                        <Upload className="h-4 w-4" /> Choose Files
+                        <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+                      </label>
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-all active:scale-95">
+                        <Folder className="h-4 w-4" /> Add Folder
+                        <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
+                      </label>
+                      {queue.length > 0 && (
+                        <button 
+                          onClick={isAutonomousMode ? startAutomatedProcessing : () => setStep('inspect')}
+                          disabled={isProcessingQueue}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-brand-blue px-6 py-3 text-sm font-bold text-white hover:bg-brand-navy shadow-lg shadow-brand-blue/20 transition-all active:scale-95 disabled:opacity-50"
+                        >
+                          {isProcessingQueue ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Processing Queue...</>
+                          ) : (
+                            <><RefreshCcw className="h-4 w-4" /> {isAutonomousMode ? 'Process Queue' : 'Start Manual Review'}</>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </section>
               )}
 

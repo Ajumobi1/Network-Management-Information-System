@@ -274,9 +274,10 @@ export default function EnrolmentUploadPage() {
             period,
             data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: detectedYear, reportingMonth: detectedMonth, matches, normalizedRecords: [], validationErrors: [], extractedContext: context, periodDetection: detectedPeriod }
           });
-          setIsProcessingQueue(false);
-          setStep('match');
-          return;
+          // Download report for the unmatched providers
+          const records = enrolmentService.normalizeEnrolmentRows(rows, mappings, matches, period, item.id, item.file.name, sheetName);
+          exportBatchErrorsAndDuplicatesReport(item.file.name, records);
+          continue;
         }
 
         // 3. Normalize & Preview
@@ -303,9 +304,12 @@ export default function EnrolmentUploadPage() {
             period,
             data: { workbook, sourceSheet: sheetName, sheetNames: workbook.SheetNames, headerRowIndex: hIndex, headers: detectedHeaders, rawRows: rows, mappings, reportingYear: detectedYear, reportingMonth: detectedMonth, matches, normalizedRecords: records, validationErrors, extractedContext: context, periodDetection: detectedPeriod }
           });
-          setIsProcessingQueue(false);
-          setStep(reviewCount > 0 ? 'match' : 'preview');
-          return;
+          
+          // If there are no ready records, we can't commit, so move to next file.
+          // If there are ready records, we'll proceed to commit the valid ones.
+          if (readyCount === 0) {
+            continue;
+          }
         }
 
         // 4. Commit
@@ -645,6 +649,12 @@ export default function EnrolmentUploadPage() {
       });
       
       updateQueueItem(activeItem.id, { status: 'imported' });
+      
+      // Auto-download issues report if any issues exist
+      if (activeItem.errors > 0 || activeItem.review > 0 || activeItem.duplicates > 0) {
+        exportBatchErrorsAndDuplicatesReport(activeItem.file.name, activeItem.data.normalizedRecords);
+      }
+
       setCommitMessage(`Successfully imported ${activeItem.matched} records from ${activeItem.file.name}. ${activeItem.errors + activeItem.review + activeItem.duplicates} records were skipped due to validation issues.`);
       
       // Check if there are more files in queue
