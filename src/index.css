@@ -368,3 +368,153 @@ select:focus-visible {
     @apply inline-flex items-center rounded-pill px-2.5 py-0.5 text-[0.6875rem] font-bold uppercase tracking-[0.05em];
   }
 }
+
+/* Public NMIS portal visual system */
+.public-portal {
+  background:
+    radial-gradient(circle at 12% 18%, rgba(31, 103, 213, 0.07), transparent 26rem),
+    radial-gradient(circle at 86% 52%, rgba(16, 185, 129, 0.045), transparent 24rem),
+    linear-gradient(180deg, #f7faff 0%, #f4f7fc 54%, #eef4fb 100%);
+}
+
+.public-header {
+  background: linear-gradient(105deg, #071b46 0%, #102d68 54%, #0b3d91 100%);
+  box-shadow: 0 12px 34px rgba(7, 28, 75, 0.24);
+}
+
+.public-header::after {
+  content: '';
+  display: block;
+  height: 2px;
+  background: linear-gradient(90deg, #f4bd51 0%, #10b981 48%, #4f8df7 100%);
+}
+
+.public-hero {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 85% 16%, rgba(78, 143, 247, 0.22), transparent 20rem),
+    radial-gradient(circle at 54% 110%, rgba(16, 185, 129, 0.13), transparent 24rem),
+    linear-gradient(122deg, #071b46 0%, #102b64 53%, #0b3d91 100%);
+}
+
+.public-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.16;
+  background-image: linear-gradient(rgba(255,255,255,0.18) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.18) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, black, transparent 85%);
+}
+
+.public-glass {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: linear-gradient(145deg, rgba(255,255,255,0.14), rgba(255,255,255,0.045));
+  box-shadow: 0 24px 70px rgba(2, 12, 38, 0.24), inset 0 1px 0 rgba(255,255,255,0.12);
+  backdrop-filter: blur(16px);
+}
+
+.public-section {
+  position: relative;
+}
+
+.public-section-tint {
+  background: linear-gradient(135deg, rgba(234, 241, 255, 0.86), rgba(248, 251, 255, 0.98));
+}
+
+.public-section-white {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.public-panel {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 45px rgba(15, 38, 82, 0.07), 0 2px 8px rgba(15, 38, 82, 0.035);
+}
+
+.public-kpi-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 1.25rem;
+  background: linear-gradient(145deg, #ffffff 0%, #f7faff 100%);
+  box-shadow: 0 12px 30px rgba(15, 38, 82, 0.07);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.public-kpi-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(31, 103, 213, 0.12), transparent 68%);
+  transform: translate(35%, -35%);
+  pointer-events: none;
+}
+
+.public-kpi-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(31, 103, 213, 0.25);
+  box-shadow: 0 18px 38px rgba(15, 38, 82, 0.12);
+}
+
+.public-icon-tile {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.65), 0 6px 14px rgba(31, 103, 213, 0.12);
+}
+
+.public-provider-card {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1.25rem;
+  background: linear-gradient(160deg, #ffffff, #f8fbff);
+  box-shadow: 0 12px 30px rgba(15, 38, 82, 0.055);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.public-provider-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(31, 103, 213, 0.3);
+  box-shadow: 0 22px 42px rgba(15, 38, 82, 0.12);
+}
+
+.public-service-card,
+.public-content-card {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 26px rgba(15, 38, 82, 0.05);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.public-service-card:hover,
+.public-content-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(31, 103, 213, 0.24);
+  box-shadow: 0 18px 34px rgba(15, 38, 82, 0.09);
+}
+
+.public-section-eyebrow {
+  color: #0b3d91;
+  letter-spacing: 0.22em;
+}
+
+.public-hero-eyebrow {
+  color: #f7ce72;
+  letter-spacing: 0.22em;
+}
+
+.public-filter-panel {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 12px 28px rgba(15, 38, 82, 0.06);
+}
+
+@media (max-width: 639px) {
+  .public-hero::before { background-size: 32px 32px; }
+}
