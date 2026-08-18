@@ -47,6 +47,7 @@ type ProviderDirectoryRpcRow = {
 };
 
 type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
+  address?: string | null;
   services?: string[] | null;
   departments?: string[] | null;
   staff_strength?: number | null;
@@ -101,10 +102,10 @@ function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
 function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
   return {
     ...mapDirectoryRow(row),
-    address: 'Access restricted',
-    bankName: 'Access restricted',
-    accountName: 'Access restricted',
-    accountNumber: 'Access restricted',
+    address: row.address ?? 'Access restricted',
+    bankName: (row as any).bank_name ?? 'Access restricted',
+    accountName: (row as any).account_name ?? 'Access restricted',
+    accountNumber: (row as any).account_number ?? 'Access restricted',
     services: row.services ?? [],
     departments: row.departments ?? [],
     staffStrength: row.staff_strength ?? 0,
