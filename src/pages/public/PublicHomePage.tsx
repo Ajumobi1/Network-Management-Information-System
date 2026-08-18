@@ -68,7 +68,13 @@ export default function PublicHomePage() {
   const [locating, setLocating] = useState(false);
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
 
-  const odchcOffice = { name: 'ODCHC Headquarters', lga: 'Akure South', type: 'office', lat: 7.2571, lng: 5.2058 };
+  const odchcOffice = { 
+    name: 'ODCHC Headquarters', 
+    lga: 'Akure South', 
+    type: 'office', 
+    address: 'Ministry of Health Complex, Alagbaka, Akure, Ondo State',
+    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Ondo+State+Contributory+Health+Commission+Alagbaka+Akure'
+  };
 
   const [complaintForm, setComplaintForm] = useState({ category: 'service-delivery', name: '', phone: '', email: '', lga: '', providerId: '', description: '', incidentDate: '', preferredContactMethod: 'Phone' });
   const [complaintSubmitting, setComplaintSubmitting] = useState(false);
@@ -291,8 +297,15 @@ export default function PublicHomePage() {
                     {activeMarker === 'odchc' ? (
                       <div>
                         <h4 className="font-bold text-brand-navy">{odchcOffice.name}</h4>
-                        <p className="mt-1 text-xs text-brand-muted">{odchcOffice.lga} · Alagbaka, Akure</p>
-                        <p className="mt-2 text-[10px] text-brand-subtle">Beside Governor's Office</p>
+                        <p className="mt-1 text-xs text-brand-muted">{odchcOffice.lga}</p>
+                        <a 
+                          href={odchcOffice.mapUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-amber-500 py-2 text-xs font-bold text-brand-navy transition hover:bg-amber-400"
+                        >
+                          <Navigation size={14} /> Navigate to Office
+                        </a>
                       </div>
                     ) : (
                       <div>
@@ -533,7 +546,19 @@ export default function PublicHomePage() {
               <div className="mt-6 space-y-4 text-sm text-white/70">
                 <p className="flex gap-3"><Phone size={17} className="shrink-0 text-emerald-200" /> Customer service support</p>
                 <p className="flex gap-3"><Mail size={17} className="shrink-0 text-emerald-200" /> Official Commission correspondence</p>
-                <p className="flex gap-3"><MapPin size={17} className="shrink-0 text-emerald-200" /> Ondo State, Nigeria</p>
+                <div className="flex flex-col gap-3">
+                  <p className="flex gap-3"><MapPin size={17} className="shrink-0 text-emerald-200" /> Ministry of Health Complex, Alagbaka</p>
+                  <button 
+                    onClick={() => {
+                      const el = document.getElementById('network');
+                      if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      setActiveMarker('odchc');
+                    }}
+                    className="ml-7 flex w-fit items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-amber-200 transition hover:bg-white/20"
+                  >
+                    <Navigation size={12} /> Locate on Map
+                  </button>
+                </div>
                 <p className="flex gap-3"><Clock size={17} className="shrink-0 text-emerald-200" /> Monday–Friday, 8:00 AM–4:00 PM</p>
               </div>
             </div>
