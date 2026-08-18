@@ -413,5 +413,55 @@ export async function fetchEnrolmentAnalyticsWithFinance(filters: EnrolmentFilte
 }
 
 export async function fetchProviderPopulationSummary(providerId: string, filters: EnrolmentFilters = {}): Promise<EnrolmentAnalytics> {
-  return fetchEnrolmentAnalytics({ ...filters, providerId });
+  if (!providerId) return analyticsFromRecords([]);
+  if (useMockData) return analyticsFromRecords(await fetchEnrollees({ ...filters, providerId }));
+
+  const raw = await invokeSecureRpc<Partial<EnrolmentAnalytics>>('nmis_population_analytics', {
+    p_year: filters.year ?? null,
+    p_month: filters.month ?? null,
+    p_period: activeFilter(filters.period),
+    p_sector: activeFilter(filters.sector),
+    p_category: activeFilter(filters.category),
+    p_state: activeFilter(filters.state),
+    p_lga: activeFilter(filters.lga),
+    p_provider_id: providerId,
+  });
+
+  const totalEnrollees = Number(raw.totalEnrollees || 0);
+  const formalCount = Number(raw.formalCount || 0);
+  const informalCount = Number(raw.informalCount || 0);
+  const principalCount = Number(raw.principalCount || 0);
+  const dependantCount = Number(raw.dependantCount || 0);
+  const percentage = (count: number) => totalEnrollees > 0 ? Number(((count / totalEnrollees) * 100).toFixed(1)) : 0;
+
+  return {
+    totalEnrollees,
+    formalCount,
+    informalCount,
+    principalCount,
+    dependantCount,
+    maleCount: Number(raw.maleCount || 0),
+    femaleCount: Number(raw.femaleCount || 0),
+    providerCount: Number(raw.providerCount || 0),
+    lgaCount: Number(raw.lgaCount || 0),
+    senatorialDistrictCount: Number(raw.senatorialDistrictCount || 0),
+    formalPercentage: Number(raw.formalPercentage ?? percentage(formalCount)),
+    informalPercentage: Number(raw.informalPercentage ?? percentage(informalCount)),
+    principalPercentage: Number(raw.principalPercentage ?? percentage(principalCount)),
+    dependantPercentage: Number(raw.dependantPercentage ?? percentage(dependantCount)),
+    bySector: raw.bySector || [],
+    byCategory: raw.byCategory || [],
+    byGender: raw.byGender || [],
+    byState: raw.byState || [],
+    byLga: raw.byLga || [],
+    bySenatorialDistrict: raw.bySenatorialDistrict || [],
+    byFacility: raw.byFacility || [],
+    monthlyTrend: raw.monthlyTrend || [],
+    financialExpenditure: Number(raw.financialExpenditure || 0),
+    financialRecordCount: Number(raw.financialRecordCount || 0),
+    capitationRate: Number(raw.capitationRate || 750),
+    capitationExpenditure: Number(raw.capitationExpenditure || 0),
+    pepm: Number(raw.pepm || 0),
+    pepmTrend: raw.pepmTrend || [],
+  };
 }
