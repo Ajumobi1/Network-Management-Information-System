@@ -55,11 +55,19 @@ function humanizeCategory(category: string) {
 }
 
 function providerLocationQuery(provider: PublicProvider): string | null {
-  // Google Maps can resolve a facility name or street address to an unrelated result.
-  // Only an authoritative coordinate pair is safe for live navigation.
+  // Prefer an exact verified coordinate pair. When one is not yet available,
+  // use the complete facility + physical address + LGA + state query so the
+  // card can still focus the live map without falling back to a broad name/LGA search.
   if (Number.isFinite(provider.latitude) && Number.isFinite(provider.longitude)) {
     return `${provider.latitude},${provider.longitude}`;
   }
+
+  if (provider.address?.trim()) {
+    return [provider.providerName, provider.address, provider.lga, 'Ondo State, Nigeria']
+      .filter(Boolean)
+      .join(', ');
+  }
+
   return null;
 }
 
@@ -679,7 +687,9 @@ function KpiCard({ label, value, icon }: { label: string; value: string; icon: R
 }
 
 function ProviderCard({ provider, onLocate }: { provider: PublicProvider; onLocate?: () => void }) {
-  const hasLocation = providerLocationQuery(provider) !== null;
+  const locationQuery = providerLocationQuery(provider);
+  const hasLocation = locationQuery !== null;
+  const hasExactCoordinates = Number.isFinite(provider.latitude) && Number.isFinite(provider.longitude);
   return (
     <article className="public-provider-card group relative flex flex-col p-4">
       <div className="flex items-start justify-between gap-3">
@@ -687,7 +697,13 @@ function ProviderCard({ provider, onLocate }: { provider: PublicProvider; onLoca
           {humanizeCategory(provider.category)}
         </span>
         <div className="flex gap-1.5">
-          <button onClick={hasLocation ? onLocate : undefined} disabled={!hasLocation} className="rounded-full bg-brand-soft p-1 text-brand-blue transition hover:bg-brand-blue hover:text-white disabled:cursor-not-allowed disabled:opacity-40" title={hasLocation ? 'Locate on map' : 'Location pending verification'}>
+          <button
+            onClick={hasLocation ? onLocate : undefined}
+            disabled={!hasLocation}
+            aria-label={hasLocation ? `Locate ${provider.providerName} on the map` : `Location unavailable for ${provider.providerName}`}
+            className="rounded-full bg-brand-soft p-1 text-brand-blue transition hover:bg-brand-blue hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+            title={hasLocation ? (hasExactCoordinates ? 'Locate exact facility pin on map' : 'Search this verified facility address on map') : 'Physical address pending verification'}
+          >
             <MapPin size={12} />
           </button>
           <BadgeCheck size={16} className="shrink-0 text-emerald-500" />
