@@ -312,12 +312,27 @@ export default function PublicHomePage() {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Accredited provider</p>
                       <h4 className="mt-1 font-bold text-brand-navy">{activeProvider.providerName}</h4>
                       <p className="mt-1 text-xs text-brand-muted">{activeProvider.lga} LGA · {activeProvider.ownership || 'Accredited'}</p>
-                      <button
-                        onClick={() => setMapTarget({ name: activeProvider.providerName, query: `${activeProvider.providerName}, ${activeProvider.lga}, Ondo State, Nigeria` })}
-                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-blue py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
-                      >
-                        <MapPin size={14} /> Focus this facility
-                      </button>
+                      <div className="mt-3 flex flex-col gap-2">
+                        <button
+                          onClick={() => setMapTarget({ 
+                            name: activeProvider.providerName, 
+                            query: activeProvider.latitude != null && activeProvider.longitude != null
+                              ? `${activeProvider.latitude},${activeProvider.longitude}`
+                              : `${activeProvider.providerName}, ${activeProvider.lga}, Ondo State, Nigeria` 
+                          })}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-blue py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
+                        >
+                          <MapPin size={14} /> Focus this facility
+                        </button>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeProvider.latitude != null && activeProvider.longitude != null ? `${activeProvider.latitude},${activeProvider.longitude}` : `${activeProvider.providerName}, ${activeProvider.lga}, Ondo State, Nigeria`)}`}
+                          target="_self"
+                          rel="noopener noreferrer"
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-soft py-2 text-xs font-bold text-brand-navy transition hover:bg-brand-border"
+                        >
+                          <Navigation size={14} /> Navigate to Facility
+                        </a>
+                      </div>
                     </div>
                   ) : null}
                 </div>
@@ -367,6 +382,8 @@ export default function PublicHomePage() {
                         key={provider.id}
                         provider={provider}
                         onLocate={() => {
+                          const el = document.getElementById('network');
+                          if (el) el.scrollIntoView({ behavior: 'smooth' });
                           setActiveMarker(provider.id);
                           setMapTarget({
                             name: provider.providerName,
