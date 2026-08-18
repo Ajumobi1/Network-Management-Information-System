@@ -22,6 +22,18 @@ import {
 
 const normalizeText = (value: unknown) => String(value ?? '').trim();
 
+/**
+ * Normalize source phone values without inventing or changing the number's
+ * meaning. Formatting separators are removed while the original country or
+ * local prefix is preserved.
+ */
+export function normalizePhoneNumber(value: unknown): string | undefined {
+  const text = normalizeText(value);
+  if (!text) return undefined;
+  const normalized = text.replace(/[\s().-]+/g, '');
+  return normalized || undefined;
+}
+
 const mappingRules: Array<{ field: EnrolmentField | 'ignored'; keywords: string[]; weight: number }> = [
   { field: 'ignored', keywords: ['s/n', 'sn', 'index', 'id', 'account number', 'bank', 'amount', 'capitation fee'], weight: 1.0 },
   { field: 'policyNumber', keywords: ['policy number', 'policy no', 'policy', 'membership number', 'member id', 'enrollee id'], weight: 1.0 },
@@ -212,6 +224,8 @@ export function normalizeEnrolmentRows(
     const gender = normalizeGender(readMappedValue(row, mappings, 'gender'));
     const rawAge = readMappedValue(row, mappings, 'age');
     const age = rawAge !== undefined && rawAge !== '' ? Number(rawAge) : undefined;
+    const rawPhoneNumber = readMappedValue(row, mappings, 'phoneNumber');
+    const phoneNumber = normalizePhoneNumber(rawPhoneNumber);
     
     const sourceProviderName = normalizeText(readMappedValue(row, mappings, 'providerName')) || (fallbackMatch ? fallbackMatch.excelName : '');
     const sourceProviderCode = normalizeText(readMappedValue(row, mappings, 'providerCode'));
@@ -347,7 +361,7 @@ export function normalizeEnrolmentRows(
       lastName,
       gender: gender || 'other',
       age: Number.isInteger(age) ? age : undefined,
-      phoneNumber: normalizeText(readMappedValue(row, mappings, 'phoneNumber')) || undefined,
+      phoneNumber,
       providerId: match?.matchedProviderId,
       providerCode: providerCode || undefined,
       providerName,
@@ -377,6 +391,7 @@ export function normalizeEnrolmentRows(
           lastName: readMappedValue(row, mappings, 'lastName'),
           gender: readMappedValue(row, mappings, 'gender'),
           age: readMappedValue(row, mappings, 'age'),
+          phoneNumber: rawPhoneNumber,
           providerName: readMappedValue(row, mappings, 'providerName'),
           providerCode: readMappedValue(row, mappings, 'providerCode'),
           lga: readMappedValue(row, mappings, 'lga'),

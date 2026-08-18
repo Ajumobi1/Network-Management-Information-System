@@ -1239,6 +1239,7 @@ export default function EnrolmentUploadPage() {
                           <th className="px-4 py-3">Policy Number</th>
                           <th className="px-4 py-3">Beneficiary</th>
                           <th className="px-4 py-3">Age</th>
+                          <th className="px-4 py-3">Phone</th>
                           <th className="px-4 py-3">Category</th>
                           <th className="px-4 py-3">Matched Provider</th>
                           <th className="px-4 py-3 text-right">Status</th>
@@ -1249,7 +1250,8 @@ export default function EnrolmentUploadPage() {
                           <tr key={record.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-4 py-3 font-mono text-xs text-slate-500">{record.policyNumber}</td>
                             <td className="px-4 py-3 font-bold text-slate-800">{record.firstName} {record.lastName}</td>
-                            <td className="px-4 py-3 text-slate-500">{record.age || '-'}</td>
+                            <td className="px-4 py-3 text-slate-500">{record.age ?? '-'}</td>
+                            <td className="px-4 py-3 text-slate-500">{record.phoneNumber || '-'}</td>
                             <td className="px-4 py-3 capitalize text-slate-500">{record.category}</td>
                             <td className="px-4 py-3">
                               <p className="text-xs font-semibold text-slate-700">{record.providerName}</p>
