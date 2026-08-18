@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Mail, MapPin, MessageSquare, ShieldCheck, ChevronRight } from 'lucide-react';
 import Button from '../../../../components/ui/Button';
 import Card from '../../../../components/ui/Card';
@@ -48,7 +49,19 @@ type ProviderProfileTab = (typeof tabs)[number];
 
 export default function ProviderProfile({ providerId }: { providerId: string }) {
   const { data: provider, isLoading, isError, error, refetch } = useProviderProfile(providerId);
-  const [activeTab, setActiveTab] = useState<ProviderProfileTab>('Overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') as ProviderProfileTab | null;
+  const [activeTab, setActiveTab] = useState<ProviderProfileTab>(
+    initialTab && tabs.includes(initialTab) ? initialTab : 'Overview',
+  );
+
+  const handleTabChange = (tab: ProviderProfileTab) => {
+    setActiveTab(tab);
+    const nextParams = new URLSearchParams(searchParams);
+    if (tab === 'Overview') nextParams.delete('tab');
+    else nextParams.set('tab', tab);
+    setSearchParams(nextParams, { replace: true });
+  };
 
   if (isLoading) return <LoadingState title="Loading provider profile..." />;
   if (isError || !provider) return <ErrorState title={isSecureContractError(error) ? 'Secure provider profile unavailable' : 'Profile not found'} description={isSecureContractError(error) ? 'No provider profile was loaded because the approved operational-profile contract is unavailable.' : undefined} action={{ label: 'Retry', onClick: () => refetch() }} />;
@@ -121,7 +134,7 @@ export default function ProviderProfile({ providerId }: { providerId: string }) 
           {tabs.map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={`relative py-3 text-sm font-bold transition-colors sm:py-4 ${
                 activeTab === tab
                   ? 'text-brand-blue'
