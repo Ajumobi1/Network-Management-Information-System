@@ -157,7 +157,7 @@ export default function PublicHomePage() {
 
   return (
     <div className="min-h-screen bg-brand-background font-sans text-brand-foreground antialiased selection:bg-brand-blue/10 selection:text-brand-blue">
-      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-brand-navy/95 backdrop-blur-md">
+      <header className="public-header sticky top-0 z-50 w-full border-b border-white/10">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <img src="/assets/odchc-seal.png" alt="ODCHC seal" className="h-10 w-10 sm:h-12 sm:w-12" />
@@ -246,18 +246,39 @@ export default function PublicHomePage() {
           <SectionIntro eyebrow="Our Network" title="Find a healthcare provider" description="Search the authoritative public provider directory by facility name, location, and category. Only approved public-safe fields are shown." />
           
           <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_400px]">
-            <div className="public-map-container z-0 flex items-center justify-center bg-brand-navy/5 p-8">
+            <div className="public-map-container z-0 flex items-center justify-center p-5 sm:p-8">
               <div className="relative h-full w-full max-w-lg">
-                <svg viewBox="0 0 500 400" className="h-full w-full drop-shadow-2xl" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M150,50 L250,30 L350,60 L400,150 L380,250 L300,350 L200,380 L100,320 L50,200 Z" className="fill-brand-navy/10 stroke-brand-navy/20 stroke-2" />
-                  <path d="M160,60 L240,45 L330,70 L380,150 L360,240 L290,330 L210,360 L110,300 L70,190 Z" className="fill-brand-blue/5 stroke-brand-blue/10 stroke-1" />
+                <svg viewBox="0 0 500 400" className="public-ondo-map h-full w-full" role="img" aria-label="Illustrated Ondo State provider network map" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse">
+                      <path d="M 28 0 L 0 0 0 28" fill="none" className="public-map-grid-line" />
+                    </pattern>
+                    <clipPath id="ondo-boundary">
+                      <path d="M154 38C192 24 244 22 294 36L350 68C371 80 384 105 380 129L366 158C358 173 362 190 379 214L391 245C398 267 386 289 367 304L340 326C323 340 313 362 289 372L247 380C222 385 203 370 188 354L160 329C144 315 123 310 105 297L78 274C57 257 49 234 55 211L66 179C73 157 67 135 76 113L87 84C99 58 122 47 154 38Z" />
+                    </clipPath>
+                  </defs>
+                  <rect width="500" height="400" rx="28" className="public-map-grid-surface" />
+                  <rect width="500" height="400" rx="28" className="public-map-grid-overlay" />
+                  <g clipPath="url(#ondo-boundary)">
+                    <rect x="35" y="20" width="380" height="365" className="public-ondo-map-base" />
+                    <path d="M40 24H420V158C356 174 286 164 222 145C150 124 93 122 40 146Z" className="public-district-north" />
+                    <path d="M38 145C110 119 158 143 224 151C288 159 350 172 416 151V264C343 245 288 254 224 240C153 225 103 238 38 263Z" className="public-district-central" />
+                    <path d="M38 255C110 232 157 226 225 242C293 258 350 244 420 260V390H38Z" className="public-district-south" />
+                    <path d="M76 113L380 129M66 179L379 214M55 238L391 245M105 297L367 304" className="public-map-boundary-line" />
+                  </g>
+                  <path d="M154 38C192 24 244 22 294 36L350 68C371 80 384 105 380 129L366 158C358 173 362 190 379 214L391 245C398 267 386 289 367 304L340 326C323 340 313 362 289 372L247 380C222 385 203 370 188 354L160 329C144 315 123 310 105 297L78 274C57 257 49 234 55 211L66 179C73 157 67 135 76 113L87 84C99 58 122 47 154 38Z" className="public-ondo-map-outline" />
+                  <text x="108" y="108" className="public-map-zone-label">ONDO NORTH</text>
+                  <text x="174" y="206" className="public-map-zone-label">ONDO CENTRAL</text>
+                  <text x="191" y="302" className="public-map-zone-label">ONDO SOUTH</text>
                   <g className="cursor-pointer" onClick={() => setActiveMarker('odchc')}>
-                    <circle cx="280" cy="180" r="8" className="fill-amber-400 stroke-white stroke-2 animate-pulse" />
-                    <text x="292" y="184" className="fill-brand-navy text-[10px] font-bold">ODCHC HQ</text>
+                    <circle cx="257" cy="183" r="15" className="public-map-office-halo" />
+                    <circle cx="257" cy="183" r="8" className="public-map-office-marker" />
+                    <text x="272" y="187" className="public-map-office-label">ODCHC HQ</text>
                   </g>
                   {providers.slice(0, 12).map((p, i) => (
                     <g key={p.id} className="cursor-pointer" onClick={() => setActiveMarker(p.id)}>
-                      <circle cx={150 + (i * 20) % 200} cy={100 + (i * 25) % 250} r="4" className="fill-brand-blue stroke-white stroke-1" />
+                      <circle cx={130 + (i * 31) % 235} cy={93 + (i * 43) % 245} r="7" className="public-map-provider-halo" />
+                      <circle cx={130 + (i * 31) % 235} cy={93 + (i * 43) % 245} r="4" className="public-map-provider-marker" />
                     </g>
                   ))}
                 </svg>
@@ -387,18 +408,18 @@ export default function PublicHomePage() {
             </div>
 
             <div className="flex flex-col justify-start pt-12 lg:pt-0">
-              <div className="public-panel bg-brand-navy p-8 text-white">
+              <div className="public-complaint-tracker p-7 text-white sm:p-8">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200">Track your complaint</p>
                 <h3 className="mt-3 text-2xl font-black">Stay informed after you submit.</h3>
                 <p className="mt-4 text-sm leading-relaxed text-white/60">Enter the reference number sent after submission to see the latest public-safe status.</p>
                 <div className="mt-8 space-y-4">
-                  <input className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/30 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400" placeholder="ODCHC-2026-XXXXX" value={complaintStatusRef} onChange={e => setComplaintStatusRef(e.target.value)} />
-                  <button onClick={checkComplaintStatus} disabled={complaintStatusLoading} className="flex w-full items-center justify-center gap-2 rounded-xl bg-white py-3 font-bold text-brand-navy transition hover:bg-brand-soft">
+                  <input className="public-complaint-input w-full rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300/40" placeholder="ODCHC-2026-XXXXX" value={complaintStatusRef} onChange={e => setComplaintStatusRef(e.target.value)} />
+                  <button onClick={checkComplaintStatus} disabled={complaintStatusLoading} className="public-complaint-button flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold transition">
                     {complaintStatusLoading ? 'Checking...' : 'Check Status'} <Search size={16} />
                   </button>
                 </div>
                 {complaintStatusResult && (
-                  <div className="mt-6 rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                  <div className="public-complaint-result mt-6 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Status</span>
                       <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-400">{complaintStatusResult.status}</span>
@@ -416,32 +437,46 @@ export default function PublicHomePage() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <SectionIntro eyebrow="Transparency" title="Open, aggregated, privacy-safe intelligence" description="NMIS shares public-safe network information without exposing names, phone numbers, policy numbers, or individual financial records." />
             <div className="mt-12 grid gap-8 lg:grid-cols-2">
-              <div className="public-panel p-8">
-                <div className="flex items-center justify-between border-b border-brand-border pb-4">
-                  <h3 className="text-lg font-extrabold text-brand-navy">Enrollees by LGA</h3>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-brand-muted">Valid records only</span>
+              <div className="public-data-panel p-6 sm:p-8">
+                <div className="public-data-header flex items-center justify-between pb-5">
+                  <div>
+                    <p className="public-data-kicker">Population distribution</p>
+                    <h3 className="mt-1 text-xl font-extrabold text-brand-navy">Enrollees by LGA</h3>
+                  </div>
+                  <span className="public-data-badge">Valid records only</span>
                 </div>
                 <div className="mt-6 space-y-5">
                   {snapshot.transparency.byLga.slice(0, 8).map(item => (
-                    <div key={item.name} className="group">
-                      <div className="flex items-center justify-between text-xs font-bold text-brand-navy">
-                        <span>{item.name}</span>
-                        <span>{item.value.toLocaleString()}</span>
+                    <div key={item.name} className="public-lga-row group">
+                      <div className="flex items-center justify-between gap-3 text-sm font-bold text-brand-navy">
+                        <span className="truncate">{item.name}</span>
+                        <span className="public-lga-value">{item.value.toLocaleString()}</span>
                       </div>
-                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-brand-soft">
-                        <div className="h-full rounded-full bg-brand-navy transition-all duration-1000 group-hover:bg-brand-blue" style={{ width: `${(item.value / (snapshot.transparency.byLga[0]?.value || 1)) * 100}%` }} />
+                      <div className="public-bar-track mt-3">
+                        <div className="public-bar-fill" style={{ width: `${Math.min(100, (item.value / (snapshot.transparency.byLga[0]?.value || 1)) * 100)}%` }} />
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="public-panel p-8">
-                <h3 className="border-b border-brand-border pb-4 text-lg font-extrabold text-brand-navy">Provider distribution</h3>
-                <div className="mt-6 space-y-3">
+              <div className="public-data-panel p-6 sm:p-8">
+                <div className="public-data-header pb-5">
+                  <p className="public-data-kicker">Accredited network</p>
+                  <h3 className="mt-1 text-xl font-extrabold text-brand-navy">Provider distribution</h3>
+                </div>
+                <div className="mt-6 space-y-4">
                   {snapshot.transparency.byCategory.map(item => (
-                    <div key={item.name} className="flex items-center justify-between rounded-xl bg-brand-soft/50 p-4 transition hover:bg-brand-soft">
-                      <span className="text-sm font-bold text-brand-muted">{humanizeCategory(item.name)}</span>
-                      <span className="text-lg font-black text-brand-navy">{item.value}</span>
+                    <div key={item.name} className="public-category-row">
+                      <div className="public-category-icon"><Building2 size={16} /></div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="truncate text-sm font-bold text-brand-navy">{humanizeCategory(item.name)}</span>
+                          <span className="public-category-value">{item.value}</span>
+                        </div>
+                        <div className="public-bar-track mt-2">
+                          <div className="public-category-fill" style={{ width: `${Math.min(100, (item.value / (snapshot.transparency.byCategory[0]?.value || 1)) * 100)}%` }} />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

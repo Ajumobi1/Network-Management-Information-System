@@ -541,3 +541,340 @@ select:focus-visible {
 .public-marker-provider {
   @apply flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue text-white shadow-md border-2 border-white ring-2 ring-brand-blue transition hover:scale-110;
 }
+
+
+/* Public portal visual correction and premium data surfaces */
+.public-header {
+  background: linear-gradient(110deg, #06183f 0%, #0b2b63 52%, #0b3d91 100%) !important;
+  color: #ffffff;
+  box-shadow: 0 14px 32px rgba(6, 24, 63, 0.26);
+}
+
+.public-header a,
+.public-header button {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.public-header a:hover,
+.public-header button:hover {
+  color: #ffffff;
+}
+
+.public-header img {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.22));
+}
+
+.public-map-container {
+  min-height: 500px;
+  border: 1px solid rgba(59, 130, 246, 0.24);
+  background:
+    radial-gradient(circle at 20% 18%, rgba(59, 130, 246, 0.28), transparent 24%),
+    radial-gradient(circle at 82% 80%, rgba(16, 185, 129, 0.18), transparent 27%),
+    linear-gradient(145deg, #dbeafe 0%, #eef6ff 43%, #d9f4ee 100%);
+  box-shadow: 0 22px 46px rgba(15, 38, 82, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.public-ondo-map {
+  filter: drop-shadow(0 18px 28px rgba(6, 24, 63, 0.16));
+}
+
+.public-map-grid-surface {
+  fill: rgba(255, 255, 255, 0.42);
+}
+
+.public-map-grid-overlay {
+  fill: none;
+  pointer-events: none;
+}
+
+.public-map-grid-line {
+  stroke: rgba(11, 61, 145, 0.1);
+  stroke-width: 1;
+}
+
+.public-ondo-map-base {
+  fill: rgba(255, 255, 255, 0.68);
+}
+
+.public-district-north {
+  fill: rgba(37, 99, 235, 0.18);
+}
+
+.public-district-central {
+  fill: rgba(14, 165, 233, 0.18);
+}
+
+.public-district-south {
+  fill: rgba(16, 185, 129, 0.2);
+}
+
+.public-map-boundary-line {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.84);
+  stroke-width: 2;
+  stroke-dasharray: 5 6;
+}
+
+.public-ondo-map-outline {
+  fill: none;
+  stroke: #0b3d91;
+  stroke-width: 5;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 4px 5px rgba(11, 61, 145, 0.18));
+}
+
+.public-map-zone-label {
+  fill: rgba(6, 24, 63, 0.52);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-anchor: middle;
+}
+
+.public-map-office-halo {
+  fill: rgba(245, 158, 11, 0.2);
+  stroke: rgba(245, 158, 11, 0.5);
+  stroke-width: 1;
+  animation: public-map-pulse 2s ease-in-out infinite;
+}
+
+.public-map-office-marker {
+  fill: #f59e0b;
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+.public-map-office-label {
+  fill: #06183f;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.public-map-provider-halo {
+  fill: rgba(11, 61, 145, 0.12);
+  stroke: rgba(11, 61, 145, 0.26);
+  stroke-width: 1;
+}
+
+.public-map-provider-marker {
+  fill: #0b3d91;
+  stroke: #ffffff;
+  stroke-width: 2;
+  transition: transform 160ms ease, fill 160ms ease;
+}
+
+.public-map-provider-marker:hover {
+  fill: #10b981;
+}
+
+@keyframes public-map-pulse {
+  0%, 100% { opacity: 0.66; transform: scale(0.9); transform-origin: 257px 183px; }
+  50% { opacity: 1; transform: scale(1.14); transform-origin: 257px 183px; }
+}
+
+.public-complaint-tracker {
+  position: relative;
+  overflow: hidden;
+  min-height: 340px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(circle at 88% 14%, rgba(245, 158, 11, 0.24), transparent 13rem),
+    radial-gradient(circle at 12% 92%, rgba(16, 185, 129, 0.18), transparent 14rem),
+    linear-gradient(145deg, #06183f 0%, #0b2b63 56%, #0b3d91 100%);
+  box-shadow: 0 24px 50px rgba(6, 24, 63, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.public-complaint-tracker::before {
+  content: '';
+  position: absolute;
+  right: -2rem;
+  top: -2rem;
+  width: 9rem;
+  height: 9rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  box-shadow: 0 0 0 18px rgba(255, 255, 255, 0.035), 0 0 0 36px rgba(255, 255, 255, 0.025);
+  pointer-events: none;
+}
+
+.public-complaint-tracker > * {
+  position: relative;
+  z-index: 1;
+}
+
+.public-complaint-input {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(4, 17, 46, 0.52);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.public-complaint-input:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+}
+
+.public-complaint-button {
+  background: linear-gradient(135deg, #f7c85f 0%, #f59e0b 100%);
+  color: #06183f;
+  box-shadow: 0 10px 22px rgba(245, 158, 11, 0.22);
+}
+
+.public-complaint-button:hover {
+  background: linear-gradient(135deg, #fbd77f 0%, #f7b52d 100%);
+  box-shadow: 0 14px 28px rgba(245, 158, 11, 0.32);
+}
+
+.public-complaint-result {
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.public-data-panel {
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  border-radius: 1.75rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 255, 0.96));
+  box-shadow: 0 20px 44px rgba(15, 38, 82, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.public-data-header {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.public-data-kicker {
+  color: #0b3d91;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.public-data-badge {
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  padding: 0.45rem 0.7rem;
+  text-transform: uppercase;
+}
+
+.public-lga-row {
+  padding: 0.7rem 0.8rem;
+  border-radius: 1rem;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.public-lga-row:hover {
+  background: rgba(219, 234, 254, 0.55);
+  transform: translateX(3px);
+}
+
+.public-lga-value,
+.public-category-value {
+  color: #0b3d91;
+  font-variant-numeric: tabular-nums;
+  font-weight: 900;
+}
+
+.public-bar-track {
+  height: 0.48rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #dce8fb;
+}
+
+.public-bar-fill,
+.public-category-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0b3d91 0%, #2f7de1 58%, #10b981 100%);
+  box-shadow: 0 0 12px rgba(47, 125, 225, 0.24);
+  transition: width 600ms ease;
+}
+
+.public-category-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.7);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.public-category-row:hover {
+  border-color: rgba(47, 125, 225, 0.3);
+  box-shadow: 0 10px 22px rgba(15, 38, 82, 0.06);
+  transform: translateY(-2px);
+}
+
+.public-category-icon {
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: linear-gradient(135deg, #0b3d91, #2f7de1);
+  color: #ffffff;
+  box-shadow: 0 7px 15px rgba(11, 61, 145, 0.18);
+}
+
+@media (max-width: 639px) {
+  .public-map-container {
+    min-height: 390px;
+    border-radius: 1.5rem;
+  }
+
+  .public-data-badge {
+    font-size: 0.55rem;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .public-complaint-tracker {
+    min-height: 300px;
+    border-radius: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-map-office-halo,
+  .public-map-provider-marker,
+  .public-lga-row,
+  .public-category-row {
+    animation: none;
+    transition: none;
+  }
+}
+
+.public-map-container,
+.public-data-panel,
+.public-complaint-tracker {
+  color-scheme: light;
+}
+
+.public-map-container svg text {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.public-map-container button:focus-visible,
+.public-complaint-tracker button:focus-visible,
+.public-complaint-tracker input:focus-visible {
+  outline-color: #f7c85f;
+}
+
+.public-section#transparency {
+  background:
+    radial-gradient(circle at 8% 20%, rgba(59, 130, 246, 0.08), transparent 22rem),
+    linear-gradient(180deg, #eef5ff 0%, #f7fbff 100%);
+}
+
+.public-section#complaints {
+  background:
+    radial-gradient(circle at 94% 34%, rgba(16, 185, 129, 0.07), transparent 21rem),
+    linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+}
