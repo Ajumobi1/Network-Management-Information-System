@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT * FROM public.provider_contacts LIMIT 10;"
+}

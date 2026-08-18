@@ -71,8 +71,8 @@ export async function fetchKpiMetrics(): Promise<KpiMetric[]> {
   ]);
 
   const totalProviders = (providers as any).totalCount ?? providers.length;
-  const activeProviders = (providers as any).activeCount ?? providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
-  const totalExpenditure = financialRecords.reduce((sum, r) => sum + (r.netAmountPaid ?? r.amountPaid ?? r.amount ?? r.netAmount ?? 0), 0);
+  const activeProviders = (providers as any).activeCount ?? providers.filter((p: any) => p.status === ProviderLifecycleStatus.Active).length;
+  const totalExpenditure = financialRecords.reduce((sum: number, r: any) => sum + (r.netAmountPaid ?? r.amountPaid ?? r.amount ?? r.netAmount ?? 0), 0);
   const baseMetrics = await dashboardMocks.getKpiMetrics();
   const baseById = new Map(baseMetrics.map(metric => [metric.id, metric]));
   const totalProvidersMetric = baseById.get('total-providers');

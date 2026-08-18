@@ -285,6 +285,13 @@ export async function createEnrolmentImportBatch(
   return created;
 }
 
+export async function backfillJulyPhones(batch: Array<{ policy_number: string; phone_number: string }>): Promise<number> {
+  if (useMockData) return 0;
+  return await invokeSecureRpc<number>('nmis_backfill_july_phones_by_policy', {
+    p_batch: batch,
+  });
+}
+
 function analyticsFromDashboardIntelligence(intelligence: Dashboard2Intelligence): EnrolmentAnalytics {
   const population = intelligence.population;
   const totalEnrollees = Number(population.total || 0);
@@ -341,132 +348,70 @@ async function fetchLiveEnrolmentAnalytics(filters: EnrolmentFilters): Promise<E
       senatorial_district_count: number;
       capitation_rate: number;
       capitation_expenditure: number;
-    }>>('nmis_enrollee_register_aggregates', {
-      p_search: filters.search || null,
-      p_sector: activeFilter(filters.sector),
-      p_category: activeFilter(filters.category),
-      p_gender: activeFilter(filters.gender),
-      p_state: activeFilter(filters.state),
-      p_lga: activeFilter(filters.lga),
-      p_senatorial_district: activeFilter(filters.senatorialDistrict),
-      p_provider_id: activeFilter(filters.providerId),
-      p_period: activeFilter(filters.period),
-      p_year: filters.year ?? null,
-      p_month: filters.month ?? null,
-    });
+      financial_expenditure: number;
+      financial_record_count: number;
+      pepm: number;
+      monthly_trend: any[];
+      pepm_trend: any[];
+      by_sector: any[];
+      by_category: any[];
+      by_gender: any[];
+      by_state: any[];
+      by_lga: any[];
+      by_senatorial_district: any[];
+      top_facilities: any[];
+    }>>('nmis_get_enrolment_analytics', populationArgs(filters));
 
-    const agg = rows[0] || {
-      total_count: 0,
-      formal_count: 0,
-      informal_count: 0,
-      principal_count: 0,
-      dependant_count: 0,
-      male_count: 0,
-      female_count: 0,
-      provider_count: 0,
-      lga_count: 0,
-      senatorial_district_count: 0,
-      capitation_rate: 750,
-      capitation_expenditure: 0,
-    };
-
-    const totalEnrollees = Number(agg.total_count || 0);
-    const formalCount = Number(agg.formal_count || 0);
-    const informalCount = Number(agg.informal_count || 0);
-    const principalCount = Number(agg.principal_count || 0);
-    const dependantCount = Number(agg.dependant_count || 0);
-    const maleCount = Number(agg.male_count || 0);
-    const femaleCount = Number(agg.female_count || 0);
-    const providerCount = Number(agg.provider_count || 0);
-    const lgaCount = Number(agg.lga_count || 0);
-    const senatorialDistrictCount = Number(agg.senatorial_district_count || 0);
-    const capitationRate = Number(agg.capitation_rate || 750);
-    const capitationExpenditure = Number(agg.capitation_expenditure || 0);
-    const percentage = (count: number) => totalEnrollees > 0 ? Number(((count / totalEnrollees) * 100).toFixed(1)) : 0;
-
-    return {
-      totalEnrollees,
-      formalCount,
-      informalCount,
-      principalCount,
-      dependantCount,
-      maleCount,
-      femaleCount,
-      providerCount,
-      lgaCount,
-      senatorialDistrictCount,
-      formalPercentage: percentage(formalCount),
-      informalPercentage: percentage(informalCount),
-      principalPercentage: percentage(principalCount),
-      dependantPercentage: percentage(dependantCount),
-      bySector: [
-        { name: 'formal', value: formalCount },
-        { name: 'informal', value: informalCount },
-      ].filter(item => item.value > 0),
-      byCategory: [
-        { name: 'principal', value: principalCount },
-        { name: 'dependant', value: dependantCount },
-      ].filter(item => item.value > 0),
-      byGender: [
-        { name: 'male', value: maleCount },
-        { name: 'female', value: femaleCount },
-      ].filter(item => item.value > 0),
-      byState: totalEnrollees > 0 ? [{ name: 'Ondo', value: totalEnrollees }] : [],
-      byLga: filters.lga ? [{ name: filters.lga, value: totalEnrollees }] : [],
-      bySenatorialDistrict: filters.senatorialDistrict ? [{ name: filters.senatorialDistrict, value: totalEnrollees }] : [],
-      byFacility: [],
-      monthlyTrend: [],
-      financialExpenditure: 0, // In this path, we don't have linked finance yet
-      financialRecordCount: 0,
-      capitationRate,
-      capitationExpenditure,
-      pepm: totalEnrollees > 0 ? Number((capitationExpenditure / totalEnrollees).toFixed(2)) : 0,
-      pepmTrend: [],
-    };
-  } catch (error) {
-    if (!isSecureContractError(error)
-      || !['SECURE_CONTRACT_UNAVAILABLE', 'VALIDATION_ERROR'].includes(error.code)) {
-      throw error;
+    if (!rows || rows.length === 0) {
+      throw new Error('No analytics data returned');
     }
 
-    const intelligence = await invokeSecureRpc<Dashboard2Intelligence>('nmis_dashboard_intelligence', {
-      p_year: filters.year ?? null,
-      p_month: filters.month ?? null,
-      p_sector: activeFilter(filters.sector),
-      p_state: activeFilter(filters.state),
-      p_lga: activeFilter(filters.lga),
-      p_facility_type: null,
-      p_ownership: null,
-    });
-    return analyticsFromDashboardIntelligence(intelligence);
+    const row = rows[0];
+    return {
+      totalEnrollees: Number(row.total_count || 0),
+      formalCount: Number(row.formal_count || 0),
+      informalCount: Number(row.informal_count || 0),
+      principalCount: Number(row.principal_count || 0),
+      dependantCount: Number(row.dependant_count || 0),
+      maleCount: Number(row.male_count || 0),
+      femaleCount: Number(row.female_count || 0),
+      providerCount: Number(row.provider_count || 0),
+      lgaCount: Number(row.lga_count || 0),
+      senatorialDistrictCount: Number(row.senatorial_district_count || 0),
+      capitationRate: Number(row.capitation_rate || 750),
+      capitationExpenditure: Number(row.capitation_expenditure || 0),
+      financialExpenditure: Number(row.financial_expenditure || 0),
+      financialRecordCount: Number(row.financial_record_count || 0),
+      pepm: Number(row.pepm || 0),
+      monthlyTrend: row.monthly_trend || [],
+      pepmTrend: row.pepm_trend || [],
+      bySector: row.by_sector || [],
+      byCategory: row.by_category || [],
+      byGender: row.by_gender || [],
+      byState: row.by_state || [],
+      byLga: row.by_lga || [],
+      bySenatorialDistrict: row.by_senatorial_district || [],
+      byFacility: row.top_facilities || [],
+      formalPercentage: row.total_count > 0 ? Number(((row.formal_count / row.total_count) * 100).toFixed(1)) : 0,
+      informalPercentage: row.total_count > 0 ? Number(((row.informal_count / row.total_count) * 100).toFixed(1)) : 0,
+      principalPercentage: row.total_count > 0 ? Number(((row.principal_count / row.total_count) * 100).toFixed(1)) : 0,
+      dependantPercentage: row.total_count > 0 ? Number(((row.dependant_count / row.total_count) * 100).toFixed(1)) : 0,
+    };
+  } catch (error) {
+    if (isSecureContractError(error)) throw error;
+    return analyticsFromRecords([]);
   }
 }
 
 export async function fetchEnrolmentAnalytics(filters: EnrolmentFilters = {}): Promise<EnrolmentAnalytics> {
-  if (!useMockData) return fetchLiveEnrolmentAnalytics(filters);
-  return analyticsFromRecords(await fetchEnrollees(filters));
+  if (useMockData) return analyticsFromRecords(await fetchEnrollees(filters));
+  return fetchLiveEnrolmentAnalytics(filters);
 }
 
 export async function fetchEnrolmentAnalyticsWithFinance(filters: EnrolmentFilters = {}): Promise<EnrolmentAnalytics> {
-  if (!useMockData) return fetchLiveEnrolmentAnalytics(filters);
-
-  const [analytics, financialRecords] = await Promise.all([
-    fetchEnrolmentAnalytics(filters),
-    fetchFinancialRecords({ period: activeFilter(filters.period), providerId: activeFilter(filters.providerId), state: activeFilter(filters.state), lga: activeFilter(filters.lga) }),
-  ]);
-  const expenditure = financialRecords.reduce((total, record) => total + amount(record), 0);
-  const expenditureByPeriod = financialRecords.reduce<Record<string, number>>((accumulator, record) => {
-    accumulator[record.period] = (accumulator[record.period] || 0) + amount(record);
-    return accumulator;
-  }, {});
-  const pepmTrend = analytics.monthlyTrend.map(item => ({ name: item.name, value: item.value ? Number(((expenditureByPeriod[item.name] || 0) / item.value).toFixed(2)) : 0 }));
-  return { ...analytics, financialExpenditure: expenditure, financialRecordCount: financialRecords.length, pepm: analytics.totalEnrollees ? Number((expenditure / analytics.totalEnrollees).toFixed(2)) : 0, pepmTrend };
+  return fetchEnrolmentAnalytics(filters);
 }
 
 export async function fetchProviderPopulationSummary(providerId: string, filters: EnrolmentFilters = {}): Promise<EnrolmentAnalytics> {
-  if (useMockData) return fetchEnrolmentAnalytics({ ...filters, providerId });
-  return invokeSecureRpc<EnrolmentAnalytics>('nmis_provider_population_summary', { p_provider_id: providerId, ...populationArgs(filters) });
+  return fetchEnrolmentAnalytics({ ...filters, providerId });
 }
-
-export const enrolmentCategoryValues: EnrolmentCategory[] = ['principal', 'dependant'];
-export const enrolmentSectorValues: EnrolmentSector[] = ['formal', 'informal'];

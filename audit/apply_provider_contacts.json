@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "UPDATE public.providers SET contact_person = 'Dr. Philip Ugbodaga', phone = '08133170688', email = 'iyamahnurudeen@gmail.com', updated_at = now() WHERE provider_name = 'FUTA TEACHING HOSPITAL (UNIMEDTHC), AKURE'; UPDATE public.providers SET phone = '+234 903 4780 111', email = 'info@ondostatemoh.gov.ng', updated_at = now() WHERE provider_name = 'ONDO STATE REFERENCE HOSPITAL, IGBATORO ROAD AKURE'; UPDATE public.providers SET phone = '07000240240', email = 'info@odchc.on.gov.ng', updated_at = now() WHERE provider_name = 'FEDERAL MEDICAL CENTRE OWO'; UPDATE public.providers SET email = 'rosena16@gmail.com', updated_at = now() WHERE provider_name = 'MOTHER AND CHILD HOSPITAL AKURE';"
+}

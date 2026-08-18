@@ -18,6 +18,7 @@ import {
   insertEnrolleeRecords,
   createEnrolmentImportBatch,
   checkDuplicateEnrolmentBatch,
+  backfillJulyPhones,
 } from '../../repositories/enrolment/enrolmentRepository';
 
 const normalizeText = (value: unknown) => String(value ?? '').trim();
@@ -495,6 +496,7 @@ export const enrolmentService = {
   insertEnrolleeRecords,
   createEnrolmentImportBatch,
   checkDuplicateEnrolmentBatch,
+  backfillJulyPhones,
   smartNormalizeEnrolmentValue,
   aiIngestionEngine,
 };

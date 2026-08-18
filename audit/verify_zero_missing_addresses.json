@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT COUNT(*) AS remaining_missing FROM public.providers WHERE lower(trim(coalesce(status, 'active'))) = 'active' AND (address IS NULL OR address = '' OR address = 'Access restricted');"
+}

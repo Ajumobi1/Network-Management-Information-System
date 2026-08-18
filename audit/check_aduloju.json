@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"SELECT id, provider_name, address, latitude, longitude, lga FROM public.providers WHERE provider_name ILIKE '%ADULOJU%' LIMIT 5;"}

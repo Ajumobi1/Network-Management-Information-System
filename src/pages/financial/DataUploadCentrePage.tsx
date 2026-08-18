@@ -586,7 +586,7 @@ const generatePreview = () => {
       setCommitMessage(`${activeItem.file.name}: imported ${importedRows.toLocaleString()}, duplicates ${duplicateRows.toLocaleString()}, rejected ${rejectedRows.toLocaleString()}.`);
 
       const nextPending = queue.find(item => item.id !== activeItem.id && item.status === 'pending');
-      if (nextPending) {
+      if (nextPending && isAutonomousMode) {
         await processFile(nextPending);
       } else {
         setStep('commit');
@@ -823,14 +823,16 @@ const generatePreview = () => {
               ))}
             </div>
 
-            <label className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-              <Upload className="h-3.5 w-3.5" /> Add more files
-              <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
-            </label>
-            <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 py-3 text-xs font-semibold text-brand-blue hover:bg-blue-50 transition-colors">
-              <Upload className="h-3.5 w-3.5" /> Add folder
-              <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
-            </label>
+            <div className="mt-4 space-y-2">
+              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                <Upload className="h-3.5 w-3.5" /> Add more files
+                <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+              </label>
+              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 py-3 text-xs font-semibold text-brand-blue hover:bg-blue-50 transition-colors">
+                <Folder className="h-3.5 w-3.5" /> Add folder
+                <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
+              </label>
+            </div>
           </div>
         </aside>
 

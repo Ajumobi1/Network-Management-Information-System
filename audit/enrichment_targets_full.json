@@ -1,0 +1,699 @@
+[
+  {
+    "id": "c5529b21-20a8-4678-a406-593b796ad715",
+    "provider_name": "AKURE ANGLICAN DIOC. MED. CENTER ANGLICAN COMMUNITY, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "ac440610-c881-4bdd-a613-93c2aeaca44a",
+    "provider_name": "ATLANTIS DENTAL SPECIALIST HOSPITAL",
+    "lga": "Ondo West",
+    "address": "Ondo",
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "540b3527-38a8-4a5c-b6da-27d4bfe4f347",
+    "provider_name": "BETAK PHARMACY",
+    "lga": "Akoko North-East",
+    "address": "Ikare Akoko",
+    "latitude": 7.51,
+    "longitude": 5.75
+  },
+  {
+    "id": "2b8495eb-79f2-4f9e-9c07-db8d3e0c023e",
+    "provider_name": "BISHOP AWOSIKA MEMORIAL HOSPITAL",
+    "lga": "Ondo West",
+    "address": "Yaba, Ondo",
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "f0713a72-2cf9-42ab-9371-0682bc4e8149",
+    "provider_name": "CHRISTBAY CONSULTANTS HOPITAL,AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "7eac0524-951e-4b7f-975e-efe5b09820a0",
+    "provider_name": "COLLEGE OF HEALTH TECHNOLOGY CLINIC, ODA ROAD, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "41979b02-e631-46c7-9b05-e7e28c5d6ce5",
+    "provider_name": "COMPREHENSIVE HEALTH CENTRE ZION PEPE",
+    "lga": "Ilaje",
+    "address": null,
+    "latitude": 6.35,
+    "longitude": 4.82
+  },
+  {
+    "id": "e9aba5bc-41d6-454a-9218-20fe97c86516",
+    "provider_name": "COMPREHENSIVE HEALTH CENTRE,OKEIGBO",
+    "lga": "Ile Oluji/Okeigbo",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "c987e20b-9789-4c03-86ef-30346a829bd4",
+    "provider_name": "DAMIDEK PHARMACY",
+    "lga": "Ilaje",
+    "address": "Igbokoda",
+    "latitude": 6.35,
+    "longitude": 4.82
+  },
+  {
+    "id": "b805bd4d-4432-4060-9388-7bda53830feb",
+    "provider_name": "DEBORAH MULTI-SPECIALIST HOSPITAL & DIAGNOSTIC CENTRE",
+    "lga": "Akure North",
+    "address": "Access restricted",
+    "latitude": 7.3,
+    "longitude": 5.25
+  },
+  {
+    "id": "8d332cbd-1e35-4156-940a-851b5727ea27",
+    "provider_name": "DELIGHT SPECIALIST CLINICS AND MATERNITY AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "73509910-41b4-4cf5-b04a-43d09c9fe90c",
+    "provider_name": "DIAMOND MEDICAL CLINIC, IKARE AKOKO",
+    "lga": "Akoko North East",
+    "address": "Access restricted",
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "47082686-efd9-4384-b23c-00459abd0481",
+    "provider_name": "ETON MEDICALS, OBA-ILE AKURE",
+    "lga": "Akure North",
+    "address": null,
+    "latitude": 7.3,
+    "longitude": 5.25
+  },
+  {
+    "id": "2ac1d9d8-7623-4b96-9442-67b4581050ea",
+    "provider_name": "FIRST MERCY SPECIALIST HOSPITAL AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "ee2497ca-57c3-429e-82d7-80889f41075a",
+    "provider_name": "FIRST OASIS PHARMACY",
+    "lga": "Akoko North-East",
+    "address": "Ikare Akoko",
+    "latitude": 7.51,
+    "longitude": 5.75
+  },
+  {
+    "id": "d8829d49-4115-4389-ae5f-723272b13133",
+    "provider_name": "GENERAL HOSPITAL BOLORUNDURO",
+    "lga": "Ondo East",
+    "address": null,
+    "latitude": 7.15,
+    "longitude": 4.95
+  },
+  {
+    "id": "485c3eef-7386-4441-a21e-4b996fdb8e38",
+    "provider_name": "GENERAL HOSPITAL IDO-ANI",
+    "lga": "Ose",
+    "address": null,
+    "latitude": 7.15,
+    "longitude": 5.78
+  },
+  {
+    "id": "5e573cd1-74b6-4e7f-b0ec-0b5a60029d6e",
+    "provider_name": "GENERAL HOSPITAL IFON",
+    "lga": "Ose",
+    "address": null,
+    "latitude": 7.15,
+    "longitude": 5.78
+  },
+  {
+    "id": "d71a2ec6-b1ec-48a3-9e5b-8e5f8c3d4a14",
+    "provider_name": "GENERAL HOSPITAL IGBARA-OKE",
+    "lga": "Ifedore",
+    "address": null,
+    "latitude": 7.28,
+    "longitude": 5.12
+  },
+  {
+    "id": "5247393f-d07f-4db0-b772-af964fd17a76",
+    "provider_name": "GENERAL HOSPITAL IGBEKEBO",
+    "lga": "Ese Odo",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "b413df83-f8eb-4fd6-ac0c-19379eca7a5d",
+    "provider_name": "GENERAL HOSPITAL IGBOKODA",
+    "lga": "Ilaje",
+    "address": null,
+    "latitude": 6.35,
+    "longitude": 4.82
+  },
+  {
+    "id": "ce54c758-0f05-466d-840d-48db0d14a944",
+    "provider_name": "GENERAL HOSPITAL IJU ITAOGBOLU",
+    "lga": "Akure North",
+    "address": null,
+    "latitude": 7.3,
+    "longitude": 5.25
+  },
+  {
+    "id": "876ce77b-533a-4c21-a4d9-863697834773",
+    "provider_name": "GENERAL HOSPITAL IPE-AKOKO",
+    "lga": "Akoko South East",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "51e44438-f0db-40e6-a7d4-957c952f8e3f",
+    "provider_name": "GENERAL HOSPITAL IRUN AKOKO",
+    "lga": "Akoko North West",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "c542f9ea-4ccb-42cf-9ff2-9ae1af56cb56",
+    "provider_name": "GENERAL HOSPITAL IWARO OKA",
+    "lga": "Akoko South West",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "d84813ad-6ffe-42c0-adee-f1bed1e55791",
+    "provider_name": "GENERAL HOSPITAL ODE-IRELE",
+    "lga": "Irele",
+    "address": null,
+    "latitude": 6.55,
+    "longitude": 4.95
+  },
+  {
+    "id": "976b0344-e83d-4dfe-903c-4864551c90fe",
+    "provider_name": "GENERAL HOSPITAL ORE",
+    "lga": "Odigbo",
+    "address": null,
+    "latitude": 6.78,
+    "longitude": 4.88
+  },
+  {
+    "id": "21bdff1b-8d68-438d-a262-e0ffa1f65852",
+    "provider_name": "GENERAL HOSPITAL OWO",
+    "lga": "Owo",
+    "address": null,
+    "latitude": 6.95,
+    "longitude": 5.58
+  },
+  {
+    "id": "f5295e67-6eaa-4cba-b66e-470e725bd9f9",
+    "provider_name": "GENERAL HOSPITAL, ARAROMI-OBU",
+    "lga": "Odigbo",
+    "address": null,
+    "latitude": 6.78,
+    "longitude": 4.88
+  },
+  {
+    "id": "6abaa7c2-f7e1-4f08-99eb-e7651998247d",
+    "provider_name": "GENERAL HOSPITAL, IDANRE",
+    "lga": "Idanre",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 5.15
+  },
+  {
+    "id": "733fd304-2f04-4c83-aecd-a75df8bd9dae",
+    "provider_name": "GENERAL HOSPITAL, IGBOTAKO",
+    "lga": "Okitipupa",
+    "address": null,
+    "latitude": 6.5,
+    "longitude": 4.78
+  },
+  {
+    "id": "c2de4c06-eab9-4449-841a-afa53f2124b8",
+    "provider_name": "GENERAL HOSPITAL, ILE-OLUJI",
+    "lga": "Ile Oluji/Okeigbo",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "8d81e2e4-6f9a-4604-a5d6-dfc50dfcf8be",
+    "provider_name": "GOODIES HOSPITAL & DIAGNOSTICS LTD ONDO",
+    "lga": "Ondo West",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "5b5a47e5-477b-42f5-990e-a59ab8498b2d",
+    "provider_name": "HEALTHWATCH PHARMACY",
+    "lga": "Owo",
+    "address": "Owo",
+    "latitude": 6.95,
+    "longitude": 5.58
+  },
+  {
+    "id": "57d05e7d-cf79-4a80-81ed-dd4b535592d9",
+    "provider_name": "HOPE HOSPITAL & MATERNAL, PALACE ROAD IDANRE",
+    "lga": "Idanre",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 5.15
+  },
+  {
+    "id": "bb7b33b0-316a-4051-90c7-794936c31e32",
+    "provider_name": "J & E FATUNLA HOSPITAL AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "ac69ea52-b702-4528-bae8-c4a50a62c05f",
+    "provider_name": "JUSTICOLINE PHARMACY",
+    "lga": "Okitipupa",
+    "address": "Okitipupa",
+    "latitude": 6.5,
+    "longitude": 4.78
+  },
+  {
+    "id": "d9c7fdba-72d2-452f-9edb-8303281edde6",
+    "provider_name": "KINGS MEDI-CLINIC AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "604a4cea-0880-4a30-ac21-33b076719cad",
+    "provider_name": "LIFECARE HOSPITAL, ODIGBO",
+    "lga": "Odigbo",
+    "address": null,
+    "latitude": 6.78,
+    "longitude": 4.88
+  },
+  {
+    "id": "25613f55-e72f-4a06-83e4-3efbc6c59354",
+    "provider_name": "MAO HOSPITAL LIMITED, IROWO, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "16050f1b-df49-479a-b54f-e946a2401b5d",
+    "provider_name": "MAPET OPTICAL SERVICES",
+    "lga": "Akure South",
+    "address": "Akure",
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "27ccb534-82d2-462e-bf6f-a6ba2e115968",
+    "provider_name": "MERCYLAND MEDICAL CENTRE, ONDO",
+    "lga": "Ondo West",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "bf8c9845-1396-4dde-b409-c2f84efe0638",
+    "provider_name": "MOLADENT DENTAL CLINIC",
+    "lga": "Akure South",
+    "address": "Aule, Akure",
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "8532ec98-441b-4a7b-8ffc-46f9629a98b9",
+    "provider_name": "NETCARE MULTISPECIALTY HOSPITAL, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "189f5216-ec51-4f32-9bb4-cb549a63b8fa",
+    "provider_name": "NEWDAY MEDICAL CENTER, IJAPO, AKURE(-4)",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "b1850333-7181-4b22-9a4c-4e5851cbd2e2",
+    "provider_name": "NIGERIAN POLICE MEDICAL SERVICES, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "bd2cdf6c-b5ab-4568-a9f2-20677d813003",
+    "provider_name": "NOSI PHARMACY",
+    "lga": "Owo",
+    "address": "Owo",
+    "latitude": 6.95,
+    "longitude": 5.58
+  },
+  {
+    "id": "075ecf60-9aff-4795-9537-92c55c4e3a9a",
+    "provider_name": "OBA ARA LOLUWA PHARMACY LIMITED",
+    "lga": "Akure South",
+    "address": "Oshinle, Akure",
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "e5127882-ac9f-4257-87ab-d140de2f8176",
+    "provider_name": "OMOLOLU MEDICAL CENTRE,AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "08ccd400-9a19-4447-aa6a-e43b6614ace6",
+    "provider_name": "ONDO STATE REFERENCE HOSPITAL, IGBATORO ROAD AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "5cb18aa8-c05f-47c8-a3d6-41bd8f55d380",
+    "provider_name": "PEACE MEDICAL CLINIC ORE",
+    "lga": "Odigbo",
+    "address": null,
+    "latitude": 6.78,
+    "longitude": 4.88
+  },
+  {
+    "id": "de1db25b-7075-4b14-a1d5-6552cef49bbe",
+    "provider_name": "PHARMABAY LIMITED",
+    "lga": "Ondo West",
+    "address": "Ondo City",
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "44e1d1ca-ab01-4326-b666-6da93cb431db",
+    "provider_name": "PIMA HOSPITAL ORE",
+    "lga": "Odigbo",
+    "address": null,
+    "latitude": 6.78,
+    "longitude": 4.88
+  },
+  {
+    "id": "c81e9498-5da1-4ac3-9af3-f8e792785b25",
+    "provider_name": "PRIMARY HEALTH CENTER, IPELE",
+    "lga": "Owo",
+    "address": null,
+    "latitude": 6.95,
+    "longitude": 5.58
+  },
+  {
+    "id": "b7409839-99b3-4857-8702-b26da77b0f6f",
+    "provider_name": "PRIMARY HEALTH CENTRE AJAGBA 1",
+    "lga": "Irele",
+    "address": null,
+    "latitude": 6.55,
+    "longitude": 4.95
+  },
+  {
+    "id": "8dc2cc08-0632-4399-9ba7-6a27591095b6",
+    "provider_name": "PRIMARY HEALTH CENTRE ARIGIDI",
+    "lga": "Akoko North West",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "d3417dcc-671e-4b41-b793-3c4050ea733d",
+    "provider_name": "PRIMARY HEALTH CENTRE AROGBO",
+    "lga": "Ese Odo",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "966d73e7-b7e5-4a64-bb35-31929c79ffaf",
+    "provider_name": "PRIMARY HEALTH CENTRE EMURE ILE",
+    "lga": "Owo",
+    "address": null,
+    "latitude": 6.95,
+    "longitude": 5.58
+  },
+  {
+    "id": "06fed4a4-c22e-45b9-9471-0fd89b0d33c7",
+    "provider_name": "PRIMARY HEALTH CENTRE IJARE",
+    "lga": "Ifedore",
+    "address": null,
+    "latitude": 7.28,
+    "longitude": 5.12
+  },
+  {
+    "id": "a0d60d75-09ad-408c-be19-ccdb7aa51bb0",
+    "provider_name": "PRIMARY HEALTH CENTRE ILARA II",
+    "lga": "Ifedore",
+    "address": null,
+    "latitude": 7.28,
+    "longitude": 5.12
+  },
+  {
+    "id": "6bf65b2f-7ef4-4c30-98c2-848677ac0b7b",
+    "provider_name": "PRIMARY HEALTH CENTRE ISHAKUNMI",
+    "lga": "Akoko North East",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "d779f4c7-573e-4550-b050-eab2f1a3be7d",
+    "provider_name": "PRIMARY HEALTH CENTRE ISUA OKE",
+    "lga": "Akoko South East",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "5c8ac2f2-863a-452b-a42f-e79aa99dfdd1",
+    "provider_name": "PRIMARY HEALTH CENTRE MAROKO",
+    "lga": "Ondo West",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "a849a3cb-1757-4c6e-bc36-9d880ea146ed",
+    "provider_name": "PRIMARY HEALTH CENTRE ODE AYE 1",
+    "lga": "Okitipupa",
+    "address": null,
+    "latitude": 6.5,
+    "longitude": 4.78
+  },
+  {
+    "id": "34fef302-6311-4db3-a01b-125d51573b50",
+    "provider_name": "PRIMARY HEALTH CENTRE OKE-ALAFIA ILE-OLUJI",
+    "lga": "Ile Oluji/Okeigbo",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "a8e9e4e4-765b-4e4e-a4a0-ddb1eea9360c",
+    "provider_name": "PRIMARY HEALTH CENTRE OWENA",
+    "lga": "Idanre",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 5.15
+  },
+  {
+    "id": "da4b84b5-5ad5-43ee-a68a-a3863ebc436c",
+    "provider_name": "PRIMARY HEALTH CENTRE OWENA BRIDGE",
+    "lga": "Ondo East",
+    "address": null,
+    "latitude": 7.15,
+    "longitude": 4.95
+  },
+  {
+    "id": "0d9363ae-cafe-40c7-b386-8b6f1f6dac91",
+    "provider_name": "PRIMARY HEALTH CENTRE,PANAPANA ORE",
+    "lga": "Odigbo",
+    "address": null,
+    "latitude": 6.78,
+    "longitude": 4.88
+  },
+  {
+    "id": "0e8ddaa8-fdc7-4874-b7a1-ac7ed21093d5",
+    "provider_name": "PRIMARY HEALTH CLINIC DANJUMA AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "b751127e-b117-4948-bd3d-5bb5871d3a29",
+    "provider_name": "PRIMARY HEALTH CLINIC IGOBA",
+    "lga": "Akure North",
+    "address": null,
+    "latitude": 7.3,
+    "longitude": 5.25
+  },
+  {
+    "id": "d4e8352a-965a-4ce1-8f19-4035bd7482d8",
+    "provider_name": "PRIMARY HEALTH CLINIC OKELUSE COTTAGE",
+    "lga": "Ose",
+    "address": null,
+    "latitude": 7.15,
+    "longitude": 5.78
+  },
+  {
+    "id": "df72441f-1a6d-4512-b73b-6047165958e9",
+    "provider_name": "PRIMARY/COMPREHENSIVE HEALTH CENTRE, ARAKALE",
+    "lga": "Akure South",
+    "address": "Access restricted",
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "7ad6dd0f-59ce-41cd-939f-be4653c693af",
+    "provider_name": "PRIMARY/COMPREHENSIVE HEALTH CENTRE, OWASE OKA",
+    "lga": "Akoko South West",
+    "address": "Access restricted",
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "dcb31f00-714a-48a4-9777-5977555d51e0",
+    "provider_name": "REDEEMERS HOSPITAL,IGBOKODA",
+    "lga": "Ilaje",
+    "address": null,
+    "latitude": 6.35,
+    "longitude": 4.82
+  },
+  {
+    "id": "9cd7f2b1-14ff-4071-881b-7e112fedc1e8",
+    "provider_name": "RUFUS GIWA MEMORIAL HOSPITAL OKE AGBE",
+    "lga": "Akoko North West",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "2d14e20f-fb1b-4666-a9c4-dad9b409e933",
+    "provider_name": "SCKYE HOSPITAL, AKURE (-1)",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "43624ac8-e8d8-4662-9ae2-531ec7dc8702",
+    "provider_name": "SIJUADE SPECIALIST HOSPITAL, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "47ab58ae-8da0-45d8-b19e-9836ecf6c8d8",
+    "provider_name": "SIMLON MEDICAL CENTER, LAFE WAY, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "97b45945-a52f-468c-abec-f9e94b1811d9",
+    "provider_name": "ST MICHAEL HOSPITAL, AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "e6451ced-b804-4568-bc74-d7676a0f55af",
+    "provider_name": "STATE SPECIALIST HOSPITAL IKARE-AKOKO",
+    "lga": "Akoko North East",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "5a59de3d-e52c-4626-b8a0-944bb613ada4",
+    "provider_name": "STATE SPECIALIST HOSPITAL ONDO",
+    "lga": "Ondo West",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "21865086-4d05-4a1a-bf31-759fbcfd5002",
+    "provider_name": "STATE SPECIALIST HOSPITAL, OKE-ARO,AKURE",
+    "lga": "Akure South",
+    "address": null,
+    "latitude": 7.257,
+    "longitude": 5.205
+  },
+  {
+    "id": "54966170-aa02-4144-9d01-877356729d9c",
+    "provider_name": "STATE SPECIALIST HOSPITAL, OKITIPUPA",
+    "lga": "Okitipupa",
+    "address": null,
+    "latitude": 6.5,
+    "longitude": 4.78
+  },
+  {
+    "id": "2d970fe2-05ec-4309-b4ce-f14071b3a289",
+    "provider_name": "TOPTARI MEDICALS  AGADAGBA-OBON",
+    "lga": "Ese Odo",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "eb1ff010-d61b-4496-b453-0aae58828fb2",
+    "provider_name": "TOTAL CARE MEDICAL CENTRE UGBE- AKOKO",
+    "lga": "Akoko North East",
+    "address": null,
+    "latitude": null,
+    "longitude": null
+  },
+  {
+    "id": "f8e0c236-658b-4567-b3ce-9e0dc87885f7",
+    "provider_name": "UNIMEDTHC LAJE ROAD,ONDO",
+    "lga": "Ondo West",
+    "address": null,
+    "latitude": 7.1,
+    "longitude": 4.84
+  },
+  {
+    "id": "95b40fc6-efd3-43c9-bd3d-2a679e735945",
+    "provider_name": "WESTPOINT HOSPITAL, OKITIPUPA",
+    "lga": "Okitipupa",
+    "address": null,
+    "latitude": 6.5,
+    "longitude": 4.78
+  }
+]
+COUNT=87

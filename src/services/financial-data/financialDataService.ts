@@ -96,11 +96,11 @@ export const financialDataService = {
 
     // Claims, FFS, and Fee-for-Service are one workflow. Keep the stored row type
     // as claims/ffs for reporting, but detect all common source spellings equally.
-    if (headerStr.includes('ffs') || headerStr.includes('fee for service')) {
+    if (headerStr.includes('ffs') || headerStr.includes('fee for service') || headerStr.includes('fee-for-service')) {
       return 'ffs';
     }
 
-    if (headerStr.includes('claim') || headerStr.includes('dental') || headerStr.includes('optical') || headerStr.includes('diagnostic')) {
+    if (headerStr.includes('claim') || headerStr.includes('dental') || headerStr.includes('optical') || headerStr.includes('diagnostic') || headerStr.includes('fee-for-service')) {
       return 'claims';
     }
 

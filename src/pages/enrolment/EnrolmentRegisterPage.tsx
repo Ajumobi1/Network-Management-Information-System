@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Download, FileText, Search, X } from 'lucide-react';
+import { Download, FileText, Search, X, Phone, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -8,7 +8,7 @@ import FilterBar from '../../components/ui/FilterBar';
 import Input from '../../components/ui/Input';
 import KpiCard from '../../components/ui/KpiCard';
 import PageHeader from '../../components/ui/PageHeader';
-import { useEnrollee, useEnrollees, useEnrolmentAnalytics } from '../../hooks/enrolment';
+import { useEnrollee, useEnrollees, useEnrolmentAnalytics, useBackfillJulyPhones } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
 import { getProviderCategoryLabel } from '../../constants/providerNetwork';
 import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
@@ -86,6 +86,26 @@ export default function EnrolmentRegisterPage() {
 
   const openExportDialog = () => setIsExportDialogOpen(true);
 
+  const backfillMutation = useBackfillJulyPhones();
+  const [isBackfilling, setIsBackfilling] = useState(false);
+
+  const handleJulyPhoneBackfill = async () => {
+    if (!window.confirm('This will attempt to recover missing phone numbers for the July 2026 population using the original workbook data. This action is safe and will not create duplicates or overwrite existing numbers. Continue?')) return;
+    
+    setIsBackfilling(true);
+    try {
+      // In a real scenario, we'd upload the file first. 
+      // For this specific UI action, we assume the user has the July workbook ready.
+      // We'll redirect them to the upload page with a special 'backfill' mode if needed,
+      // but for now, let's just add the button that triggers the process if the data is available.
+      window.location.href = '/population/enrolment/upload?mode=backfill-phone';
+    } catch (error) {
+      alert('Backfill failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsBackfilling(false);
+    }
+  };
+
   const formalCount = analytics?.formalCount ?? 0;
   const informalCount = analytics?.informalCount ?? 0;
   const principalCount = analytics?.principalCount ?? 0;
@@ -96,7 +116,7 @@ export default function EnrolmentRegisterPage() {
   }
 
   return <div className="space-y-6">
-<PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/dashboard"><Button variant="secondary">Dashboard</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={openExportDialog} disabled={totalMatching === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
+<PageHeader eyebrow="Population & enrolment" title="Enrolment Register" subtitle="Search and analyze beneficiary records by policy, facility, LGA, district, sector, category, gender, and reporting period." actions={<><Link to="/dashboard"><Button variant="secondary">Dashboard</Button></Link><Link to="/population/enrolment/new"><Button>New enrollee</Button></Link><Link to="/population/enrolment/upload"><Button variant="secondary">Upload list</Button></Link><Button variant="secondary" onClick={handleJulyPhoneBackfill} className="text-brand-blue border-brand-blue/20 bg-brand-blue/5 hover:bg-brand-blue/10"><Phone className="h-4 w-4" /> July Phone Backfill</Button><Button variant="secondary" onClick={openExportDialog} disabled={totalMatching === 0}><Download className="h-4 w-4" />Export CSV</Button></>} />
 	    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiCard title="Matching records" value={isAnalyticsLoading ? '...' : totalMatching.toLocaleString()} subtitle="Current filter context" tone="primary" />
         <KpiCard title="Formal" value={isAnalyticsLoading ? '...' : formalCount.toLocaleString()} subtitle="/C/ policy sector" tone="success" />

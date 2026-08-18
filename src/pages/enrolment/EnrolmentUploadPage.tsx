@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { 
   AlertCircle, 
@@ -31,7 +31,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
 import { findProviderMatchCandidates } from '../../services/providers/providersService';
 import { enrolmentService } from '../../services/enrolment/enrolmentService';
-import { useCreateEnrolmentImportBatch } from '../../hooks/enrolment';
+import { useCreateEnrolmentImportBatch, useBackfillJulyPhones } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField, EnrolmentValidationError } from '../../types/enrolment/enrolmentTypes';
 import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
@@ -85,6 +85,8 @@ const stepLabels: Record<UploadStep, string> = {
 };
 
 export default function EnrolmentUploadPage() {
+  const [searchParams] = useSearchParams();
+  const isBackfillMode = searchParams.get('mode') === 'backfill-phone';
   const [step, setStep] = useState<UploadStep>('upload');
   const [queue, setQueue] = useState<FileQueueItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
@@ -104,6 +106,7 @@ export default function EnrolmentUploadPage() {
   const providerSearchTimers = useRef<Record<number, number>>({});
   const { session } = useAuth();
   const createBatch = useCreateEnrolmentImportBatch();
+  const backfillMutation = useBackfillJulyPhones();
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
 
   const activeItem = useMemo(() => queue.find(item => item.id === activeFileId), [queue, activeFileId]);
@@ -660,7 +663,16 @@ export default function EnrolmentUploadPage() {
     setIsAnalyzing(true);
     try {
       const period = `${activeItem.data.reportingYear}-${activeItem.data.reportingMonth.padStart(2, '0')}`;
-      await createBatch.mutateAsync({
+      
+      if (isBackfillMode) {
+        const batch = activeItem.data.normalizedRecords
+          .filter(r => r.recordStatus === 'valid' && r.phoneNumber)
+          .map(r => ({ policy_number: r.policyNumber, phone_number: r.phoneNumber! }));
+        
+        const updatedCount = await backfillMutation.mutateAsync(batch);
+        setCommitMessage(`Successfully backfilled ${updatedCount} phone numbers for July 2026 population.`);
+      } else {
+        await createBatch.mutateAsync({
         batch: {
           fileName: activeItem.file.name,
           dataType: 'enrolment',
@@ -679,8 +691,9 @@ export default function EnrolmentUploadPage() {
             providerNames: [...new Set(activeItem.data.normalizedRecords.map(r => r.providerName).filter(Boolean))]
           }
         },
-        records: activeItem.data.normalizedRecords.filter(r => r.recordStatus === 'valid')
-      });
+          records: activeItem.data.normalizedRecords.filter(r => r.recordStatus === 'valid')
+        });
+      }
       
       updateQueueItem(activeItem.id, { status: 'imported' });
       
@@ -694,9 +707,12 @@ export default function EnrolmentUploadPage() {
       // Check if there are more files in queue
       setQueue(currentQueue => {
         const nextPending = currentQueue.find(item => item.id !== activeItem.id && item.status === 'pending');
-        if (nextPending) {
+        if (nextPending && isAutonomousMode) {
           setTimeout(() => processFile(nextPending), 0);
+        } else if (!nextPending) {
+          setStep('commit');
         } else {
+          // Manual mode: stay on commit success or return to queue
           setStep('commit');
         }
         return currentQueue;
@@ -721,8 +737,14 @@ export default function EnrolmentUploadPage() {
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-blue">Population &amp; Enrolment</p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">Historical Bulk Import</h1>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">Upload multiple capitation workbooks. The AI engine automatically detects periods, extracts facility context, and matches against the Provider Master Register.</p>
+          <h1 className="mt-2 text-2xl font-bold text-slate-900">
+            {isBackfillMode ? 'July Phone Number Backfill' : 'Historical Bulk Import'}
+          </h1>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            {isBackfillMode 
+              ? 'Upload the original July workbook to recover missing phone numbers. Existing records will be updated safely without creating duplicates.'
+              : 'Upload multiple capitation workbooks. The AI engine automatically detects periods, extracts facility context, and matches against the Provider Master Register.'}
+          </p>
         </div>
         <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 no-scrollbar sm:w-auto">
           {steps.map((item, index) => (
@@ -789,14 +811,16 @@ export default function EnrolmentUploadPage() {
               ))}
             </div>
 
-            <label className="mt-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-              <Upload className="h-3.5 w-3.5" /> Add more files
-              <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
-            </label>
-            <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 py-3 text-xs font-semibold text-brand-blue hover:bg-blue-50 transition-colors">
-              <Upload className="h-3.5 w-3.5" /> Add folder
-              <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
-            </label>
+            <div className="mt-4 space-y-2">
+              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-3 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                <Upload className="h-3.5 w-3.5" /> Add more files
+                <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} />
+              </label>
+              <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 py-3 text-xs font-semibold text-brand-blue hover:bg-blue-50 transition-colors">
+                <Folder className="h-3.5 w-3.5" /> Add folder
+                <input className="hidden" type="file" multiple accept=".xlsx,.xls,.csv" onChange={handleFileUpload} {...({ directory: true, webkitdirectory: true } as any)} />
+              </label>
+            </div>
           </div>
         </aside>
 

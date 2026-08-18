@@ -47,7 +47,7 @@ export default function ProviderRegistrationPage() {
 
     // Since direct create uses trusted workflow / server-side admin function, simulate success with secure notice
     updateProviderMutation.mutate(
-      { id: 'new', payload: { ...form, subcategory: null } as any },
+      { id: 'new', payload: { ...form, providerName: form.providerName.toUpperCase(), subcategory: null } as any },
       {
         onSuccess: () => {
           setSuccess('Provider successfully registered and added to the alphabetical master register.');

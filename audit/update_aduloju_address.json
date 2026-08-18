@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"UPDATE public.providers SET address = '70, Iwaro Road, Akungba Akoko, Ondo State', latitude = NULL, longitude = NULL, updated_at = now() WHERE id = 'f7ed9f8e-c0c6-4758-a064-6cbe652655db' RETURNING id, provider_name, address, latitude, longitude, lga;"}
