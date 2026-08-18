@@ -102,6 +102,9 @@ export const complaintRepository = {
     const { data, error } = await supabase.rpc('nmis_list_complaints', {
       p_status: filters.status === 'all' ? null : filters.status,
       p_category: filters.category === 'all' ? null : filters.category,
+      p_priority: filters.priority === 'all' ? null : filters.priority,
+      p_search: filters.search.trim() || null,
+      p_provider_id: null,
     });
 
     if (error) {

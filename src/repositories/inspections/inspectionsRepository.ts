@@ -87,7 +87,19 @@ export async function getInspectionChecklist(inspectionId: string): Promise<Insp
   if (useMockData) {
     return apiMocks.getInspectionChecklist(inspectionId) as any;
   }
-  return [];
+
+  const { data, error } = await supabase.rpc('nmis_get_inspection_checklist', {
+    p_inspection_id: inspectionId,
+  });
+
+  if (error) {
+    const code = error.code === 'P0001' && error.message.includes('ACCESS_RESTRICTED')
+      ? 'ACCESS_RESTRICTED'
+      : 'SECURE_CONTRACT_UNAVAILABLE';
+    throw new SecureContractError(code, error.message || 'Failed to load inspection checklist');
+  }
+
+  return (data || []) as InspectionChecklistItem[];
 }
 
 export async function updateInspection(id: string, payload: Partial<InspectionsRow>) {

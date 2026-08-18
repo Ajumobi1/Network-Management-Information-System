@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader';
 import { useComplaints, useCreateComplaint, useUpdateComplaintStatus } from '../hooks/complaints/complaintHooks';
+import { useProviderDirectory } from '../features/providers/hooks';
 import { ComplaintFilters, ComplaintRecord, ComplaintStatus, ComplaintCategory, ComplaintPriority, COMPLAINT_STATUS_LABELS, COMPLAINT_CATEGORY_LABELS, COMPLAINT_PRIORITY_LABELS } from '../types/complaints/complaintTypes';
 
 function ComplaintsPage() {
@@ -15,7 +16,7 @@ function ComplaintsPage() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [resolutionInput, setResolutionInput] = useState('');
   const [newComplaintForm, setNewComplaintForm] = useState({
-    providerId: 'prov-1',
+    providerId: '',
     title: '',
     category: 'payment' as ComplaintCategory,
     priority: 'medium' as ComplaintPriority,
@@ -24,16 +25,24 @@ function ComplaintsPage() {
   });
 
   const { data: complaints = [], isLoading } = useComplaints(filters);
+  const { data: providers = [], isLoading: providersLoading } = useProviderDirectory({
+    search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all',
+    capitationStatus: 'all', lga: 'all', category: 'all', subcategory: 'all', ownership: 'all', service: 'all',
+  });
   const createMutation = useCreateComplaint();
   const updateStatusMutation = useUpdateComplaintStatus();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newComplaintForm.providerId) {
+      alert('Select the provider or facility associated with this complaint.');
+      return;
+    }
     try {
       await createMutation.mutateAsync(newComplaintForm);
       setIsNewModalOpen(false);
       setNewComplaintForm({
-        providerId: 'prov-1',
+        providerId: '',
         title: '',
         category: 'payment',
         priority: 'medium',
@@ -63,6 +72,18 @@ function ComplaintsPage() {
   const resolvedCount = complaints.filter(c => c.status === 'resolved' || c.status === 'closed').length;
   const escalatedCount = complaints.filter(c => c.status === 'escalated').length;
 
+  const handleExport = () => {
+    const headers = ['Provider', 'Provider Code', 'Title', 'Category', 'Priority', 'Status', 'Assigned To', 'Created At', 'Updated At'];
+    const rows = complaints.map(complaint => [complaint.providerName, complaint.providerCode, complaint.title, complaint.category, complaint.priority, complaint.status, complaint.assignedTo || '', complaint.createdAt, complaint.updatedAt]);
+    const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `nmis-complaints-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -91,6 +112,14 @@ function ComplaintsPage() {
         {/* Filters */}
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-soft">
           <div className="flex flex-wrap items-center gap-4 flex-1">
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={!complaints.length}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Export CSV
+            </button>
             <input
               type="text"
               placeholder="Search by title, provider, code..."
@@ -115,6 +144,16 @@ function ComplaintsPage() {
             >
               <option value="all">All Categories</option>
               {Object.entries(COMPLAINT_CATEGORY_LABELS).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+            <select
+              value={filters.priority}
+              onChange={e => setFilters(prev => ({ ...prev, priority: e.target.value as any }))}
+              className="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+            >
+              <option value="all">All Priorities</option>
+              {Object.entries(COMPLAINT_PRIORITY_LABELS).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
@@ -297,6 +336,20 @@ function ComplaintsPage() {
               </div>
 
               <form onSubmit={handleCreate} className="mt-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Provider / Facility</label>
+                  <select
+                    required
+                    value={newComplaintForm.providerId}
+                    onChange={e => setNewComplaintForm({ ...newComplaintForm, providerId: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
+                    disabled={providersLoading}
+                  >
+                    <option value="">{providersLoading ? 'Loading providers...' : 'Select a provider'}</option>
+                    {providers.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode}</option>)}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Complaint Title</label>
                   <input

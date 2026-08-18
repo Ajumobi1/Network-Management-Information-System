@@ -12,6 +12,7 @@ import ProviderPage from '../pages/ProviderPage';
 import ProviderProfilePage from '../pages/ProviderProfilePage';
 import ProviderRegistrationPage from '../pages/ProviderRegistrationPage';
 import InspectionsPage from '../pages/InspectionsPage';
+import NewInspectionPage from '../pages/inspections/NewInspectionPage';
 import ContractsPage from '../pages/ContractsPage';
 import ReportsPage from '../pages/ReportsPage';
 import CredentialingPage from '../pages/CredentialingPage';
@@ -71,6 +72,7 @@ export default function AppRoutes() {
         <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
         <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
         <Route path="/inspections" element={<InspectionsPage />} />
+        <Route path="/inspections/new" element={<NewInspectionPage />} />
         <Route path="/performance" element={<PerformancePage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/communication" element={<CommunicationPage />} />

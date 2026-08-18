@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, CheckCircle2, ChevronRight, Download, Filter, Plus, Search, User, X, ClipboardCheck, AlertCircle } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
@@ -7,18 +8,27 @@ import KpiCard from '../components/ui/KpiCard';
 import PageHeader from '../components/ui/PageHeader';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
-import { useInspections, useInspection, useInspectionChecklist } from '../hooks/inspections/inspectionsHooks';
+import { useInspections, useInspection, useInspectionChecklist, useSaveInspection, useUpdateInspection } from '../hooks/inspections/inspectionsHooks';
+import { useProviderDirectory } from '../features/providers/hooks';
 import { Inspection, InspectionFilters } from '../types/inspections/inspectionsTypes';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import ActiveFilterChips from '../components/ui/ActiveFilterChips';
 
 export default function InspectionsPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<InspectionFilters>({ status: 'all', type: 'all', rating: 'all', search: '' });
   const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ providerId: '', type: 'Clinical', scheduledDate: '', inspectorName: '' });
 
   const { data: allInspections = [], isLoading, isError, refetch } = useInspections();
+  const { data: providers = [] } = useProviderDirectory({
+    search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all',
+    capitationStatus: 'all', lga: 'all', category: 'all', subcategory: 'all', ownership: 'all', service: 'all',
+  });
+  const saveInspectionMutation = useSaveInspection();
   const inspections = useMemo(() => {
     return allInspections.filter(item => {
       if (filters.status && filters.status !== 'all' && item.status !== filters.status) return false;
@@ -59,6 +69,39 @@ export default function InspectionsPage() {
     setIsDrawerOpen(true);
   };
 
+  const handleExport = () => {
+    const headers = ['Provider', 'Provider Code', 'Type', 'Scheduled Date', 'Inspector', 'Score', 'Rating', 'Status'];
+    const rows = inspections.map(item => [item.providerName, item.providerCode, item.type, item.scheduledAt, item.inspectorName, item.score ?? '', item.rating ?? '', item.status]);
+    const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `nmis-inspection-schedule-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSchedule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!scheduleForm.providerId || !scheduleForm.scheduledDate) {
+      window.alert('Select a provider and inspection date before scheduling.');
+      return;
+    }
+    try {
+      await saveInspectionMutation.mutateAsync({
+        provider_id: scheduleForm.providerId,
+        inspection_type: scheduleForm.type,
+        scheduled_date: scheduleForm.scheduledDate,
+        inspector_name: scheduleForm.inspectorName || null,
+        status: 'Scheduled',
+      });
+      setIsScheduleModalOpen(false);
+      setScheduleForm({ providerId: '', type: 'Clinical', scheduledDate: '', inspectorName: '' });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Failed to schedule inspection.');
+    }
+  };
+
   if (isError) return <main className="nmis-page"><ErrorState title="Inspections data unavailable" action={{ label: 'Retry', onClick: () => refetch() }} /></main>;
 
   return (
@@ -70,8 +113,11 @@ export default function InspectionsPage() {
           subtitle="Monitor scheduled inspections, completed reviews, and follow-up work across the provider network."
           actions={
             <div className="flex gap-2">
-              <Button variant="secondary" className="gap-2" disabled><Download size={16} /> Export Schedule (Soon)</Button>
-              <Button className="gap-2" disabled><Plus size={16} /> Schedule Inspection (Soon)</Button>
+              <Button variant="secondary" className="gap-2" onClick={handleExport} disabled={!inspections.length}><Download size={16} /> Export Schedule</Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => navigate('/inspections/new')}><Plus size={16} /> New Accreditation Inspection</Button>
+                <Button className="gap-2" onClick={() => setIsScheduleModalOpen(true)}><Plus size={16} /> Schedule Inspection</Button>
+              </div>
             </div>
           }
         />
@@ -200,12 +246,40 @@ export default function InspectionsPage() {
           }}
         />
       )}
+
+      {isScheduleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-navy/40 p-4 backdrop-blur-sm">
+          <form onSubmit={handleSchedule} className="w-full max-w-xl rounded-2xl border border-brand-divider bg-brand-card p-5 shadow-panel sm:p-6">
+            <div className="flex items-start justify-between gap-3 border-b border-brand-divider pb-4">
+              <div><p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Quality & Compliance</p><h2 className="mt-1 text-xl font-black text-brand-foreground">Schedule inspection</h2></div>
+              <button type="button" onClick={() => setIsScheduleModalOpen(false)} className="rounded-control p-2 text-brand-muted hover:bg-brand-surface"><X size={18} /></button>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className="sm:col-span-2"><span className="nmis-label">Provider / Facility *</span><select className="nmis-control" value={scheduleForm.providerId} onChange={event => setScheduleForm(previous => ({ ...previous, providerId: event.target.value }))} required><option value="">Select a provider</option>{providers.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode}</option>)}</select></label>
+              <label><span className="nmis-label">Inspection type *</span><select className="nmis-control" value={scheduleForm.type} onChange={event => setScheduleForm(previous => ({ ...previous, type: event.target.value }))}><option value="Clinical">Clinical</option><option value="Compliance">Compliance</option><option value="Safety">Safety</option><option value="Licensing">Licensing</option><option value="Operational">Operational</option></select></label>
+              <label><span className="nmis-label">Scheduled date *</span><input type="date" className="nmis-control" value={scheduleForm.scheduledDate} onChange={event => setScheduleForm(previous => ({ ...previous, scheduledDate: event.target.value }))} required /></label>
+              <label className="sm:col-span-2"><span className="nmis-label">Inspector / officer</span><input className="nmis-control" placeholder="Assign an inspector" value={scheduleForm.inspectorName} onChange={event => setScheduleForm(previous => ({ ...previous, inspectorName: event.target.value }))} /></label>
+            </div>
+            <div className="mt-6 flex justify-end gap-2"><Button type="button" variant="secondary" onClick={() => setIsScheduleModalOpen(false)}>Cancel</Button><Button type="submit" disabled={saveInspectionMutation.isPending}>{saveInspectionMutation.isPending ? 'Scheduling...' : 'Schedule inspection'}</Button></div>
+          </form>
+        </div>
+      )}
     </main>
   );
 }
 
 function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const { data: inspection, isLoading } = useInspection(id);
+  const updateInspectionMutation = useUpdateInspection();
+
+  const handleComplete = async () => {
+    try {
+      await updateInspectionMutation.mutateAsync({ id, payload: { status: 'Completed' } });
+      onClose();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Failed to mark inspection as completed.');
+    }
+  };
   const { data: checklist = [], isLoading: isChecklistLoading } = useInspectionChecklist(id);
 
   return (
@@ -289,7 +363,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
 
         <div className="flex flex-col gap-3 border-t border-brand-divider bg-brand-surface/50 p-4 sm:flex-row sm:justify-end sm:p-6">
           <Button variant="secondary" className="w-full sm:w-auto" onClick={onClose}>Close Review</Button>
-          <Button className="w-full sm:w-auto" disabled={inspection?.status === 'completed'}>Mark as Completed</Button>
+          <Button className="w-full sm:w-auto" onClick={handleComplete} disabled={!inspection || inspection.status === 'completed' || updateInspectionMutation.isPending}>{updateInspectionMutation.isPending ? 'Saving...' : 'Mark as Completed'}</Button>
         </div>
       </div>
     </div>
