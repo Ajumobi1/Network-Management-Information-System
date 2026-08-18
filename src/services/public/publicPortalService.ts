@@ -20,6 +20,8 @@ export type PublicPortalSnapshot = {
     hospitals: number;
     pharmacies: number;
     diagnosticCentres: number;
+    populationPeriod: string | null;
+    populationPeriodLabel: string | null;
   };
   transparency: {
     byLga: Array<{ name: string; value: number }>;
@@ -82,6 +84,8 @@ export const publicPortalService = {
         hospitals: Number(snapshot.kpis?.hospitals ?? 0),
         pharmacies: Number(snapshot.kpis?.pharmacies ?? 0),
         diagnosticCentres: Number(snapshot.kpis?.diagnosticCentres ?? 0),
+        populationPeriod: snapshot.kpis?.populationPeriod ?? null,
+        populationPeriodLabel: snapshot.kpis?.populationPeriodLabel ?? null,
       },
       transparency: {
         byLga: Array.isArray(snapshot.transparency?.byLga) ? snapshot.transparency.byLga.map((item: any) => ({ name: item.name, value: Number(item.value) })) : [],
