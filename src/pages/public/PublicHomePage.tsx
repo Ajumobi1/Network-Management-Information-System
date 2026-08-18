@@ -54,6 +54,15 @@ function humanizeCategory(category: string) {
   return categoryLabels[category] ?? category.replace(/_/g, ' ').toLowerCase().replace(/(^|\s)\S/g, (letter: string) => letter.toUpperCase());
 }
 
+function providerLocationQuery(provider: PublicProvider): string | null {
+  // Google Maps can resolve a facility name or street address to an unrelated result.
+  // Only an authoritative coordinate pair is safe for live navigation.
+  if (Number.isFinite(provider.latitude) && Number.isFinite(provider.longitude)) {
+    return `${provider.latitude},${provider.longitude}`;
+  }
+  return null;
+}
+
 export default function PublicHomePage() {
   const [snapshot, setSnapshot] = useState<PublicPortalSnapshot>(emptySnapshot);
   const [snapshotLoading, setSnapshotLoading] = useState(true);
@@ -108,6 +117,7 @@ export default function PublicHomePage() {
   const lgaOptions = useMemo(() => snapshot.transparency.byLga.map(item => item.name), [snapshot.transparency.byLga]);
   const updatedAt = snapshot.lastUpdated ? new Date(snapshot.lastUpdated).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' }) : 'Awaiting live update';
   const activeProvider = activeMarker ? providers.find(provider => provider.id === activeMarker) : null;
+  const activeProviderTarget = activeProvider ? providerLocationQuery(activeProvider) : null;
 
   const findNearMe = useCallback(() => {
     if (!navigator.geolocation) {
@@ -312,26 +322,29 @@ export default function PublicHomePage() {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Accredited provider</p>
                       <h4 className="mt-1 font-bold text-brand-navy">{activeProvider.providerName}</h4>
                       <p className="mt-1 text-xs text-brand-muted">{activeProvider.lga} LGA · {activeProvider.ownership || 'Accredited'}</p>
+                      {activeProvider.address ? <p className="mt-2 text-xs leading-relaxed text-brand-muted">{activeProvider.address}</p> : null}
                       <div className="mt-3 flex flex-col gap-2">
                         <button
-                          onClick={() => setMapTarget({ 
-                            name: activeProvider.providerName, 
-                            query: activeProvider.latitude != null && activeProvider.longitude != null
-                              ? `${activeProvider.latitude},${activeProvider.longitude}`
-                              : `${activeProvider.providerName}, ${activeProvider.lga}, Ondo State, Nigeria` 
-                          })}
-                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-blue py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
+                          onClick={() => activeProviderTarget && setMapTarget({ name: activeProvider.providerName, query: activeProviderTarget })}
+                          disabled={!activeProviderTarget}
+                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-blue py-2 text-xs font-bold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          <MapPin size={14} /> Focus this facility
+                          <MapPin size={14} /> {activeProviderTarget ? 'Focus this facility' : 'Location pending verification'}
                         </button>
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeProvider.latitude != null && activeProvider.longitude != null ? `${activeProvider.latitude},${activeProvider.longitude}` : `${activeProvider.providerName}, ${activeProvider.lga}, Ondo State, Nigeria`)}`}
-                          target="_self"
-                          rel="noopener noreferrer"
-                          className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-soft py-2 text-xs font-bold text-brand-navy transition hover:bg-brand-border"
-                        >
-                          <Navigation size={14} /> Navigate to Facility
-                        </a>
+                        {activeProviderTarget ? (
+                          <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(activeProviderTarget)}`}
+                            target="_self"
+                            rel="noopener noreferrer"
+                            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-soft py-2 text-xs font-bold text-brand-navy transition hover:bg-brand-border"
+                          >
+                            <Navigation size={14} /> Navigate to Facility
+                          </a>
+                        ) : (
+                          <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-slate-100 py-2 text-xs font-bold text-slate-500">
+                            <Navigation size={14} /> Navigation unavailable until verified
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : null}
@@ -385,12 +398,8 @@ export default function PublicHomePage() {
                           const el = document.getElementById('network');
                           if (el) el.scrollIntoView({ behavior: 'smooth' });
                           setActiveMarker(provider.id);
-                          setMapTarget({
-                            name: provider.providerName,
-                            query: provider.latitude != null && provider.longitude != null
-                              ? `${provider.latitude},${provider.longitude}`
-                              : `${provider.providerName}, ${provider.lga}, Ondo State, Nigeria`,
-                          });
+                          const target = providerLocationQuery(provider);
+                          if (target) setMapTarget({ name: provider.providerName, query: target });
                         }}
                       />
                     ))}
@@ -670,6 +679,7 @@ function KpiCard({ label, value, icon }: { label: string; value: string; icon: R
 }
 
 function ProviderCard({ provider, onLocate }: { provider: PublicProvider; onLocate?: () => void }) {
+  const hasLocation = providerLocationQuery(provider) !== null;
   return (
     <article className="public-provider-card group relative flex flex-col p-4">
       <div className="flex items-start justify-between gap-3">
@@ -677,7 +687,7 @@ function ProviderCard({ provider, onLocate }: { provider: PublicProvider; onLoca
           {humanizeCategory(provider.category)}
         </span>
         <div className="flex gap-1.5">
-          <button onClick={onLocate} className="rounded-full bg-brand-soft p-1 text-brand-blue transition hover:bg-brand-blue hover:text-white" title="Locate on map">
+          <button onClick={hasLocation ? onLocate : undefined} disabled={!hasLocation} className="rounded-full bg-brand-soft p-1 text-brand-blue transition hover:bg-brand-blue hover:text-white disabled:cursor-not-allowed disabled:opacity-40" title={hasLocation ? 'Locate on map' : 'Location pending verification'}>
             <MapPin size={12} />
           </button>
           <BadgeCheck size={16} className="shrink-0 text-emerald-500" />
@@ -688,6 +698,7 @@ function ProviderCard({ provider, onLocate }: { provider: PublicProvider; onLoca
       </h3>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-brand-muted">
         <span className="flex items-center gap-1"><MapPin size={10} /> {provider.lga}</span>
+        {provider.address ? <span className="w-full truncate text-[10px] text-brand-subtle" title={provider.address}>{provider.address}</span> : <span className="w-full text-[10px] text-amber-600">Physical location pending verification</span>}
         <span className="h-1 w-1 rounded-full bg-brand-border" />
         <span className="flex items-center gap-1"><Building2 size={10} /> {provider.ownership || 'Accredited'}</span>
       </div>
