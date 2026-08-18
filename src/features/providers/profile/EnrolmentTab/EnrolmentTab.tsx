@@ -28,21 +28,30 @@ export default function EnrolmentTab({ provider }: ProviderTabProps) {
   // Keep an unfiltered aggregate query available so period choices remain stable
   // when the user applies a year or month filter.
   const periodsQuery = useProviderPopulationSummary(provider.id);
+  const availablePeriods = useMemo(() => (periodsQuery.data?.monthlyTrend ?? [])
+    .map(item => String(item.name).slice(0, 7))
+    .filter(period => /^20\d{2}-\d{2}$/.test(period))
+    .sort((a, b) => b.localeCompare(a)), [periodsQuery.data?.monthlyTrend]);
+  const availableYears = useMemo(() => Array.from(new Set(availablePeriods.map(period => period.slice(0, 4)))), [availablePeriods]);
+  const latestPeriod = availablePeriods[0] ?? '';
+  const latestYear = latestPeriod.slice(0, 4);
+  const effectiveYear = selectedYear || latestYear;
+  const availableMonthsForYear = useMemo(() => Array.from(new Set(
+    availablePeriods
+      .filter(period => period.slice(0, 4) === effectiveYear)
+      .map(period => Number(period.slice(5, 7)))
+      .filter(month => month >= 1 && month <= 12),
+  )).sort((a, b) => b - a), [availablePeriods, effectiveYear]);
+  const latestMonthForYear = availableMonthsForYear[0];
+  const effectiveMonth = selectedMonth && availableMonthsForYear.includes(Number(selectedMonth))
+    ? Number(selectedMonth)
+    : latestMonthForYear;
   const filters = useMemo<EnrolmentFilters>(() => ({
     providerId: provider.id,
-    year: selectedYear ? Number(selectedYear) : undefined,
-    month: selectedMonth ? Number(selectedMonth) : undefined,
-  }), [provider.id, selectedYear, selectedMonth]);
+    year: effectiveYear ? Number(effectiveYear) : undefined,
+    month: effectiveMonth,
+  }), [provider.id, effectiveYear, effectiveMonth]);
   const { data, isLoading, error } = useProviderPopulationSummary(provider.id, filters);
-
-  const availableYears = useMemo(() => {
-    const years = new Set(
-      (periodsQuery.data?.monthlyTrend ?? [])
-        .map(item => String(item.name).slice(0, 4))
-        .filter(year => /^20\d{2}$/.test(year)),
-    );
-    return Array.from(years).sort((a, b) => Number(b) - Number(a));
-  }, [periodsQuery.data?.monthlyTrend]);
 
   const summary = {
     total: data?.totalEnrollees ?? 0,
@@ -61,8 +70,8 @@ export default function EnrolmentTab({ provider }: ProviderTabProps) {
     try {
       const records = await enrolmentService.fetchEnrollees({
         providerId: provider.id,
-        year: selectedYear ? Number(selectedYear) : undefined,
-        month: selectedMonth ? Number(selectedMonth) : undefined,
+        year: effectiveYear ? Number(effectiveYear) : undefined,
+        month: effectiveMonth,
         page: 1,
         pageSize: 50000,
         sortField: 'period',
@@ -88,7 +97,7 @@ export default function EnrolmentTab({ provider }: ProviderTabProps) {
       const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
       const link = document.createElement('a');
       link.href = url;
-      link.download = `nmis-${provider.providerCode || 'provider'}-enrollees-${selectedYear || 'all-years'}-${selectedMonth ? MONTHS[Number(selectedMonth) - 1].toLowerCase() : 'all-months'}.csv`;
+      link.download = `nmis-${provider.providerCode || 'provider'}-enrollees-${effectiveYear || 'latest'}-${effectiveMonth ? MONTHS[effectiveMonth - 1].toLowerCase() : 'latest'}.csv`;
       link.click();
       URL.revokeObjectURL(url);
     } catch (exportError) {
@@ -121,22 +130,20 @@ export default function EnrolmentTab({ provider }: ProviderTabProps) {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label>
             <span className="nmis-label">Reporting year</span>
-            <select className="nmis-control" value={selectedYear} onChange={event => setSelectedYear(event.target.value)}>
-              <option value="">All years</option>
+            <select className="nmis-control" value={effectiveYear} onChange={event => { setSelectedYear(event.target.value); setSelectedMonth(''); }} disabled={availableYears.length === 0}>
               {availableYears.map(year => <option key={year} value={year}>{year}</option>)}
             </select>
           </label>
           <label>
             <span className="nmis-label">Reporting month</span>
-            <select className="nmis-control" value={selectedMonth} onChange={event => setSelectedMonth(event.target.value)}>
-              <option value="">All months</option>
-              {MONTHS.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}
+            <select className="nmis-control" value={effectiveMonth ? String(effectiveMonth) : ''} onChange={event => setSelectedMonth(event.target.value)} disabled={availableMonthsForYear.length === 0}>
+              {availableMonthsForYear.map(month => <option key={month} value={month}>{MONTHS[month - 1]}</option>)}
             </select>
           </label>
           <div className="flex items-end text-xs text-brand-muted sm:col-span-2">
             {selectedYear || selectedMonth
-              ? `Showing ${selectedYear || 'all years'} · ${selectedMonth ? MONTHS[Number(selectedMonth) - 1] : 'all months'}`
-              : 'Showing all available reporting periods for this provider.'}
+              ? `Showing ${effectiveYear || 'latest year'} · ${effectiveMonth ? MONTHS[effectiveMonth - 1] : 'latest available month'}`
+              : `Showing latest available reporting period${latestPeriod ? `: ${latestPeriod}` : ' for this provider'}.`}
           </div>
         </div>
       </Card>
@@ -166,7 +173,7 @@ export default function EnrolmentTab({ provider }: ProviderTabProps) {
           {summary.total === 0 && (
             <Card className="border-slate-200 bg-slate-50">
               <p className="font-semibold text-slate-800">No enrollee data for this selection</p>
-              <p className="mt-1 text-sm text-slate-600">Try All years and All months, or select another reporting period.</p>
+              <p className="mt-1 text-sm text-slate-600">Select another reporting year or month to view a different reporting period.</p>
             </Card>
           )}
           <div className="grid gap-5 lg:grid-cols-2">
