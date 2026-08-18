@@ -9,6 +9,8 @@ export type PublicProvider = {
   lga: string;
   state: string;
   services: string[];
+  latitude: number | null;
+  longitude: number | null;
 };
 
 export type PublicPortalSnapshot = {
@@ -67,6 +69,8 @@ function mapProvider(row: any): PublicProvider {
     lga: row.lga ?? '',
     state: row.state ?? 'Ondo',
     services: Array.isArray(row.services) ? row.services : [],
+    latitude: row.latitude ? Number(row.latitude) : null,
+    longitude: row.longitude ? Number(row.longitude) : null,
   };
 }
 

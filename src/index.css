@@ -470,16 +470,18 @@ select:focus-visible {
 
 .public-provider-card {
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 1.25rem;
-  background: linear-gradient(160deg, #ffffff, #f8fbff);
-  box-shadow: 0 12px 30px rgba(15, 38, 82, 0.055);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  border-radius: 1rem;
+  background: linear-gradient(160deg, #ffffff, #f0f7ff);
+  box-shadow: 0 8px 24px rgba(15, 38, 82, 0.045);
+  transition: all 200ms ease;
+  min-height: auto !important;
 }
 
 .public-provider-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(31, 103, 213, 0.3);
-  box-shadow: 0 22px 42px rgba(15, 38, 82, 0.12);
+  transform: translateY(-2px);
+  border-color: rgba(31, 103, 213, 0.35);
+  box-shadow: 0 12px 32px rgba(15, 38, 82, 0.1);
+  background: #ffffff;
 }
 
 .public-service-card,
@@ -517,4 +519,25 @@ select:focus-visible {
 
 @media (max-width: 639px) {
   .public-hero::before { background-size: 32px 32px; }
+}
+
+.public-map-container {
+  @apply relative overflow-hidden rounded-[2rem] border border-brand-border bg-brand-soft shadow-inner;
+  height: 500px;
+}
+
+.public-map-overlay {
+  @apply absolute bottom-6 left-6 right-6 z-10 flex flex-wrap gap-3 pointer-events-none;
+}
+
+.public-map-overlay > * {
+  @apply pointer-events-auto;
+}
+
+.public-marker-odchc {
+  @apply flex h-10 w-10 items-center justify-center rounded-full bg-brand-navy text-white shadow-lg border-2 border-white ring-4 ring-brand-navy;
+}
+
+.public-marker-provider {
+  @apply flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue text-white shadow-md border-2 border-white ring-2 ring-brand-blue transition hover:scale-110;
 }
