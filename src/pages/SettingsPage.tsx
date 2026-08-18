@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import { ShieldCheck, Users, Lock, History, Settings as SettingsIcon, WalletCards } from 'lucide-react';
 import Card from '../components/ui/Card';
@@ -13,6 +14,7 @@ function liveCalendarFilters() {
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const adminStats = [
     { label: 'System Users', value: '0', icon: <Users size={20} /> },
     { label: 'Security Roles', value: '0', icon: <Lock size={20} /> },
@@ -20,6 +22,7 @@ export default function SettingsPage() {
   ];
 
   const tools = [
+    { name: 'Inspection Templates', description: 'Configure facility-type-specific eligibility gates, checklist items, scoring methods, and recommendation thresholds.', link: '/settings/inspection-templates' },
     { name: 'User Management', description: 'Create and manage administrative accounts and roles.', link: '/settings/users' },
     { name: 'Audit Viewer', description: 'Inspect system-wide activity logs and security events.', link: '/settings/audit' },
     { name: 'System Config', description: 'Manage global application settings and constants.', link: '#' },
@@ -119,7 +122,7 @@ export default function SettingsPage() {
                 <h3 className="font-semibold text-slate-900 transition-colors group-hover:text-brand-blue">{tool.name}</h3>
                 <p className="mt-1 text-sm text-slate-500">{tool.description}</p>
                 <div className="mt-4 flex justify-end">
-                  <Button variant="ghost" size="sm" className="gap-2" disabled={tool.link === '#'}>
+                  <Button variant="ghost" size="sm" className="gap-2" disabled={tool.link === '#'} onClick={() => tool.link !== '#' && navigate(tool.link)}>
                     Open <SettingsIcon size={14} />
                   </Button>
                 </div>

@@ -3,7 +3,7 @@ import { SecureContractError } from '../../lib/security/secureContracts';
 import { useMockData } from '../common';
 
 export type InspectionTemplateItem = {
-  section_code: 'B' | 'C' | 'D';
+  section_code: string;
   item_code: string;
   item_label: string;
   response_type: 'number' | 'boolean';
@@ -11,10 +11,27 @@ export type InspectionTemplateItem = {
   max_points: number;
   scored_when_no: boolean;
   manual_score_allowed: boolean;
+  scoring_method: 'headcount_formula' | 'yes_no_with_points' | 'manual_only';
+  sort_order: number;
+};
+
+export type InspectionFacilityType = {
+  code: string;
+  name: string;
+  description?: string | null;
+  active: boolean;
+  sort_order: number;
+};
+
+export type InspectionTemplateSection = {
+  section_code: string;
+  section_label: string;
+  description?: string | null;
   sort_order: number;
 };
 
 export type InspectionTemplate = {
+  facility_type?: InspectionFacilityType | null;
   template: {
     id: string;
     code: string;
@@ -22,7 +39,10 @@ export type InspectionTemplate = {
     version: string;
     passing_threshold: number;
     conditional_threshold: number;
+    facility_type_code?: string | null;
+    facility_profile_fields?: Array<{ key: string; label: string; type: string; required: boolean; sort_order: number }>;
   };
+  sections: InspectionTemplateSection[];
   eligibility: Array<{
     criterion_code: string;
     criterion_label: string;
@@ -30,6 +50,12 @@ export type InspectionTemplate = {
     sort_order: number;
   }>;
   items: InspectionTemplateItem[];
+};
+
+export type InspectionTemplateOption = {
+  facility_type: InspectionFacilityType;
+  template: InspectionTemplate['template'] | null;
+  configured: boolean;
 };
 
 export type StructuredInspectionPayload = {
@@ -45,6 +71,7 @@ export type StructuredInspectionPayload = {
   responses: Array<{
     item_code: string;
     response_number?: number | null;
+    manual_score?: number | null;
     response_boolean?: boolean | null;
     remark: string;
   }>;
@@ -61,7 +88,9 @@ function secureError(error: { code?: string; message?: string }, fallback: strin
 export async function getInspectionTemplate(code = 'pharmacy-accreditation'): Promise<InspectionTemplate> {
   if (useMockData) {
     return {
-      template: { id: 'mock-template', code, name: 'Pharmacy Facility Accreditation Inspection', version: '1.0', passing_threshold: 75, conditional_threshold: 60 },
+      facility_type: { code: 'pharmacy', name: 'Pharmacy', description: 'Community and hospital pharmacy accreditation inspections.', active: true, sort_order: 1 },
+      template: { id: 'mock-template', code, name: 'Pharmacy Facility Accreditation Inspection', version: '1.0', passing_threshold: 75, conditional_threshold: 60, facility_type_code: 'pharmacy', facility_profile_fields: [] },
+      sections: [],
       eligibility: [
         { criterion_code: 'NHIA_ACCREDITED', criterion_label: 'Accredited by the National Health Insurance Authority (NHIA)', required: true, sort_order: 1 },
         { criterion_code: 'SMOH_REGISTERED', criterion_label: 'Registered with the Ondo State Ministry of Health (SMOH)', required: true, sort_order: 2 },
@@ -73,6 +102,41 @@ export async function getInspectionTemplate(code = 'pharmacy-accreditation'): Pr
   }
   const { data, error } = await supabase.rpc('nmis_get_inspection_template', { p_template_code: code });
   if (error) throw secureError(error, 'Failed to load the inspection template');
+  return data as InspectionTemplate;
+}
+
+export async function getInspectionTemplateOptions(): Promise<InspectionTemplateOption[]> {
+  if (useMockData) {
+    return [
+      { facility_type: { code: 'pharmacy', name: 'Pharmacy', description: 'Community and hospital pharmacy accreditation inspections.', active: true, sort_order: 1 }, template: { id: 'mock-template', code: 'pharmacy-accreditation', name: 'Pharmacy Facility Accreditation Inspection', version: '1.0', passing_threshold: 75, conditional_threshold: 60, facility_type_code: 'pharmacy', facility_profile_fields: [] }, configured: true },
+      { facility_type: { code: 'hospital', name: 'Hospital', description: 'Hospital facility inspection template.', active: true, sort_order: 2 }, template: null, configured: false },
+      { facility_type: { code: 'optical-centre', name: 'Optical Centre', description: 'Optical centre inspection template.', active: true, sort_order: 3 }, template: null, configured: false },
+      { facility_type: { code: 'dental-centre', name: 'Dental Centre', description: 'Dental centre inspection template.', active: true, sort_order: 4 }, template: null, configured: false },
+      { facility_type: { code: 'diagnostic-centre', name: 'Diagnostic Centre', description: 'Diagnostic centre inspection template.', active: true, sort_order: 5 }, template: null, configured: false },
+    ];
+  }
+  const { data, error } = await supabase.rpc('nmis_list_inspection_template_options');
+  if (error) throw secureError(error, 'Failed to load inspection facility types');
+  return (data || []) as InspectionTemplateOption[];
+}
+
+export type InspectionTemplateAdminPayload = {
+  template_code: string;
+  facility_type_code: string;
+  name: string;
+  version: string;
+  passing_threshold: number;
+  conditional_threshold: number;
+  active: boolean;
+  facility_profile_fields: Array<Record<string, unknown>>;
+  sections: Array<Record<string, unknown>>;
+  eligibility: Array<Record<string, unknown>>;
+  items: Array<Record<string, unknown>>;
+};
+
+export async function adminUpsertInspectionTemplate(payload: InspectionTemplateAdminPayload): Promise<InspectionTemplate> {
+  const { data, error } = await supabase.rpc('nmis_admin_upsert_inspection_template', { p_payload: payload });
+  if (error) throw secureError(error, 'Failed to save the inspection template');
   return data as InspectionTemplate;
 }
 
