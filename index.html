@@ -8,16 +8,25 @@
     <meta name="description" content="ODCHC National Management Information System (NMIS) — official information and digital management platform of the Ondo State Contributory Health Commission." />
     <meta name="keywords" content="ODCHC, ODCHC NMIS, Ondo State Contributory Health Commission, Ondo health insurance, Ondo State health insurance, ODCHC providers, ODCHC NMIS login" />
     <link rel="canonical" href="https://odchcnmis.online/" />
-    <link rel="icon" type="image/png" href="/assets/odchc-seal.png" />
-    <link rel="apple-touch-icon" href="/assets/odchc-seal.png" />
+    
+    <!-- Favicons & Site Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="https://odchcnmis.online/assets/odchc-seal.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="https://odchcnmis.online/assets/odchc-seal.png" />
+    <link rel="apple-touch-icon" href="https://odchcnmis.online/assets/odchc-seal.png" />
+    <meta name="msapplication-TileImage" content="https://odchcnmis.online/assets/odchc-seal.png" />
 
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ODCHC NMIS" />
     <meta property="og:title" content="ODCHC NMIS | Ondo State Contributory Health Commission" />
     <meta property="og:description" content="Official information and digital management platform of the Ondo State Contributory Health Commission." />
     <meta property="og:url" content="https://odchcnmis.online/" />
     <meta property="og:image" content="https://odchcnmis.online/assets/odchc-horizontal-logo.png" />
-    <meta property="og:image:alt" content="Ondo State Contributory Health Commission" />
+    <meta property="og:image:width" content="779" />
+    <meta property="og:image:height" content="223" />
+    <meta property="og:image:alt" content="Ondo State Contributory Health Commission Logo" />
+
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="ODCHC NMIS | Ondo State Contributory Health Commission" />
     <meta name="twitter:description" content="Official information and digital management platform of the Ondo State Contributory Health Commission." />
@@ -25,6 +34,7 @@
 
     <title>ODCHC NMIS | Ondo State Contributory Health Commission</title>
 
+    <!-- Structured Data -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -40,8 +50,20 @@
               "National Management Information System (NMIS)"
             ],
             "url": "https://odchcnmis.online/",
-            "logo": "https://odchcnmis.online/assets/odchc-horizontal-logo.png",
-            "description": "The Ondo State Contributory Health Commission's official health insurance and network management institution for Ondo State, Nigeria."
+            "logo": {
+              "@type": "ImageObject",
+              "url": "https://odchcnmis.online/assets/odchc-horizontal-logo.png",
+              "width": "779",
+              "height": "223"
+            },
+            "image": "https://odchcnmis.online/assets/odchc-seal.png",
+            "description": "The Ondo State Contributory Health Commission's official health insurance and network management institution for Ondo State, Nigeria.",
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "areaServed": "NG",
+              "availableLanguage": "en"
+            }
           },
           {
             "@type": "WebSite",
