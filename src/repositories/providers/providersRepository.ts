@@ -36,6 +36,9 @@ type ProviderDirectoryRpcRow = {
   ownership: string;
   state: string;
   lga: string;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
   status: string;
   contract_status: string;
   credential_status: string;
@@ -48,6 +51,9 @@ type ProviderDirectoryRpcRow = {
 
 type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
   address?: string | null;
+  contact_person?: string | null;
+  phone?: string | null;
+  email?: string | null;
   services?: string[] | null;
   departments?: string[] | null;
   staff_strength?: number | null;
@@ -85,9 +91,9 @@ function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
     ownership: row.ownership as ProviderDirectoryItem['ownership'],
     lga: row.lga,
     state: row.state,
-    contactPerson: '',
-    phone: '',
-    email: '',
+    contactPerson: row.contact_person ?? 'Pending verification',
+    phone: row.phone ?? 'Pending verification',
+    email: row.email ?? 'Pending verification',
     status: normalizedLifecycleStatus(row.status),
     contractStatus: row.contract_status as ProviderDirectoryItem['contractStatus'],
     credentialStatus: row.credential_status as ProviderDirectoryItem['credentialStatus'],
@@ -102,10 +108,13 @@ function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
 function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
   return {
     ...mapDirectoryRow(row),
-    address: row.address ?? 'Access restricted',
-    bankName: (row as any).bank_name ?? 'Access restricted',
-    accountName: (row as any).account_name ?? 'Access restricted',
-    accountNumber: (row as any).account_number ?? 'Access restricted',
+    address: row.address ?? 'Pending verification',
+    contactPerson: row.contact_person ?? 'Pending verification',
+    phone: row.phone ?? 'Pending verification',
+    email: row.email ?? 'Pending verification',
+    bankName: (row as any).bank_name ?? 'Pending verification',
+    accountName: (row as any).account_name ?? 'Pending verification',
+    accountNumber: (row as any).account_number ?? 'Pending verification',
     services: row.services ?? [],
     departments: row.departments ?? [],
     staffStrength: row.staff_strength ?? 0,

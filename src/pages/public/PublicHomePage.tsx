@@ -600,20 +600,18 @@ export default function PublicHomePage() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">Need help?</p>
               <h3 className="mt-3 text-2xl font-black">Connect with the Commission</h3>
               <div className="mt-6 space-y-4 text-sm text-white/70">
-                <p className="flex gap-3"><Phone size={17} className="shrink-0 text-emerald-200" /> Customer service support</p>
-                <p className="flex gap-3"><Mail size={17} className="shrink-0 text-emerald-200" /> Official Commission correspondence</p>
+                <a href="tel:+2348065484738" className="flex gap-3 transition hover:text-white"><Phone size={17} className="shrink-0 text-emerald-200" /> +234 806 5484 738 · 02017004601 · 02017004602</a>
+                <a href="mailto:info@odchc.on.gov.ng" className="flex gap-3 transition hover:text-white"><Mail size={17} className="shrink-0 text-emerald-200" /> info@odchc.on.gov.ng</a>
                 <div className="flex flex-col gap-3">
-                  <p className="flex gap-3"><MapPin size={17} className="shrink-0 text-emerald-200" /> Ministry of Health Complex, Alagbaka</p>
-                  <button 
-                    onClick={() => {
-                      const el = document.getElementById('network');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      setActiveMarker('odchc');
-                    }}
+                  <p className="flex gap-3"><MapPin size={17} className="shrink-0 text-emerald-200" /> Ministry of Health Complex, Alagbaka, Akure, Ondo State</p>
+                  <a
+                    href={odchcOffice.mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="ml-7 flex w-fit items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-xs font-bold text-amber-200 transition hover:bg-white/20"
                   >
                     <Navigation size={12} /> Locate on Map
-                  </button>
+                  </a>
                 </div>
                 <p className="flex gap-3"><Clock size={17} className="shrink-0 text-emerald-200" /> Monday–Friday, 8:00 AM–4:00 PM</p>
               </div>
