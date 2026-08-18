@@ -32,3 +32,7 @@ Landing page files were not modified.
 The provider population tab no longer offers All years or All months. It derives the available reporting periods from the provider's aggregate trend, defaults to the most recent available `YYYY-MM` period, and restricts month choices to months that actually exist for the selected year. Export now follows the same effective latest year/month filter. This keeps population reporting aligned with the current-month/latest-uploaded-period rule and avoids money-style all-period controls.
 
 The landing page remains untouched.
+
+## Live verification of latest-period default
+
+After deployment `dpl_4Dbnaiva9iFGLpRAWB3obsD3U377` (commit `66d3a1cad0a583af44c4f77205997c3d8275e992`) reached READY, the live Aduloju provider profile rendered Reporting year `2026` and Reporting month `August` with the text `Showing latest available reporting period: 2026-08.`. The controls contained no All years or All months option. Aggregate values remained 128 total, 114 formal, 14 informal, 84 principals, 44 dependants, 54 male, and 74 female.
