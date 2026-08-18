@@ -36,3 +36,11 @@ The landing page remains untouched.
 ## Live verification of latest-period default
 
 After deployment `dpl_4Dbnaiva9iFGLpRAWB3obsD3U377` (commit `66d3a1cad0a583af44c4f77205997c3d8275e992`) reached READY, the live Aduloju provider profile rendered Reporting year `2026` and Reporting month `August` with the text `Showing latest available reporting period: 2026-08.`. The controls contained no All years or All months option. Aggregate values remained 128 total, 114 formal, 14 informal, 84 principals, 44 dependants, 54 male, and 74 female.
+
+## Branded UI verification note
+
+The branded production deployment reached READY. The attempted direct verification URL used a guessed UUID for FUTA and correctly returned the existing secure-provider-profile-unavailable state, so no incorrect provider record was displayed. The live verification must use the authoritative UUID resolved from provider code `PROV-934792`; the UI build and deployment themselves are healthy.
+
+## Final branded UI verification
+
+Using the authoritative FUTA UUID `c9770338-23e5-48ff-afc6-a724f33c1fa4`, the live Enrolment / Population tab rendered the ODCHC ORANGHIS design successfully. The view showed the blue/orange/white header, branded reporting-context panel, orange export action, bordered metric cards, and blue/orange composition styling. Live values matched the requested provider data: 8,937 total, 8,840 formal, 97 informal, 3,399 principals, 5,538 dependants, 4,211 male, 4,726 female, and 3 available periods. The latest default remained 2026 / August. The landing page was not modified.
