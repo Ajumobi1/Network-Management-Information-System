@@ -122,7 +122,7 @@ export default function PublicHomePage() {
     setComplaintSubmitting(true);
     setComplaintError(null);
     try {
-      const result = await publicPortalService.reportComplaint({
+      const result = await publicPortalService.submitComplaint({
         category: complaintForm.category,
         complainantName: complaintForm.name,
         contactPhone: complaintForm.phone,
@@ -146,7 +146,7 @@ export default function PublicHomePage() {
     if (!complaintStatusRef.trim()) return;
     setComplaintStatusLoading(true);
     try {
-      const status = await publicPortalService.getComplaintStatus(complaintStatusRef);
+      const status = await publicPortalService.trackComplaint(complaintStatusRef);
       setComplaintStatusResult(status);
     } catch (err: any) {
       alert(err.message);
