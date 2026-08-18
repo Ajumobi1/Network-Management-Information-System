@@ -6,7 +6,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/FeedbackStates';
 import PageHeader from '../../components/ui/PageHeader';
-import { useProviderDirectory } from '../../hooks/providers/providersHooks';
+import { useProviderDirectory, useProviderProfile } from '../../hooks/providers/providersHooks';
 import { useInspectionTemplate, useSaveStructuredInspection } from '../../hooks/inspections/structuredInspectionHooks';
 import { InspectionTemplateItem, StructuredInspectionPayload } from '../../repositories/inspections/structuredInspectionRepository';
 
@@ -132,6 +132,7 @@ export default function NewInspectionPage() {
   const [step, setStep] = useState(0);
   const [inspectionId, setInspectionId] = useState<string | null>(null);
   const [providerId, setProviderId] = useState('');
+  const profileQuery = useProviderProfile(providerId);
   const [profile, setProfile] = useState<FacilityProfileState>(EMPTY_PROFILE);
   const [eligibility, setEligibility] = useState<Record<string, EligibilityState>>({});
   const [responses, setResponses] = useState<Record<string, ResponseState>>({});
@@ -172,6 +173,18 @@ export default function NewInspectionPage() {
     if (!template || !draftLoaded) return;
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, inspectionId, providerId, profile, eligibility, responses, team }));
   }, [template, draftLoaded, step, inspectionId, providerId, profile, eligibility, responses, team]);
+
+  useEffect(() => {
+    if (profileQuery.data?.address && !profile.address) {
+      setProfile(prev => ({ ...prev, address: profileQuery.data.address }));
+    }
+    if (profileQuery.data?.phone && (!profile.telephone || profile.telephone === 'Pending verification')) {
+      setProfile(prev => ({ ...prev, telephone: profileQuery.data.phone }));
+    }
+    if (profileQuery.data?.email && (!profile.facility_email || profile.facility_email === 'Pending verification')) {
+      setProfile(prev => ({ ...prev, facility_email: profileQuery.data.email }));
+    }
+  }, [profileQuery.data]);
 
   const selectedProvider = useMemo(() => providerQuery.data?.find(provider => provider.id === providerId), [providerId, providerQuery.data]);
   const allEligibilityMet = template?.eligibility.filter(item => item.required).every(item => eligibility[item.criterion_code]?.met) ?? false;
