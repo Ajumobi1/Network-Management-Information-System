@@ -878,3 +878,118 @@ select:focus-visible {
     radial-gradient(circle at 94% 34%, rgba(16, 185, 129, 0.07), transparent 21rem),
     linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
 }
+
+
+/* Live Google Maps surface */
+.public-live-map-shell {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  background: #dbeafe;
+}
+
+.public-live-map-toolbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 72px;
+  padding: 1rem 1.25rem;
+  color: #fff;
+  background: linear-gradient(110deg, #06183f 0%, #0b2b63 55%, #0b3d91 100%);
+}
+
+.public-live-map-kicker {
+  color: #fcd34d;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.public-live-map-title {
+  margin-top: 0.25rem;
+  color: #fff;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.public-live-map-direction {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  padding: 0.58rem 0.85rem;
+  color: #06183f;
+  background: #fbbf24;
+  font-size: 0.68rem;
+  font-weight: 900;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.public-live-map-direction:hover {
+  background: #fcd34d;
+  transform: translateY(-1px);
+}
+
+.public-live-map-frame {
+  display: block;
+  width: 100%;
+  min-height: 380px;
+  flex: 1;
+  border: 0;
+  background: #dbeafe;
+}
+
+.public-live-map-caption {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 38px;
+  padding: 0.55rem 1rem;
+  color: rgba(6, 24, 63, 0.7);
+  background: rgba(255, 255, 255, 0.86);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.public-live-map-popup {
+  position: absolute;
+  left: 1.25rem;
+  bottom: 4.25rem;
+  z-index: 5;
+  width: min(20rem, calc(100% - 2.5rem));
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 1rem;
+  padding: 1.1rem;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 20px 46px rgba(6, 24, 63, 0.24);
+}
+
+@media (max-width: 639px) {
+  .public-live-map-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .public-live-map-direction {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .public-live-map-frame {
+    min-height: 320px;
+  }
+
+  .public-live-map-popup {
+    left: 0.85rem;
+    bottom: 5.15rem;
+    width: calc(100% - 1.7rem);
+  }
+}

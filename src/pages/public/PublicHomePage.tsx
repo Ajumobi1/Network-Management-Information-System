@@ -67,13 +67,17 @@ export default function PublicHomePage() {
   const [providerError, setProviderError] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
+  const [mapTarget, setMapTarget] = useState({
+    name: 'ODCHC Headquarters',
+    query: 'Ministry of Health Complex, Alagbaka, Akure, Ondo State, Nigeria',
+  });
 
   const odchcOffice = { 
     name: 'ODCHC Headquarters', 
     lga: 'Akure South', 
     type: 'office', 
     address: 'Ministry of Health Complex, Alagbaka, Akure, Ondo State',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Ondo+State+Contributory+Health+Commission+Alagbaka+Akure'
+    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Ministry+of+Health+Complex+Alagbaka+Akure+Ondo+State'
   };
 
   const [complaintForm, setComplaintForm] = useState({ category: 'service-delivery', name: '', phone: '', email: '', lga: '', providerId: '', description: '', incidentDate: '', preferredContactMethod: 'Phone' });
@@ -103,6 +107,7 @@ export default function PublicHomePage() {
 
   const lgaOptions = useMemo(() => snapshot.transparency.byLga.map(item => item.name), [snapshot.transparency.byLga]);
   const updatedAt = snapshot.lastUpdated ? new Date(snapshot.lastUpdated).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' }) : 'Awaiting live update';
+  const activeProvider = activeMarker ? providers.find(provider => provider.id === activeMarker) : null;
 
   const findNearMe = useCallback(() => {
     if (!navigator.geolocation) {
@@ -112,14 +117,16 @@ export default function PublicHomePage() {
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setSearch('Nearby');
+        const { latitude, longitude } = position.coords;
+        setMapTarget({ name: 'Your current location', query: `${latitude},${longitude}` });
+        setActiveMarker(null);
         setLocating(false);
-        alert('Searching for providers near your location...');
       },
       () => {
-        alert('Unable to retrieve your location');
+        alert('Unable to retrieve your location. Please allow location access and try again.');
         setLocating(false);
-      }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
     );
   }, []);
 
@@ -229,7 +236,7 @@ export default function PublicHomePage() {
 
               <div className="flex flex-col justify-center">
                 <div className="public-glass grid grid-cols-2 gap-4 rounded-[2.5rem] p-4 sm:p-6">
-                  <KpiCard label="Registered Enrollees" value={`${snapshot.kpis.registeredEnrollees.toLocaleString()}+`} icon={<Users size={20} />} />
+                  <KpiCard label="Registered Enrollees" value={snapshot.kpis.registeredEnrollees.toLocaleString()} icon={<Users size={20} />} />
                   <KpiCard label="Accredited Providers" value={snapshot.kpis.accreditedProviders.toString()} icon={<Building2 size={20} />} />
                   <KpiCard label="LGAs Covered" value={snapshot.kpis.lgasCovered.toString()} icon={<MapPin size={20} />} />
                   <div className="col-span-2 mt-2 rounded-2xl bg-white/5 p-5 backdrop-blur-sm">
@@ -252,80 +259,81 @@ export default function PublicHomePage() {
           <SectionIntro eyebrow="Our Network" title="Find a healthcare provider" description="Search the authoritative public provider directory by facility name, location, and category. Only approved public-safe fields are shown." />
           
           <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_400px]">
-            <div className="public-map-container z-0 flex items-center justify-center p-5 sm:p-8">
-              <div className="relative h-full w-full max-w-lg">
-                <svg viewBox="0 0 500 400" className="public-ondo-map h-full w-full" role="img" aria-label="Illustrated Ondo State provider network map" xmlns="http://www.w3.org/2000/svg">
-                  <defs>
-                    <pattern id="map-grid" width="28" height="28" patternUnits="userSpaceOnUse">
-                      <path d="M 28 0 L 0 0 0 28" fill="none" className="public-map-grid-line" />
-                    </pattern>
-                    <clipPath id="ondo-boundary">
-                      <path d="M154 38C192 24 244 22 294 36L350 68C371 80 384 105 380 129L366 158C358 173 362 190 379 214L391 245C398 267 386 289 367 304L340 326C323 340 313 362 289 372L247 380C222 385 203 370 188 354L160 329C144 315 123 310 105 297L78 274C57 257 49 234 55 211L66 179C73 157 67 135 76 113L87 84C99 58 122 47 154 38Z" />
-                    </clipPath>
-                  </defs>
-                  <rect width="500" height="400" rx="28" className="public-map-grid-surface" />
-                  <rect width="500" height="400" rx="28" className="public-map-grid-overlay" />
-                  <g clipPath="url(#ondo-boundary)">
-                    <rect x="35" y="20" width="380" height="365" className="public-ondo-map-base" />
-                    <path d="M40 24H420V158C356 174 286 164 222 145C150 124 93 122 40 146Z" className="public-district-north" />
-                    <path d="M38 145C110 119 158 143 224 151C288 159 350 172 416 151V264C343 245 288 254 224 240C153 225 103 238 38 263Z" className="public-district-central" />
-                    <path d="M38 255C110 232 157 226 225 242C293 258 350 244 420 260V390H38Z" className="public-district-south" />
-                    <path d="M76 113L380 129M66 179L379 214M55 238L391 245M105 297L367 304" className="public-map-boundary-line" />
-                  </g>
-                  <path d="M154 38C192 24 244 22 294 36L350 68C371 80 384 105 380 129L366 158C358 173 362 190 379 214L391 245C398 267 386 289 367 304L340 326C323 340 313 362 289 372L247 380C222 385 203 370 188 354L160 329C144 315 123 310 105 297L78 274C57 257 49 234 55 211L66 179C73 157 67 135 76 113L87 84C99 58 122 47 154 38Z" className="public-ondo-map-outline" />
-                  <text x="108" y="108" className="public-map-zone-label">ONDO NORTH</text>
-                  <text x="174" y="206" className="public-map-zone-label">ONDO CENTRAL</text>
-                  <text x="191" y="302" className="public-map-zone-label">ONDO SOUTH</text>
-                  <g className="cursor-pointer" onClick={() => setActiveMarker('odchc')}>
-                    <circle cx="257" cy="183" r="15" className="public-map-office-halo" />
-                    <circle cx="257" cy="183" r="8" className="public-map-office-marker" />
-                    <text x="272" y="187" className="public-map-office-label">ODCHC HQ</text>
-                  </g>
-                  {providers.slice(0, 12).map((p, i) => (
-                    <g key={p.id} className="cursor-pointer" onClick={() => setActiveMarker(p.id)}>
-                      <circle cx={130 + (i * 31) % 235} cy={93 + (i * 43) % 245} r="7" className="public-map-provider-halo" />
-                      <circle cx={130 + (i * 31) % 235} cy={93 + (i * 43) % 245} r="4" className="public-map-provider-marker" />
-                    </g>
-                  ))}
-                </svg>
-
-                {activeMarker && (
-                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 rounded-xl bg-white p-4 shadow-2xl ring-1 ring-brand-navy/10 z-20">
-                    <button onClick={() => setActiveMarker(null)} className="absolute right-2 top-2 text-brand-muted hover:text-brand-navy">
-                      <X size={16} />
-                    </button>
-                    {activeMarker === 'odchc' ? (
-                      <div>
-                        <h4 className="font-bold text-brand-navy">{odchcOffice.name}</h4>
-                        <p className="mt-1 text-xs text-brand-muted">{odchcOffice.lga}</p>
-                        <a 
-                          href={odchcOffice.mapUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-amber-500 py-2 text-xs font-bold text-brand-navy transition hover:bg-amber-400"
-                        >
-                          <Navigation size={14} /> Navigate to Office
-                        </a>
-                      </div>
-                    ) : (
-                      <div>
-                        <h4 className="font-bold text-brand-navy">{providers.find(p => p.id === activeMarker)?.providerName}</h4>
-                        <p className="mt-1 text-xs text-brand-muted">{providers.find(p => p.id === activeMarker)?.lga} LGA</p>
-                        <button className="mt-3 w-full rounded-lg bg-brand-blue py-1.5 text-xs font-bold text-white">View Profile</button>
-                      </div>
-                    )}
-                  </div>
-                )}
+            <div className="public-map-container public-live-map-shell z-0 overflow-hidden">
+              <div className="public-live-map-toolbar">
+                <div className="min-w-0">
+                  <p className="public-live-map-kicker">Live Google map</p>
+                  <p className="public-live-map-title truncate">{mapTarget.name}</p>
+                </div>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapTarget.query)}`}
+                  target="_self"
+                  rel="noopener noreferrer"
+                  className="public-live-map-direction"
+                >
+                  <Navigation size={14} /> Directions
+                </a>
               </div>
+
+              <iframe
+                key={mapTarget.query}
+                title={`Live map showing ${mapTarget.name}`}
+                src={`https://www.google.com/maps?q=${encodeURIComponent(mapTarget.query)}&output=embed&z=13`}
+                className="public-live-map-frame"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+
+              <div className="public-live-map-caption">
+                <MapPin size={13} /> Live map view · Select a facility to focus the map
+              </div>
+
+              {activeMarker && (
+                <div className="public-live-map-popup">
+                  <button onClick={() => setActiveMarker(null)} className="absolute right-3 top-3 text-brand-muted hover:text-brand-navy" aria-label="Close map details">
+                    <X size={16} />
+                  </button>
+                  {activeMarker === 'odchc' ? (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Commission office</p>
+                      <h4 className="mt-1 font-bold text-brand-navy">{odchcOffice.name}</h4>
+                      <p className="mt-1 text-xs text-brand-muted">{odchcOffice.address}</p>
+                      <a
+                        href={odchcOffice.mapUrl}
+                        target="_self"
+                        rel="noopener noreferrer"
+                        className="mt-3 flex items-center justify-center gap-2 rounded-lg bg-amber-500 py-2 text-xs font-bold text-brand-navy transition hover:bg-amber-400"
+                      >
+                        <Navigation size={14} /> Open directions
+                      </a>
+                    </div>
+                  ) : activeProvider ? (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-brand-blue">Accredited provider</p>
+                      <h4 className="mt-1 font-bold text-brand-navy">{activeProvider.providerName}</h4>
+                      <p className="mt-1 text-xs text-brand-muted">{activeProvider.lga} LGA · {activeProvider.ownership || 'Accredited'}</p>
+                      <button
+                        onClick={() => setMapTarget({ name: activeProvider.providerName, query: `${activeProvider.providerName}, ${activeProvider.lga}, Ondo State, Nigeria` })}
+                        className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-brand-blue py-2 text-xs font-bold text-white transition hover:bg-brand-hover"
+                      >
+                        <MapPin size={14} /> Focus this facility
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
               <div className="public-map-overlay">
                 <button onClick={findNearMe} disabled={locating} className="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-bold text-brand-navy shadow-lg transition hover:bg-brand-soft">
                   <Navigation size={14} className={locating ? 'animate-pulse' : ''} />
-                  {locating ? 'Locating...' : 'Find providers near me'}
+                  {locating ? 'Locating...' : 'Use my location'}
                 </button>
-                <div className="flex items-center gap-2 rounded-full bg-brand-navy px-4 py-2 text-[10px] font-bold text-white shadow-lg">
+                <button
+                  onClick={() => { setMapTarget({ name: odchcOffice.name, query: odchcOffice.address }); setActiveMarker('odchc'); }}
+                  className="flex items-center gap-2 rounded-full bg-brand-navy px-4 py-2 text-[10px] font-bold text-white shadow-lg transition hover:bg-brand-blue"
+                >
                   <span className="h-2 w-2 rounded-full bg-amber-400" /> ODCHC Headquarters
-                </div>
+                </button>
               </div>
             </div>
 
@@ -354,7 +362,21 @@ export default function PublicHomePage() {
                   <div className="rounded-xl border border-dashed border-brand-border bg-white p-8 text-center text-sm text-brand-muted">No matching providers found.</div>
                 ) : (
                   <div className="grid gap-3">
-                    {providers.map(provider => <ProviderCard key={provider.id} provider={provider} onLocate={() => setActiveMarker(provider.id)} />)}
+                    {providers.map(provider => (
+                      <ProviderCard
+                        key={provider.id}
+                        provider={provider}
+                        onLocate={() => {
+                          setActiveMarker(provider.id);
+                          setMapTarget({
+                            name: provider.providerName,
+                            query: provider.latitude != null && provider.longitude != null
+                              ? `${provider.latitude},${provider.longitude}`
+                              : `${provider.providerName}, ${provider.lga}, Ondo State, Nigeria`,
+                          });
+                        }}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
