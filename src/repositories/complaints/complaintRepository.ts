@@ -1,12 +1,14 @@
 import { supabase } from '../../lib/supabase/supabaseClient';
 import { SecureContractError } from '../../lib/security/secureContracts';
 import { useMockData } from '../common';
-import { ComplaintCategory, ComplaintFilters, ComplaintPriority, ComplaintRecord, ComplaintStatus } from '../../types/complaints/complaintTypes';
+import { ComplaintCategory, ComplaintFilters, ComplaintPriority, ComplaintRecord, ComplaintStatus, ComplaintHistoryItem } from '../../types/complaints/complaintTypes';
 
 // Mock store for fallback
 let mockComplaints: ComplaintRecord[] = [
   {
     id: 'comp-1',
+    referenceNumber: 'ODCHC-2026-INT-C1',
+    source: 'internal',
     providerId: 'prov-1',
     providerName: 'Sunvale Hospital',
     providerCode: 'OND/001/HSP',
@@ -22,6 +24,8 @@ let mockComplaints: ComplaintRecord[] = [
   },
   {
     id: 'comp-2',
+    referenceNumber: 'ODCHC-2026-INT-C2',
+    source: 'internal',
     providerId: 'prov-2',
     providerName: 'Atlas Pharmacy',
     providerCode: 'OND/002/PHM',
@@ -37,6 +41,8 @@ let mockComplaints: ComplaintRecord[] = [
   },
   {
     id: 'comp-3',
+    referenceNumber: 'ODCHC-2026-INT-C3',
+    source: 'internal',
     providerId: 'prov-3',
     providerName: 'Riverside Clinic',
     providerCode: 'OND/003/CLN',
@@ -54,9 +60,11 @@ let mockComplaints: ComplaintRecord[] = [
 
 export interface ComplaintDbRecord {
   id: string;
-  provider_id: string;
+  reference_number: string;
+  source: 'internal' | 'public';
+  provider_id: string | null;
   provider_name: string;
-  provider_code: string;
+  provider_code: string | null;
   title: string;
   category: ComplaintCategory;
   priority: ComplaintPriority;
@@ -68,9 +76,20 @@ export interface ComplaintDbRecord {
   updated_at: string;
 }
 
+export interface ComplaintHistoryDbItem {
+  id: string;
+  status_from: string | null;
+  status_to: string;
+  notes: string | null;
+  created_by_email: string;
+  created_at: string;
+}
+
 function mapRecord(c: ComplaintDbRecord): ComplaintRecord {
   return {
     id: c.id,
+    referenceNumber: c.reference_number,
+    source: c.source,
     providerId: c.provider_id,
     providerName: c.provider_name,
     providerCode: c.provider_code,
@@ -91,7 +110,7 @@ export const complaintRepository = {
     if (useMockData) {
       const q = filters.search.trim().toLowerCase();
       return mockComplaints.filter(c => {
-        const matchSearch = !q || [c.title, c.providerName, c.providerCode, c.description].some(v => v.toLowerCase().includes(q));
+        const matchSearch = !q || [c.title, c.providerName, c.providerCode || '', c.description].some(v => v.toLowerCase().includes(q));
         const matchStatus = filters.status === 'all' || c.status === filters.status;
         const matchCategory = filters.category === 'all' || c.category === filters.category;
         const matchPriority = filters.priority === 'all' || c.priority === filters.priority;
@@ -129,6 +148,8 @@ export const complaintRepository = {
       const newId = `comp-${Date.now()}`;
       mockComplaints.unshift({
         id: newId,
+        referenceNumber: `ODCHC-2026-INT-${newId.slice(-5).toUpperCase()}`,
+        source: 'internal',
         providerId: payload.providerId,
         providerName: 'Selected Facility',
         providerCode: 'OND/999/TST',
@@ -190,5 +211,31 @@ export const complaintRepository = {
     }
 
     return data;
+  },
+
+  async fetchComplaintHistory(id: string): Promise<ComplaintHistoryItem[]> {
+    if (useMockData) {
+      return [];
+    }
+
+    const { data, error } = await supabase.rpc('nmis_get_complaint_history', {
+      p_complaint_id: id,
+    });
+
+    if (error) {
+      const code = error.code === 'P0001' && error.message.includes('ACCESS_RESTRICTED')
+        ? 'ACCESS_RESTRICTED'
+        : 'SECURE_CONTRACT_UNAVAILABLE';
+      throw new SecureContractError(code, error.message || 'Failed to fetch complaint history');
+    }
+
+    return (data || []).map((h: ComplaintHistoryDbItem) => ({
+      id: h.id,
+      statusFrom: h.status_from,
+      statusTo: h.status_to,
+      notes: h.notes,
+      createdByEmail: h.created_by_email,
+      createdAt: h.created_at,
+    }));
   }
 };

@@ -24,5 +24,9 @@ export const complaintService = {
       throw new Error('Resolution notes are required when marking a complaint as resolved');
     }
     return complaintRepository.updateComplaintStatus(id, status, resolutionNotes);
+  },
+
+  async getComplaintHistory(id: string) {
+    return complaintRepository.fetchComplaintHistory(id);
   }
 };

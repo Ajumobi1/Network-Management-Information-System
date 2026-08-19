@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader';
-import { useComplaints, useCreateComplaint, useUpdateComplaintStatus } from '../hooks/complaints/complaintHooks';
+import { useComplaints, useCreateComplaint, useUpdateComplaintStatus, useComplaintHistory } from '../hooks/complaints/complaintHooks';
 import { useProviderDirectory } from '../features/providers/hooks';
 import { ComplaintFilters, ComplaintRecord, ComplaintStatus, ComplaintCategory, ComplaintPriority, COMPLAINT_STATUS_LABELS, COMPLAINT_CATEGORY_LABELS, COMPLAINT_PRIORITY_LABELS } from '../types/complaints/complaintTypes';
 
@@ -73,8 +73,8 @@ function ComplaintsPage() {
   const escalatedCount = complaints.filter(c => c.status === 'escalated').length;
 
   const handleExport = () => {
-    const headers = ['Provider', 'Provider Code', 'Title', 'Category', 'Priority', 'Status', 'Assigned To', 'Created At', 'Updated At'];
-    const rows = complaints.map(complaint => [complaint.providerName, complaint.providerCode, complaint.title, complaint.category, complaint.priority, complaint.status, complaint.assignedTo || '', complaint.createdAt, complaint.updatedAt]);
+    const headers = ['Ref Number', 'Source', 'Provider', 'Provider Code', 'Title', 'Category', 'Priority', 'Status', 'Assigned To', 'Created At', 'Updated At'];
+    const rows = complaints.map(complaint => [complaint.referenceNumber, complaint.source, complaint.providerName, complaint.providerCode || '', complaint.title, complaint.category, complaint.priority, complaint.status, complaint.assignedTo || '', complaint.createdAt, complaint.updatedAt]);
     const csv = [headers, ...rows].map(row => row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(',')).join('\\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const anchor = document.createElement('a');
@@ -174,11 +174,11 @@ function ComplaintsPage() {
               <table className="w-full min-w-[900px] text-left border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50/75 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="px-6 py-3">Reference / Source</th>
                     <th className="px-6 py-3">Provider</th>
                     <th className="px-6 py-3">Title / Category</th>
                     <th className="px-6 py-3">Priority</th>
                     <th className="px-6 py-3">Status</th>
-                    <th className="px-6 py-3">Assigned To</th>
                     <th className="px-6 py-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -186,8 +186,16 @@ function ComplaintsPage() {
                   {complaints.map(c => (
                     <tr key={c.id} className="hover:bg-slate-50/50">
                       <td className="px-6 py-4">
+                        <p className="font-semibold text-slate-900">{c.referenceNumber}</p>
+                        <span className={`inline-block mt-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
+                          c.source === 'public' ? 'bg-amber-100 text-amber-700' : 'bg-indigo-100 text-indigo-700'
+                        }`}>
+                          {c.source}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
                         <p className="font-semibold text-slate-900">{c.providerName}</p>
-                        <p className="text-xs text-slate-500">{c.providerCode}</p>
+                        <p className="text-xs text-slate-500">{c.providerCode || 'Public submission'}</p>
                       </td>
                       <td className="px-6 py-4">
                         <p className="font-medium text-slate-900">{c.title}</p>
@@ -213,7 +221,6 @@ function ComplaintsPage() {
                           {COMPLAINT_STATUS_LABELS[c.status]}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-600">{c.assignedTo || 'Unassigned'}</td>
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => setSelectedComplaint(c)}
@@ -235,10 +242,10 @@ function ComplaintsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
             <div className="max-h-[calc(100dvh-1rem)] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-4 shadow-2xl sm:max-h-[90vh] sm:rounded-3xl sm:p-6">
               <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
-                <div>
-                  <h3 className="text-xl font-semibold text-slate-900">{selectedComplaint.title}</h3>
-                  <p className="text-sm text-slate-500">{selectedComplaint.providerName} ({selectedComplaint.providerCode})</p>
-                </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-slate-900">{selectedComplaint.title}</h3>
+                    <p className="text-sm text-slate-500">{selectedComplaint.referenceNumber} · {selectedComplaint.providerName} {selectedComplaint.providerCode ? `(${selectedComplaint.providerCode})` : ''}</p>
+                  </div>
                 <button
                   onClick={() => setSelectedComplaint(null)}
                   className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
@@ -272,12 +279,7 @@ function ComplaintsPage() {
                   <p className="mt-1 text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl whitespace-pre-wrap">{selectedComplaint.description}</p>
                 </div>
 
-                {selectedComplaint.resolutionNotes && (
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Resolution Notes</p>
-                    <p className="mt-1 text-sm text-emerald-700 bg-emerald-50 p-4 rounded-2xl whitespace-pre-wrap">{selectedComplaint.resolutionNotes}</p>
-                  </div>
-                )}
+                <ComplaintHistory id={selectedComplaint.id} />
 
                 <div className="border-t border-slate-200 pt-4 space-y-4">
                   <p className="text-sm font-semibold text-slate-900">Update Status & Resolve</p>
@@ -434,6 +436,39 @@ function ComplaintsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function ComplaintHistory({ id }: { id: string }) {
+  const { data: history = [], isLoading } = useComplaintHistory(id);
+
+  if (isLoading) return <div className="py-4 text-center text-xs text-slate-400 italic">Loading history...</div>;
+  if (history.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-slate-900">Activity & Resolution History</p>
+      <div className="space-y-3">
+        {history.map((item) => (
+          <div key={item.id} className="rounded-2xl border border-slate-100 bg-slate-50/50 p-3 text-sm">
+            <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <span>{item.createdByEmail}</span>
+              <span>{new Date(item.createdAt).toLocaleString()}</span>
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-600 capitalize">{item.statusFrom || 'new'}</span>
+              <span className="text-slate-300">→</span>
+              <span className="text-xs font-black text-indigo-600 capitalize">{item.statusTo}</span>
+            </div>
+            {item.notes && (
+              <p className="mt-2 text-slate-600 whitespace-pre-wrap italic border-l-2 border-slate-200 pl-3 py-1">
+                {item.notes}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

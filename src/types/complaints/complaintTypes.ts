@@ -4,9 +4,11 @@ export type ComplaintStatus = 'open' | 'in-review' | 'escalated' | 'resolved' | 
 
 export interface ComplaintRecord {
   id: string;
-  providerId: string;
+  referenceNumber: string;
+  source: 'internal' | 'public';
+  providerId: string | null;
   providerName: string;
-  providerCode: string;
+  providerCode: string | null;
   title: string;
   category: ComplaintCategory;
   priority: ComplaintPriority;
@@ -16,6 +18,15 @@ export interface ComplaintRecord {
   assignedTo: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ComplaintHistoryItem {
+  id: string;
+  statusFrom: string | null;
+  statusTo: string;
+  notes: string | null;
+  createdByEmail: string;
+  createdAt: string;
 }
 
 export interface ComplaintFilters {

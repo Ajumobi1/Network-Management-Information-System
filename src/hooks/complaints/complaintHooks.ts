@@ -32,8 +32,17 @@ export function useUpdateComplaintStatus() {
   return useMutation({
     mutationFn: ({ id, status, resolutionNotes }: { id: string; status: ComplaintStatus; resolutionNotes?: string }) =>
       complaintService.updateStatus(id, status, resolutionNotes),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['complaints'] });
+      queryClient.invalidateQueries({ queryKey: ['complaint-history', variables.id] });
     },
+  });
+}
+
+export function useComplaintHistory(id: string) {
+  return useQuery({
+    queryKey: ['complaint-history', id],
+    queryFn: () => complaintService.getComplaintHistory(id),
+    enabled: !!id,
   });
 }
