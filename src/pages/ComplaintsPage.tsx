@@ -19,6 +19,7 @@ function ComplaintsPage() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [resolutionInput, setResolutionInput] = useState('');
   const [messageInput, setMessageInput] = useState('');
+  const [messageError, setMessageError] = useState<string | null>(null);
   const [newComplaintForm, setNewComplaintForm] = useState({
     providerId: '',
     title: '',
@@ -62,6 +63,7 @@ function ComplaintsPage() {
 
   const handleSendMessage = async () => {
     if (!selectedComplaint || !messageInput.trim()) return;
+    setMessageError(null);
     try {
       await sendMessageMutation.mutateAsync({
         complaintId: selectedComplaint.id,
@@ -72,7 +74,7 @@ function ComplaintsPage() {
       });
       setMessageInput('');
     } catch (err: any) {
-      alert(err.message || 'Failed to send message');
+      setMessageError(err.message || 'The support chat connection is unavailable. Please try again.');
     }
   };
 
@@ -317,8 +319,14 @@ function ComplaintsPage() {
                 <ComplaintMessages id={selectedComplaint.id} />
 
                 <div className="rounded-2xl border border-brand-border bg-white p-4 shadow-sm">
-                  <p className="text-sm font-semibold text-slate-900">Reply to reporter</p>
-                  <p className="mt-1 text-xs text-slate-500">Messages are visible to the complainant when they track this reference number.</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900">Chat with reporter</p>
+                      <p className="mt-1 text-xs text-slate-500">Messages sent here are delivered to the reporter's secure support conversation.</p>
+                    </div>
+                    <span className="rounded-full bg-brand-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-brand-blue">Two-way support</span>
+                  </div>
+                  {messageError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-xs font-medium text-rose-700">{messageError}</p>}
                   <div className="mt-3 flex gap-2">
                     <textarea
                       value={messageInput}
@@ -504,7 +512,10 @@ function ComplaintMessages({ id }: { id: string }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-slate-900">Conversation with reporter</p>
+        <div>
+          <p className="text-sm font-semibold text-slate-900">Chat with reporter</p>
+          <p className="mt-1 text-xs text-slate-500">Staff messages appear in the reporter's support chat after they verify their reference and contact.</p>
+        </div>
         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{messages.length} messages</span>
       </div>
       {messages.length === 0 ? (

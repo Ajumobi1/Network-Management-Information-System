@@ -507,9 +507,9 @@ export default function PublicHomePage() {
 
             <div className="flex flex-col justify-start pt-12 lg:pt-0">
               <div className="public-complaint-tracker p-7 text-white sm:p-8">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200">Track your complaint</p>
-                <h3 className="mt-3 text-2xl font-black">Stay informed and reply securely.</h3>
-                <p className="mt-4 text-sm leading-relaxed text-white/60">Enter your reference number and the phone number or email used when you reported the case. You can read Commission updates and reply until the case is resolved.</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200">Contact support</p>
+                <h3 className="mt-3 text-2xl font-black">Chat with ODCHC Support.</h3>
+                <p className="mt-4 text-sm leading-relaxed text-white/60">Enter your reference number and the phone number or email used when you reported the case. Open the secure conversation to read every update and reply to the Commission.</p>
                 <div className="mt-8 space-y-4">
                   <input className="public-complaint-input w-full rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300/40" placeholder="ODCHC-2026-XXXXX" value={complaintStatusRef} onChange={e => setComplaintStatusRef(e.target.value)} />
                   <input className="public-complaint-input w-full rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300/40" placeholder="Your phone or email" value={complaintStatusContact} onChange={e => setComplaintStatusContact(e.target.value)} />
@@ -537,12 +537,13 @@ export default function PublicHomePage() {
                         <textarea
                           className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white placeholder:text-white/40 focus:border-amber-300 focus:outline-none"
                           rows={3}
-                          placeholder="Reply to the Commission..."
+                          aria-label="Message ODCHC Support"
+                          placeholder="Type your message to ODCHC Support..."
                           value={complaintReply}
                           onChange={e => setComplaintReply(e.target.value)}
                         />
                         <button onClick={sendComplaintReply} disabled={complaintReplyLoading || !complaintReply.trim()} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 py-3 text-sm font-black text-brand-navy transition hover:bg-amber-200 disabled:opacity-50">
-                          {complaintReplyLoading ? 'Sending...' : 'Send Reply'} <ArrowRight size={16} />
+                          {complaintReplyLoading ? 'Sending...' : 'Send to Support'} <ArrowRight size={16} />
                         </button>
                       </div>
                     )}
@@ -736,38 +737,50 @@ function KpiCard({ label, value, icon }: { label: string; value: string; icon: R
 }
 
 function PublicComplaintConversation({ thread }: { thread: PublicComplaintThread }) {
+  const entries = [
+    ...thread.updates.map(update => ({ kind: 'update' as const, id: `update-${update.id}`, createdAt: update.createdAt, update })),
+    ...thread.messages.map(message => ({ kind: 'message' as const, id: `message-${message.id}`, createdAt: message.createdAt, message })),
+  ].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
   return (
-    <div className="space-y-3 rounded-xl bg-black/15 p-3">
-      {thread.complaint.description && (
-        <div className="rounded-xl bg-white/5 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Your report</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-white/80">{thread.complaint.description}</p>
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-black text-white">Chat with ODCHC Support</p>
+          <p className="mt-1 text-[11px] text-white/50">Your messages and Commission replies stay in this conversation.</p>
         </div>
-      )}
-      {thread.updates.map(update => (
-        <div key={update.id} className="rounded-xl bg-white/5 p-3">
-          <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
-            <span>Commission update</span>
-            <span>{new Date(update.createdAt).toLocaleString()}</span>
+        <span className="rounded-full bg-emerald-400/15 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-200">Secure thread</span>
+      </div>
+
+      <div className="mt-4 max-h-96 space-y-3 overflow-y-auto rounded-xl bg-black/15 p-3">
+        {thread.complaint.description && (
+          <div className="rounded-xl border border-amber-300/10 bg-amber-300/10 p-3">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-200">Your original report</p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-white/85">{thread.complaint.description}</p>
           </div>
-          <p className="mt-1 text-xs font-semibold text-amber-200">{update.statusFrom || 'Submitted'} → {update.statusTo}</p>
-          {update.notes && <p className="mt-1 whitespace-pre-wrap text-sm text-white/80">{update.notes}</p>}
-        </div>
-      ))}
-      {thread.messages.map(message => (
-        <div key={message.id} className={`flex ${message.senderType === 'complainant' ? 'justify-end' : 'justify-start'}`}>
-          <div className={`max-w-[90%] rounded-xl p-3 ${message.senderType === 'complainant' ? 'bg-amber-300 text-brand-navy' : 'bg-brand-blue/60 text-white'}`}>
-            <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-wider opacity-70">
-              <span>{message.senderType === 'complainant' ? 'You' : message.senderName}</span>
-              <span>{new Date(message.createdAt).toLocaleString()}</span>
+        )}
+        {entries.map(entry => entry.kind === 'update' ? (
+          <div key={entry.id} className="rounded-xl bg-white/5 p-3">
+            <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
+              <span>Commission update</span>
+              <span>{new Date(entry.createdAt).toLocaleString()}</span>
             </div>
-            <p className="mt-1 whitespace-pre-wrap text-sm">{message.message}</p>
+            <p className="mt-1 text-xs font-semibold text-amber-200">{entry.update.statusFrom || 'Submitted'} → {entry.update.statusTo}</p>
+            {entry.update.notes && <p className="mt-1 whitespace-pre-wrap text-sm text-white/80">{entry.update.notes}</p>}
           </div>
-        </div>
-      ))}
-      {thread.updates.length === 0 && thread.messages.length === 0 && (
-        <p className="rounded-xl bg-white/5 p-3 text-xs text-white/50">No updates yet. The Commission will reply here when the case is reviewed.</p>
-      )}
+        ) : (
+          <div key={entry.id} className={`flex ${entry.message.senderType === 'complainant' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[90%] rounded-2xl p-3 ${entry.message.senderType === 'complainant' ? 'bg-amber-300 text-brand-navy' : 'bg-brand-blue/70 text-white'}`}>
+              <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-wider opacity-70">
+                <span>{entry.message.senderType === 'complainant' ? 'You' : entry.message.senderName || 'ODCHC Support'}</span>
+                <span>{new Date(entry.createdAt).toLocaleString()}</span>
+              </div>
+              <p className="mt-1 whitespace-pre-wrap text-sm">{entry.message.message}</p>
+            </div>
+          </div>
+        ))}
+        {entries.length === 0 && <p className="rounded-xl bg-white/5 p-3 text-xs text-white/50">No updates yet. The Commission will reply here when the case is reviewed.</p>}
+      </div>
     </div>
   );
 }

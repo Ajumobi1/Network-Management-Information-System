@@ -1,5 +1,29 @@
 import { supabase } from '../../lib/supabase/supabaseClient';
 
+function publicComplaintError(error: any, fallback: string): Error {
+  const message = typeof error?.message === 'string' ? error.message : '';
+  if (message.toLowerCase().includes('failed to fetch')) {
+    return new Error('The support connection was interrupted. Please check your internet connection and try again.');
+  }
+  return new Error(message || fallback);
+}
+
+async function withPublicComplaintRetry<T>(operation: () => PromiseLike<{ data: T; error: any }>): Promise<T> {
+  let lastError: any = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const { data, error } = await operation();
+      if (!error) return data;
+      lastError = error;
+      if (!['PGRST202', 'PGRST204', 'PGRST205', 'FetchError'].includes(error.code)) break;
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 350));
+  }
+  throw publicComplaintError(lastError, 'The support connection is unavailable. Please try again.');
+}
+
 export type PublicProvider = {
   id: string;
   providerCode: string;
@@ -172,11 +196,10 @@ export const publicPortalService = {
   },
 
   async getComplaintThread(reference: string, contact: string): Promise<PublicComplaintThread> {
-    const { data, error } = await supabase.rpc('nmis_public_get_complaint_thread', {
-      p_reference: reference,
-      p_contact: contact,
-    });
-    if (error) throw error;
+    const data = await withPublicComplaintRetry<any>(() => supabase.rpc('nmis_public_get_complaint_thread', {
+      p_reference: reference.trim(),
+      p_contact: contact.trim(),
+    }));
     const thread = data ?? {};
     const complaint = thread.complaint ?? {};
     return {
@@ -206,12 +229,11 @@ export const publicPortalService = {
   },
 
   async sendComplaintReply(reference: string, contact: string, message: string): Promise<string> {
-    const { data, error } = await supabase.rpc('nmis_public_send_complaint_message', {
-      p_reference: reference,
-      p_contact: contact,
-      p_message: message,
-    });
-    if (error) throw error;
-    return data;
+    const data = await withPublicComplaintRetry<any>(() => supabase.rpc('nmis_public_send_complaint_message', {
+      p_reference: reference.trim(),
+      p_contact: contact.trim(),
+      p_message: message.trim(),
+    }));
+    return String(data);
   },
 };
