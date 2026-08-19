@@ -124,10 +124,76 @@ function displayItemCode(itemCode: string) {
 
 function ScoredItem({ item, response, error, onChange }: { item: InspectionTemplateItem; response: ResponseState; error?: string; onChange: (next: ResponseState) => void }) {
   const isManual = item.scoring_method === 'manual_only' || item.manual_score_allowed;
-  const answered = isManual ? response.number !== '' && response.manual_score !== '' : item.response_type === 'number' ? response.number !== '' : response.boolean !== null;
   const earned = isManual ? Number(response.manual_score || 0) : item.response_type === 'number' ? (Number(response.number || 0) >= Number(item.min_required || 0) ? item.max_points : 0) : response.boolean === true ? item.max_points : 0;
-  const denominator = isManual ? item.max_points : answered && (item.response_type === 'number' || response.boolean === true || item.scored_when_no) ? item.max_points : 0;
-  return <div className="rounded-2xl border border-brand-divider bg-brand-card p-4 shadow-sm"><div className="flex flex-col gap-4 lg:flex-row lg:items-start"><div className="flex min-w-0 flex-1 gap-3"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-black text-brand-blue">{displayItemCode(item.item_code)}</span><div><p className="text-sm font-black text-brand-foreground">{item.item_label}</p><p className="mt-1 text-xs text-brand-muted">Maximum {item.max_points} points{isManual ? ' · Manual score entry' : item.min_required !== null ? ` · Minimum required: ${item.min_required}` : ''}{item.response_type === 'boolean' && !item.scored_when_no ? ' · No excludes this item from denominator' : ''}</p></div></div>{isManual ? <div className="grid gap-3 sm:grid-cols-2 lg:w-[380px]"><label className="block space-y-1"><span className="nmis-label">No. Available</span><input type="number" min="0" value={response.number} onChange={event => onChange({ ...response, number: event.target.value })} className="nmis-control" placeholder="Observed headcount" /></label><label className="block space-y-1"><span className="nmis-label">Score (max {item.max_points})</span><input type="number" min="0" max={item.max_points} step="0.01" value={response.manual_score} onChange={event => onChange({ ...response, manual_score: event.target.value })} className={`nmis-control ${error ? 'border-status-error ring-2 ring-status-error/10' : ''}`} placeholder="Awarded points" />{error && <span className="text-xs font-bold text-status-error">{error}</span>}</label></div> : <div className="flex items-center gap-4">{item.response_type === 'number' ? <input type="number" min="0" value={response.number} onChange={event => onChange({ ...response, number: event.target.value })} className="nmis-control w-28" placeholder="Available" /> : <YesNoToggle value={response.boolean} onChange={boolean => onChange({ ...response, boolean })} />}<div className="min-w-20 text-right"><p className="text-lg font-black text-brand-blue">{earned}/{denominator || item.max_points}</p><p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">points</p></div></div>}</div><div className="mt-4 flex items-center justify-between gap-3"><textarea rows={2} value={response.remark} onChange={event => onChange({ ...response, remark: event.target.value })} placeholder="Remark or evidence note..." className="nmis-control resize-y" /><span className="min-w-20 text-right text-lg font-black text-brand-blue">{earned}/{denominator || item.max_points}</span></div></div>;
+  const denominator = item.max_points;
+
+  return (
+    <div className="rounded-2xl border border-brand-divider bg-brand-card p-4 shadow-sm">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-black text-brand-blue">
+            {displayItemCode(item.item_code)}
+          </span>
+          <div>
+            <p className="text-sm font-black text-brand-foreground">{item.item_label}</p>
+            <p className="mt-1 text-xs text-brand-muted">
+              Maximum {item.max_points} points
+              {item.min_required !== null && item.min_required > 0 ? ` · Minimum required: ${item.min_required}` : ''}
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2 lg:w-[380px]">
+          {item.response_type === 'boolean' ? (
+            <label className="block space-y-1">
+              <span className="nmis-label">Available?</span>
+              <YesNoToggle value={response.boolean} onChange={boolean => onChange({ ...response, boolean })} />
+            </label>
+          ) : (
+            <label className="block space-y-1">
+              <span className="nmis-label">No. Available</span>
+              <input
+                type="number"
+                min="0"
+                value={response.number}
+                onChange={event => onChange({ ...response, number: event.target.value })}
+                className="nmis-control"
+                placeholder="Observed headcount"
+              />
+            </label>
+          )}
+          <label className="block space-y-1">
+            <span className="nmis-label">Score (max {item.max_points})</span>
+            <input
+              type="number"
+              min="0"
+              max={item.max_points}
+              step="0.01"
+              value={response.manual_score}
+              onChange={event => onChange({ ...response, manual_score: event.target.value })}
+              className={`nmis-control ${error ? 'border-status-error ring-2 ring-status-error/10' : ''}`}
+              placeholder="Awarded points"
+            />
+            {error && <span className="text-xs font-bold text-status-error">{error}</span>}
+          </label>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <textarea
+          rows={2}
+          value={response.remark}
+          onChange={event => onChange({ ...response, remark: event.target.value })}
+          placeholder="Remark or evidence note..."
+          className="nmis-control resize-y"
+        />
+        <div className="min-w-20 text-right">
+          <p className="text-lg font-black text-brand-blue">{earned}/{denominator}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">points</p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function NewInspectionPage() {
