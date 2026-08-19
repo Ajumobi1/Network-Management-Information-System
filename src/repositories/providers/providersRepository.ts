@@ -172,7 +172,9 @@ export async function deleteProvider(id: string): Promise<boolean> {
 export async function getProviderDirectory(filters: Record<string, any> = {}): Promise<ProviderDirectoryItem[] & { totalCount?: number }> {
   const page = filters.page && filters.page > 0 ? Number(filters.page) : 1;
   const isAll = filters.pageSize === -1;
-  const pageSize = isAll ? 10000 : (filters.pageSize && filters.pageSize > 0 ? Number(filters.pageSize) : 50);
+  // The secured provider RPC caps one request at 1,000 rows. In all-records mode,
+  // fetch successive pages below instead of sending an invalid oversized request.
+  const pageSize = isAll ? 1000 : (filters.pageSize && filters.pageSize > 0 ? Math.min(Number(filters.pageSize), 1000) : 50);
   const offset = isAll ? 0 : (page - 1) * pageSize;
 
   const rpcFilters = {
@@ -216,14 +218,27 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
     invokeSecureRpc<any[]>('nmis_provider_directory_summary', rpcFilters)
   ]);
 
-  const rawList = directoryRows(result).map(mapDirectoryRow);
+  let rawRows = directoryRows(result);
+  const totalCount = typeof countResult === 'number' ? countResult : rawRows.length;
+  if (isAll && totalCount > pageSize) {
+    const additionalPages = await Promise.all(
+      Array.from({ length: Math.ceil(totalCount / pageSize) - 1 }, (_, index) => invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
+        ...rpcFilters,
+        p_offset: (index + 1) * pageSize,
+        p_page_size: pageSize,
+        p_sort: 'provider_name',
+      })),
+    );
+    rawRows = [...rawRows, ...additionalPages.flatMap(directoryRows)];
+  }
+
+  const rawList = rawRows.map(mapDirectoryRow);
   const sorted = rawList.sort((a, b) => a.providerName.localeCompare(b.providerName));
   const items = sorted.map((item, index) => ({
     ...item,
     providerCode: String(offset + index + 1).padStart(3, '0'),
   })) as ProviderDirectoryItem[] & { totalCount?: number; activeCount?: number; pendingCount?: number; riskCount?: number };
 
-  const totalCount = typeof countResult === 'number' ? countResult : items.length;
   items.totalCount = totalCount;
 
   const summary = Array.isArray(summaryResult) && summaryResult.length > 0 ? summaryResult[0] : null;
