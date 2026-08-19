@@ -323,7 +323,7 @@ export default function NewInspectionPage() {
           if (field.type === 'boolean') {
             const val = Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? (profile as any)[field.key] : extraProfile[field.key];
             const pairedKey = (field as any).pair_with;
-            const pairedField = pairedKey ? template.template.facility_profile_fields.find(f => f.key === pairedKey) : null;
+            const pairedField = pairedKey ? (template.template.facility_profile_fields || []).find(f => f.key === pairedKey) : null;
             const pairedVal = pairedField ? (Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, pairedField.key) ? (profile as any)[pairedField.key] : extraProfile[pairedField.key]) : '';
             
             return (
