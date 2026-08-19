@@ -31,9 +31,10 @@ export default function ReportsPage() {
     {
       id: 'inspections',
       title: 'Inspection & Compliance',
-      description: 'Historical and scheduled inspection records with quality scores and follow-up requirements.',
+      description: 'Historical and scheduled inspection records with Overall, Credentialing, and Accreditation scores for management review.',
       icon: <CheckCircle2 size={20} className="text-status-success" />,
-      action: () => reportsService.generateInspectionReport()
+      action: () => reportsService.generateInspectionReport(),
+      pdfAction: () => reportsService.generateInspectionPdfReport()
     },
     {
       id: 'financial-summary',
@@ -70,18 +71,28 @@ export default function ReportsPage() {
                 <p className="mt-2 text-sm leading-relaxed text-brand-secondary">{report.description}</p>
               </div>
               <div className="mt-8 pt-6 border-t border-brand-divider">
-                <Button
-                  variant="secondary"
-                  className="w-full gap-2"
-                  onClick={() => handleDownload(report.id, report.action)}
-                  disabled={isGenerating !== null}
-                >
-                  {isGenerating === report.id ? (
-                    <>Generating...</>
-                  ) : (
-                    <><Download size={16} /> Download CSV</>
-                  )}
-                </Button>
+                <div className={report.pdfAction ? 'grid gap-2 sm:grid-cols-2' : ''}>
+                  <Button
+                    variant="secondary"
+                    className="w-full gap-2"
+                    onClick={() => handleDownload(report.id, report.action)}
+                    disabled={isGenerating !== null}
+                  >
+                    {isGenerating === report.id ? (
+                      <>Generating...</>
+                    ) : (
+                      <><Download size={16} /> Download CSV</>
+                    )}
+                  </Button>
+                  {report.pdfAction && <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => handleDownload(`${report.id}-pdf`, report.pdfAction)}
+                    disabled={isGenerating !== null}
+                  >
+                    {isGenerating === `${report.id}-pdf` ? 'Preparing...' : <><FileText size={16} /> Print / Save PDF</>}
+                  </Button>}
+                </div>
               </div>
             </Card>
           ))}

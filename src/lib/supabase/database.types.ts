@@ -222,6 +222,10 @@ export interface InspectionsRow {
   status: InspectionStatus;
   rating: InspectionRating | null;
   notes: string | null;
+  credentialing_points?: number | null;
+  credentialing_possible?: number | null;
+  accreditation_points?: number | null;
+  accreditation_possible?: number | null;
 }
 
 export interface InspectionChecklistRow {

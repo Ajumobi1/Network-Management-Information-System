@@ -122,6 +122,15 @@ function displayItemCode(itemCode: string) {
   return itemCode.replace(/[A-Z]/g, '');
 }
 
+function isCredentialingSection(sectionCode: string) {
+  return ['B', 'PERSONNEL'].includes(sectionCode.toUpperCase());
+}
+
+function isAccreditationSection(sectionCode: string) {
+  const code = sectionCode.toUpperCase();
+  return !['A', 'ELIGIBILITY', 'PROFILE'].includes(code) && !isCredentialingSection(code);
+}
+
 function ScoredItem({ item, response, error, onChange }: { item: InspectionTemplateItem; response: ResponseState; error?: string; onChange: (next: ResponseState) => void }) {
   const isManual = item.scoring_method === 'manual_only' || item.manual_score_allowed;
   const earned = isManual ? Number(response.manual_score || 0) : item.response_type === 'number' ? (Number(response.number || 0) >= Number(item.min_required || 0) ? item.max_points : 0) : response.boolean === true ? item.max_points : 0;
@@ -292,26 +301,41 @@ export default function NewInspectionPage() {
   }).length;
   const signedCount = team.filter(member => Boolean(member.signature_data)).length;
   const score = useMemo(() => {
-    let points = 0; let possible = 0;
+    let points = 0;
+    let possible = 0;
+    let credentialingPoints = 0;
+    let accreditationPoints = 0;
+    const credentialingPossible = items.filter(item => isCredentialingSection(item.section_code)).reduce((sum, item) => sum + item.max_points, 0);
+    const accreditationPossible = items.filter(item => isAccreditationSection(item.section_code)).reduce((sum, item) => sum + item.max_points, 0);
+
     items.forEach(item => {
       const response = responses[item.item_code];
       if (!response) return;
+      let earned = 0;
+      let included = false;
       if (item.scoring_method === 'manual_only' || item.manual_score_allowed) {
         if (response.number === '' || response.manual_score === '' || validationErrors[item.item_code]) return;
-        possible += item.max_points;
-        points += Math.min(Number(response.manual_score), item.max_points);
+        included = true;
+        earned = Math.min(Number(response.manual_score), item.max_points);
       } else if (item.response_type === 'number') {
         if (!response.number) return;
-        possible += item.max_points;
-        if (Number(response.number) >= Number(item.min_required || 0)) points += item.max_points;
+        included = true;
+        earned = Number(response.number) >= Number(item.min_required || 0) ? item.max_points : 0;
       } else if (response.boolean !== null) {
-        if (response.boolean || item.scored_when_no) possible += item.max_points;
-        if (response.boolean) points += item.max_points;
+        included = Boolean(response.boolean || item.scored_when_no);
+        earned = response.boolean ? item.max_points : 0;
       }
+
+      if (!included) return;
+      possible += item.max_points;
+      points += earned;
+      if (isCredentialingSection(item.section_code)) credentialingPoints += earned;
+      if (isAccreditationSection(item.section_code)) accreditationPoints += earned;
     });
+
     const percentage = possible ? Math.round((points / possible) * 10000) / 100 : 0;
     const recommendation = percentage >= (template?.template.passing_threshold || 75) ? 'Recommended for Accreditation' : percentage >= (template?.template.conditional_threshold || 60) ? 'Conditionally Recommended — Re-inspection Required' : 'Not Recommended for Accreditation';
-    return { points, possible, percentage, recommendation };
+    return { points, possible, percentage, recommendation, credentialingPoints, credentialingPossible, accreditationPoints, accreditationPossible };
   }, [items, responses, template, validationErrors]);
 
   const setProfileValue = (key: keyof FacilityProfileState, value: string) => setProfile(previous => ({ ...previous, [key]: value }));
@@ -422,7 +446,7 @@ export default function NewInspectionPage() {
 
     {step >= 2 && step < reviewStep && scoredSections[step - 2] && <SectionCard title={scoredSections[step - 2].section_label} subtitle={scoredSections[step - 2].description || (step === 2 ? 'Enter the observed headcount and manually award points within each maximum.' : 'Mark each facility requirement YES or NO and record a concise evidence remark.')}><div className="space-y-4">{sectionItems(scoredSections[step - 2].section_code).map(item => <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} />)}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - 2].section_code).points} / {sectionScore(scoredSections[step - 2].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div></SectionCard>}
 
-    {step === reviewStep && <div className="space-y-6"><SectionCard title="Review & Sign" subtitle="Confirm the computed recommendation, add the inspection team, and submit only after all evidence is complete."><div className="grid gap-4 sm:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Overall score</p><p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p><p className="text-xs text-brand-muted">{score.points} / {score.possible || 100} included points</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:col-span-2"><p className="nmis-label">Recommendation</p><p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p><p className="mt-1 text-xs text-brand-muted">Thresholds: ≥{template.template.passing_threshold}% recommended · {template.template.conditional_threshold}–{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional · below {template.template.conditional_threshold}% not recommended</p></div></div><div className="mt-6 grid gap-4 sm:grid-cols-3"><div><p className="nmis-label">Eligibility</p><p className="mt-1 font-black text-brand-foreground">{allEligibilityMet ? 'All MET' : 'Incomplete'}</p></div><div><p className="nmis-label">Scored responses</p><p className="mt-1 font-black text-brand-foreground">{answeredCount} / {items.length}</p></div><div><p className="nmis-label">Signed team members</p><p className="mt-1 font-black text-brand-foreground">{signedCount}</p></div></div></SectionCard><SectionCard title="Inspection team" subtitle="Add each inspector or reviewer and capture a signature on the tablet or laptop."><div className="space-y-4">{team.map((member, index) => <div key={member.id} className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-brand-foreground">Team member {index + 1}</p><button type="button" onClick={() => setTeam(previous => previous.filter(item => item.id !== member.id))} className="rounded-control p-2 text-status-danger hover:bg-status-dangerSoft"><Trash2 size={16} /></button></div><div className="mt-4 grid gap-4 sm:grid-cols-3"><Field label="Name" value={member.name} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, name: value } : item))} required /><Field label="Role" value={member.role} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, role: value } : item))} /><Field label="Date" value={member.inspection_date} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, inspection_date: value } : item))} type="date" required /></div><div className="mt-4"><p className="nmis-label">Signature</p><SignaturePad value={member.signature_data} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, signature_data: value } : item))} /></div></div>)}<button type="button" onClick={() => setTeam(previous => [...previous, { id: crypto.randomUUID(), name: '', role: 'Inspector', inspection_date: profile.inspection_date, signature_data: '' }])} className="inline-flex min-h-11 items-center gap-2 rounded-control border border-dashed border-brand-blue px-4 py-2 text-sm font-black text-brand-blue hover:bg-brand-soft"><Plus size={16} /> Add inspection team member</button></div></SectionCard></div>}
+    {step === reviewStep && <div className="space-y-6"><SectionCard title="Review & Sign" subtitle="Confirm the computed recommendation, add the inspection team, and submit only after all evidence is complete."><div className="grid gap-4 sm:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Overall score</p><p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p><p className="text-xs text-brand-muted">{score.points} / {score.possible || 100} included points</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Credentialing Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p><p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Accreditation Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p><p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:col-span-3"><p className="nmis-label">Recommendation</p><p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p><p className="mt-1 text-xs text-brand-muted">Thresholds: ≥{template.template.passing_threshold}% recommended · {template.template.conditional_threshold}–{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional · below {template.template.conditional_threshold}% not recommended</p></div></div><div className="mt-6 grid gap-4 sm:grid-cols-3"><div><p className="nmis-label">Eligibility</p><p className="mt-1 font-black text-brand-foreground">{allEligibilityMet ? 'All MET' : 'Incomplete'}</p></div><div><p className="nmis-label">Scored responses</p><p className="mt-1 font-black text-brand-foreground">{answeredCount} / {items.length}</p></div><div><p className="nmis-label">Signed team members</p><p className="mt-1 font-black text-brand-foreground">{signedCount}</p></div></div></SectionCard><SectionCard title="Inspection team" subtitle="Add each inspector or reviewer and capture a signature on the tablet or laptop."><div className="space-y-4">{team.map((member, index) => <div key={member.id} className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-brand-foreground">Team member {index + 1}</p><button type="button" onClick={() => setTeam(previous => previous.filter(item => item.id !== member.id))} className="rounded-control p-2 text-status-danger hover:bg-status-dangerSoft"><Trash2 size={16} /></button></div><div className="mt-4 grid gap-4 sm:grid-cols-3"><Field label="Name" value={member.name} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, name: value } : item))} required /><Field label="Role" value={member.role} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, role: value } : item))} /><Field label="Date" value={member.inspection_date} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, inspection_date: value } : item))} type="date" required /></div><div className="mt-4"><p className="nmis-label">Signature</p><SignaturePad value={member.signature_data} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, signature_data: value } : item))} /></div></div>)}<button type="button" onClick={() => setTeam(previous => [...previous, { id: crypto.randomUUID(), name: '', role: 'Inspector', inspection_date: profile.inspection_date, signature_data: '' }])} className="inline-flex min-h-11 items-center gap-2 rounded-control border border-dashed border-brand-blue px-4 py-2 text-sm font-black text-brand-blue hover:bg-brand-soft"><Plus size={16} /> Add inspection team member</button></div></SectionCard></div>}
 
     {saveMessage && <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 text-sm font-bold text-brand-secondary">{saveMessage}</div>}
     <div className="flex flex-col-reverse gap-3 border-t border-brand-divider pt-5 sm:flex-row sm:items-center sm:justify-between"><Button variant="secondary" onClick={() => setStep(previous => Math.max(0, previous - 1))} disabled={step === 0}><ChevronLeft size={16} /> Back</Button><div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" onClick={saveDraft} disabled={saveMutation.isPending}><Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save draft'}</Button>{step < stepLabels.length - 1 ? <Button onClick={() => { if (step === 0 && !allEligibilityMet) { setSaveMessage('All eligibility criteria must be marked MET before proceeding.'); return; } setSaveMessage(''); setStep(previous => Math.min(stepLabels.length - 1, previous + 1)); }}><ChevronRight size={16} /> Continue</Button> : <Button onClick={submitInspection} disabled={saveMutation.isPending}><Send size={16} /> {saveMutation.isPending ? 'Submitting...' : 'Submit inspection'}</Button>}</div></div>

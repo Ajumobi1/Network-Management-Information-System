@@ -58,6 +58,13 @@ export type InspectionTemplateOption = {
   configured: boolean;
 };
 
+export type InspectionScoreBreakdown = {
+  credentialing_points: number;
+  credentialing_possible: number;
+  accreditation_points: number;
+  accreditation_possible: number;
+};
+
 export type StructuredInspectionPayload = {
   mode: 'draft' | 'submit';
   step: string;
@@ -142,14 +149,14 @@ export async function adminUpsertInspectionTemplate(payload: InspectionTemplateA
 
 export async function saveStructuredInspection(inspectionId: string | null, payload: StructuredInspectionPayload) {
   if (useMockData) {
-    return { inspection_id: inspectionId || `mock-inspection-${Date.now()}`, status: payload.mode === 'submit' ? 'Submitted' : 'Draft', eligibility_met: payload.eligibility.every(item => item.met), total_points: 0, total_possible: 0, overall_score: 0, recommendation: 'Not Recommended for Accreditation' };
+    return { inspection_id: inspectionId || `mock-inspection-${Date.now()}`, status: payload.mode === 'submit' ? 'Submitted' : 'Draft', eligibility_met: payload.eligibility.every(item => item.met), total_points: 0, total_possible: 0, overall_score: 0, credentialing_points: 0, credentialing_possible: 0, accreditation_points: 0, accreditation_possible: 0, recommendation: 'Not Recommended for Accreditation' };
   }
   const { data, error } = await supabase.rpc('nmis_save_structured_inspection', {
     p_inspection_id: inspectionId,
     p_payload: payload,
   });
   if (error) throw secureError(error, 'Failed to save the structured inspection');
-  return data as { inspection_id: string; status: string; eligibility_met: boolean; total_points: number; total_possible: number; overall_score: number; recommendation: string };
+  return data as { inspection_id: string; status: string; eligibility_met: boolean; total_points: number; total_possible: number; overall_score: number; credentialing_points: number; credentialing_possible: number; accreditation_points: number; accreditation_possible: number; recommendation: string };
 }
 
 export async function getStructuredInspection(inspectionId: string) {

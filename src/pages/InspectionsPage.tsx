@@ -175,16 +175,18 @@ export default function InspectionsPage() {
                   <th>Type</th>
                   <th>Date</th>
                   <th>Inspector</th>
-                  <th className="text-center">Score</th>
+                  <th className="text-center">Overall Score</th>
+                  <th className="text-center">Credentialing</th>
+                  <th className="text-center">Accreditation</th>
                   <th>Status</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={7} className="py-20 text-center"><LoadingState title="Fetching inspections..." /></td></tr>
+                  <tr><td colSpan={9} className="py-20 text-center"><LoadingState title="Fetching inspections..." /></td></tr>
                 ) : inspections.length === 0 ? (
-                  <tr><td colSpan={7} className="py-20 text-center text-brand-muted">No inspections match the current filters.</td></tr>
+                  <tr><td colSpan={9} className="py-20 text-center text-brand-muted">No inspections match the current filters.</td></tr>
                 ) : (
                   inspections.map(item => (
                     <tr key={item.id} className="hover:bg-brand-surface/50 transition-colors">
@@ -218,6 +220,12 @@ export default function InspectionsPage() {
                         ) : (
                           <span className="text-xs text-brand-muted italic">Pending</span>
                         )}
+                      </td>
+                      <td className="text-center">
+                        {item.credentialingPossible ? <span className="text-xs font-black text-brand-blue">{item.credentialingPoints ?? 0}/{item.credentialingPossible}</span> : <span className="text-xs text-brand-muted">—</span>}
+                      </td>
+                      <td className="text-center">
+                        {item.accreditationPossible ? <span className="text-xs font-black text-brand-blue">{item.accreditationPoints ?? 0}/{item.accreditationPossible}</span> : <span className="text-xs text-brand-muted">—</span>}
                       </td>
                       <td>
                         <Badge variant={item.status === 'completed' ? 'success' : item.status === 'scheduled' ? 'warning' : 'info'}>
@@ -316,6 +324,23 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
                   <p className="mt-2 font-bold text-brand-foreground">
                     {new Date(inspection.scheduledAt).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}
                   </p>
+                </div>
+              </section>
+
+              <section className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-control border border-brand-divider bg-brand-soft p-4">
+                  <p className="nmis-label">Overall Score</p>
+                  <p className="mt-2 text-2xl font-black text-brand-blue">{inspection.score ?? 0}%</p>
+                </div>
+                <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
+                  <p className="nmis-label">Credentialing Score</p>
+                  <p className="mt-2 text-xl font-black text-brand-blue">{inspection.credentialingPoints ?? 0} / {inspection.credentialingPossible ?? 0}</p>
+                  <p className="mt-1 text-xs text-brand-muted">Personnel licences and qualifications</p>
+                </div>
+                <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
+                  <p className="nmis-label">Accreditation Score</p>
+                  <p className="mt-2 text-xl font-black text-brand-blue">{inspection.accreditationPoints ?? 0} / {inspection.accreditationPossible ?? 0}</p>
+                  <p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p>
                 </div>
               </section>
 

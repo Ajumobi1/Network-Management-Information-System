@@ -12,6 +12,10 @@ export interface Inspection {
   status: InspectionStatus;
   rating: InspectionRating | null;
   score: number | null;
+  credentialingPoints?: number | null;
+  credentialingPossible?: number | null;
+  accreditationPoints?: number | null;
+  accreditationPossible?: number | null;
   type: 'Clinical' | 'Compliance' | 'Safety' | 'Licensing' | 'Operational';
   notes: string | null;
 }

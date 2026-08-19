@@ -12,6 +12,7 @@ import { CredentialingFilters, CredentialingStatus } from '../types/credentialin
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import { ProviderCategory, PROVIDER_CATEGORY_LABELS } from '../constants/providerNetwork';
+import { useInspections } from '../hooks/inspections/inspectionsHooks';
 
 export default function CredentialingPage() {
   const [filters, setFilters] = useState<CredentialingFilters>({
@@ -23,6 +24,7 @@ export default function CredentialingPage() {
   });
 
   const { data: applications = [], isLoading, isError, refetch } = useCredentialingApplications(filters);
+  const { data: inspections = [], isLoading: inspectionsLoading } = useInspections();
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const updateStatus = useUpdateCredentialingStatus();
   const [actionComment, setActionComment] = useState('');
@@ -87,6 +89,18 @@ export default function CredentialingPage() {
           <KpiCard title="Approved & Active" value={stats.approved} subtitle="Verified providers" tone="success" icon={<CheckCircle2 size={20} />} />
           <KpiCard title="Action Required" value={stats.actionNeeded} subtitle="Information requested" tone="danger" icon={<AlertCircle size={20} />} />
         </section>
+
+        <Card>
+          <SectionHeader title="Inspection score intelligence" subtitle="Credentialing and Accreditation subtotals from structured facility inspections." />
+          <div className="mt-5 overflow-x-auto">
+            <table className="nmis-table min-w-[760px]">
+              <thead><tr><th>Provider / Facility</th><th>Facility Type</th><th className="text-center">Overall</th><th className="text-center">Credentialing</th><th className="text-center">Accreditation</th><th>Status</th></tr></thead>
+              <tbody>
+                {inspectionsLoading ? <tr><td colSpan={6} className="py-10 text-center text-brand-muted">Loading inspection scores...</td></tr> : inspections.filter(item => item.credentialingPossible || item.accreditationPossible).length === 0 ? <tr><td colSpan={6} className="py-10 text-center text-brand-muted">No structured inspection scores are available yet.</td></tr> : inspections.filter(item => item.credentialingPossible || item.accreditationPossible).slice(0, 12).map(item => <tr key={item.id}><td><p className="font-bold text-brand-foreground">{item.providerName}</p><p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">{item.providerCode}</p></td><td>{item.type}</td><td className="text-center font-black text-brand-blue">{item.score ?? 0}%</td><td className="text-center font-black text-brand-blue">{item.credentialingPoints ?? 0}/{item.credentialingPossible ?? 0}</td><td className="text-center font-black text-brand-blue">{item.accreditationPoints ?? 0}/{item.accreditationPossible ?? 0}</td><td><Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : 'warning'}>{item.status}</Badge></td></tr>)}
+              </tbody>
+            </table>
+          </div>
+        </Card>
 
         {/* Filters */}
         <div className="nmis-card p-4 sm:p-5">

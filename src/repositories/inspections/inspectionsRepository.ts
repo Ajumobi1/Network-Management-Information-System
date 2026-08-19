@@ -8,12 +8,20 @@ import { InspectionChecklistItem } from '../../types/inspections/inspectionsType
 export interface InspectionRecord {
   id: string;
   provider_id: string;
+  provider_name?: string;
+  provider_code?: string;
+  providerName?: string;
+  providerCode?: string;
   inspection_type: string;
   scheduled_date: string;
   inspector_name?: string;
   status: string;
   score?: number;
   rating?: string;
+  credentialing_points?: number;
+  credentialing_possible?: number;
+  accreditation_points?: number;
+  accreditation_possible?: number;
   findings?: string;
   corrective_actions?: string;
   created_at?: string;
