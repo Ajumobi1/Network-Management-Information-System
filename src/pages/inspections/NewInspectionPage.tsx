@@ -137,6 +137,16 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
   const earned = isManual ? Number(response.manual_score || 0) : item.response_type === 'number' ? (Number(response.number || 0) >= Number(item.min_required || 0) ? item.max_points : 0) : response.boolean === true ? item.max_points : 0;
   const denominator = item.max_points;
 
+  const handleManualScoreChange = (value: string) => {
+    // Automatically cap the manual score at the item's maximum
+    const numeric = Number(value);
+    if (!isNaN(numeric) && numeric > item.max_points) {
+      onChange({ ...response, manual_score: String(item.max_points) });
+    } else {
+      onChange({ ...response, manual_score: value });
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-brand-divider bg-brand-card p-4 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
@@ -180,7 +190,7 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
               max={item.max_points}
               step="0.01"
               value={response.manual_score}
-              onChange={event => onChange({ ...response, manual_score: event.target.value })}
+              onChange={event => handleManualScoreChange(event.target.value)}
               className={`nmis-control ${error ? 'border-status-error ring-2 ring-status-error/10' : ''}`}
               placeholder="Awarded points"
             />
