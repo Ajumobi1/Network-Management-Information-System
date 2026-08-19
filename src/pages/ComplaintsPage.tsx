@@ -92,7 +92,7 @@ function ComplaintsPage() {
     }
   };
 
-  const openCount = complaints.filter(c => c.status === 'open' || c.status === 'in-review').length;
+  const openCount = complaints.filter(c => ['submitted', 'open', 'in-review'].includes(c.status)).length;
   const resolvedCount = complaints.filter(c => c.status === 'resolved' || c.status === 'closed').length;
   const escalatedCount = complaints.filter(c => c.status === 'escalated').length;
 
