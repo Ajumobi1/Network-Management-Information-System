@@ -188,6 +188,9 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
     p_credential_status: filters.credentialStatus === 'all' ? null : filters.credentialStatus,
     p_inspection_status: filters.inspectionStatus === 'all' ? null : filters.inspectionStatus,
     p_capitation_status: filters.capitationStatus === 'all' ? null : filters.capitationStatus,
+  };
+  const listRpcFilters = {
+    ...rpcFilters,
     p_service: filters.service === 'all' ? null : filters.service,
   };
 
@@ -210,7 +213,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
 
   const [result, countResult, summaryResult] = await Promise.all([
     invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
-      ...rpcFilters,
+      ...listRpcFilters,
       p_offset: offset,
       p_page_size: pageSize,
       p_sort: 'provider_name',
@@ -224,7 +227,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
   if (isAll && totalCount > pageSize) {
     const additionalPages = await Promise.all(
       Array.from({ length: Math.ceil(totalCount / pageSize) - 1 }, (_, index) => invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
-        ...rpcFilters,
+        ...listRpcFilters,
         p_offset: (index + 1) * pageSize,
         p_page_size: pageSize,
         p_sort: 'provider_name',
