@@ -214,15 +214,18 @@ export default function NewInspectionPage() {
   const templateCode = selectedFacilityType?.template?.code || 'pharmacy-accreditation';
   const templateQuery = useInspectionTemplate(templateCode, Boolean(selectedFacilityType?.configured));
   const providerCategory = useMemo(() => {
+    // Template codes use both short and hyphenated forms (for example,
+    // `dental-centre`), while the provider directory uses canonical enum values.
+    // Normalize separators so every configured facility type is strictly scoped.
+    const normalizedCode = facilityTypeCode.toLowerCase().replace(/[\s_-]+/g, '');
     const categoryByFacilityType: Record<string, ProviderCategory> = {
       pharmacy: ProviderCategory.Pharmacy,
       hospital: ProviderCategory.Hospital,
-      optical: ProviderCategory.OpticalCentre,
-      dental: ProviderCategory.DentalCentre,
-      diagnostic: ProviderCategory.DiagnosticCentre,
-      diagnostic_centre: ProviderCategory.DiagnosticCentre,
+      opticalcentre: ProviderCategory.OpticalCentre,
+      dentalcentre: ProviderCategory.DentalCentre,
+      diagnosticcentre: ProviderCategory.DiagnosticCentre,
     };
-    return categoryByFacilityType[facilityTypeCode.toLowerCase()];
+    return categoryByFacilityType[normalizedCode];
   }, [facilityTypeCode]);
   const [providerSearch, setProviderSearch] = useState('');
   const providerQuery = useProviderDirectory({ search: providerSearch, status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all', capitationStatus: 'all', lga: 'all', category: providerCategory || 'all', subcategory: 'all', ownership: 'all', service: 'all', page: 1, pageSize: -1 });
