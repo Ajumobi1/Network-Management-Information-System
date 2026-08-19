@@ -188,6 +188,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
     p_credential_status: filters.credentialStatus === 'all' ? null : filters.credentialStatus,
     p_inspection_status: filters.inspectionStatus === 'all' ? null : filters.inspectionStatus,
     p_capitation_status: filters.capitationStatus === 'all' ? null : filters.capitationStatus,
+    p_service: filters.service === 'all' ? null : filters.service,
   };
 
   if (useMockData) {
