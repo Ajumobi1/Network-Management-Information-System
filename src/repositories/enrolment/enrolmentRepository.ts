@@ -8,6 +8,7 @@ import {
   EnrolleeRecord,
   EnrolmentAnalytics,
   EnrolmentCategory,
+  EnrolmentFilterOptions,
   EnrolmentFilters,
   EnrolmentSector,
 } from '../../types/enrolment/enrolmentTypes';
@@ -164,6 +165,23 @@ function populationArgs(filters: EnrolmentFilters): Record<string, unknown> {
     p_state: activeFilter(filters.state),
     p_lga: activeFilter(filters.lga),
     p_provider_id: activeFilter(filters.providerId),
+  };
+}
+
+export async function fetchEnrolmentFilterOptions(): Promise<EnrolmentFilterOptions> {
+  if (useMockData) {
+    return { periods: [], states: [], lgas: [], districts: [], providers: [] };
+  }
+
+  const raw = await invokeSecureRpc<Partial<EnrolmentFilterOptions>>('nmis_get_enrolment_filter_options');
+  return {
+    periods: Array.isArray(raw.periods) ? raw.periods.filter((value): value is string => typeof value === 'string') : [],
+    states: Array.isArray(raw.states) ? raw.states.filter((value): value is string => typeof value === 'string') : [],
+    lgas: Array.isArray(raw.lgas) ? raw.lgas.filter((value): value is string => typeof value === 'string') : [],
+    districts: Array.isArray(raw.districts) ? raw.districts.filter((value): value is string => typeof value === 'string') : [],
+    providers: Array.isArray(raw.providers)
+      ? raw.providers.filter((value): value is { id: string; name: string } => Boolean(value && typeof value.id === 'string' && typeof value.name === 'string'))
+      : [],
   };
 }
 

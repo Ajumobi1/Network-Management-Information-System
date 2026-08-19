@@ -8,7 +8,7 @@ import FilterBar from '../../components/ui/FilterBar';
 import Input from '../../components/ui/Input';
 import KpiCard from '../../components/ui/KpiCard';
 import PageHeader from '../../components/ui/PageHeader';
-import { useEnrollee, useEnrollees, useEnrolmentAnalytics, useBackfillJulyPhones } from '../../hooks/enrolment';
+import { useEnrollee, useEnrollees, useEnrolmentFilterOptions, useEnrolmentAnalytics, useBackfillJulyPhones } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentFilters } from '../../types/enrolment/enrolmentTypes';
 import { getProviderCategoryLabel } from '../../constants/providerNetwork';
 import ActiveFilterChips from '../../components/ui/ActiveFilterChips';
@@ -38,12 +38,17 @@ export default function EnrolmentRegisterPage() {
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const pageSize = 15;
 
-  const allRecordsQuery = useEnrollees();
-  const allRecords = allRecordsQuery.data ?? [];
-  const optionsPeriods = useMemo(() => unique(allRecords.map(record => record.period)).sort(), [allRecords]);
-  const defaultPeriod = optionsPeriods[optionsPeriods.length - 1] || livePeriod();
-  const [period, setPeriod] = useState<string>(defaultPeriod);
-  const allLoading = allRecordsQuery.isLoading;
+  const filterOptionsQuery = useEnrolmentFilterOptions();
+  const filterOptions = filterOptionsQuery.data;
+  const optionsPeriods = filterOptions?.periods ?? [];
+  const defaultPeriod = optionsPeriods[0] || livePeriod();
+  const [period, setPeriod] = useState<string>('');
+
+  useEffect(() => {
+    setPeriod(current => current || defaultPeriod);
+  }, [defaultPeriod]);
+
+  const filterOptionsLoading = filterOptionsQuery.isLoading;
 
   const filters = useMemo<EnrolmentFilters>(() => ({
     search, sector, category, gender, state, lga, senatorialDistrict: district, providerId, period
@@ -64,17 +69,17 @@ export default function EnrolmentRegisterPage() {
   const isLoading = recordsQuery.isLoading;
 
   const { data: selectedRecord } = useEnrollee(selectedId);
-  const secureError = [allRecordsQuery.error, recordsQuery.error, analyticsQuery.error].find(isSecureContractError);
+  const secureError = [filterOptionsQuery.error, recordsQuery.error, analyticsQuery.error].find(isSecureContractError);
 
   useEffect(() => setPage(1), [search, sector, category, gender, state, lga, district, providerId, period]);
 
   const options = useMemo(() => ({
-    states: unique(allRecords.map(record => record.state)),
-    lgas: unique(allRecords.map(record => record.lga)),
-    districts: unique(allRecords.map(record => record.senatorialDistrict).filter((value): value is string => Boolean(value))),
+    states: filterOptions?.states ?? [],
+    lgas: filterOptions?.lgas ?? [],
+    districts: filterOptions?.districts ?? [],
     periods: optionsPeriods.length > 0 ? optionsPeriods : [livePeriod()],
-    providers: Array.from(new Map(allRecords.map(record => [record.providerId || record.providerName, { id: record.providerId || record.providerName, name: record.providerName }])).values()).sort((a, b) => a.name.localeCompare(b.name)),
-  }), [allRecords, optionsPeriods]);
+    providers: filterOptions?.providers ?? [],
+  }), [filterOptions, optionsPeriods]);
 
   const totalMatching = analytics?.totalEnrollees ?? records[0]?.totalCount ?? records.length;
   const totalPages = Math.max(1, Math.ceil(totalMatching / pageSize));
@@ -150,7 +155,7 @@ export default function EnrolmentRegisterPage() {
   >
     {sortDirection === 'asc' ? 'A-Z' : 'Z-A'}
   </button>
-</div></div><div className="nmis-table-scroll"><table className="nmis-table min-w-[1250px]"><thead><tr><SortableHead label="Policy number" field="policyNumber" active={sortField} onClick={toggleSort} /><SortableHead label="Category" /><SortableHead label="Sector" /><SortableHead label="Beneficiary" field="beneficiary" active={sortField} onClick={toggleSort} /><SortableHead label="Gender" /><SortableHead label="Age" field="age" active={sortField} onClick={toggleSort} /><SortableHead label="Facility" field="providerName" active={sortField} onClick={toggleSort} /><SortableHead label="LGA" field="lga" active={sortField} onClick={toggleSort} /><SortableHead label="Senatorial district" /><SortableHead label="Period" field="period" active={sortField} onClick={toggleSort} /><SortableHead label="Status" /></tr></thead><tbody>{isLoading || allLoading ? <LoadingRows /> : records.length === 0 ? <EmptyRow /> : records.map(record => <RegisterRow key={record.id} record={record} onSelect={() => setSelectedId(record.id)} />)}</tbody></table></div><div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-divider px-4 py-4 text-sm sm:px-5"><p className="text-brand-muted">Page {page} of {totalPages}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(current => current - 1)}>Previous</Button><Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(current => current + 1)}>Next</Button></div></div></section>
+</div></div><div className="nmis-table-scroll"><table className="nmis-table min-w-[1250px]"><thead><tr><SortableHead label="Policy number" field="policyNumber" active={sortField} onClick={toggleSort} /><SortableHead label="Category" /><SortableHead label="Sector" /><SortableHead label="Beneficiary" field="beneficiary" active={sortField} onClick={toggleSort} /><SortableHead label="Gender" /><SortableHead label="Age" field="age" active={sortField} onClick={toggleSort} /><SortableHead label="Facility" field="providerName" active={sortField} onClick={toggleSort} /><SortableHead label="LGA" field="lga" active={sortField} onClick={toggleSort} /><SortableHead label="Senatorial district" /><SortableHead label="Period" field="period" active={sortField} onClick={toggleSort} /><SortableHead label="Status" /></tr></thead><tbody>{isLoading || filterOptionsLoading ? <LoadingRows /> : records.length === 0 ? <EmptyRow /> : records.map(record => <RegisterRow key={record.id} record={record} onSelect={() => setSelectedId(record.id)} />)}</tbody></table></div><div className="flex flex-wrap items-center justify-between gap-3 border-t border-brand-divider px-4 py-4 text-sm sm:px-5"><p className="text-brand-muted">Page {page} of {totalPages}</p><div className="flex gap-2"><Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage(current => current - 1)}>Previous</Button><Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage(current => current + 1)}>Next</Button></div></div></section>
     {selectedId && <DetailDrawer record={selectedRecord} onClose={() => setSelectedId(null)} />}
     {isExportDialogOpen && (
       <ExportEnrolmentDialog

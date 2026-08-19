@@ -127,6 +127,14 @@ export interface EnrolmentFilters {
   sortDirection?: 'asc' | 'desc';
 }
 
+export interface EnrolmentFilterOptions {
+  periods: string[];
+  states: string[];
+  lgas: string[];
+  districts: string[];
+  providers: Array<{ id: string; name: string }>;
+}
+
 export interface EnrolmentAnalytics {
   totalEnrollees: number;
   formalCount: number;

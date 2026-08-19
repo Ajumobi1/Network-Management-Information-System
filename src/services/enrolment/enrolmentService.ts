@@ -12,6 +12,7 @@ import { aiIngestionEngine } from '../ingestion/aiIngestionEngine';
 import {
   fetchEnrolleeById,
   fetchEnrollees,
+  fetchEnrolmentFilterOptions,
   fetchEnrolmentAnalytics,
   fetchEnrolmentAnalyticsWithFinance,
   fetchProviderPopulationSummary,
@@ -490,6 +491,7 @@ export const enrolmentService = {
   markDuplicateEnrollees,
   fetchEnrollees,
   fetchEnrolleeById,
+  fetchEnrolmentFilterOptions,
   fetchEnrolmentAnalytics,
   fetchEnrolmentAnalyticsWithFinance,
   fetchProviderPopulationSummary,

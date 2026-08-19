@@ -6,6 +6,14 @@ import {
 import { ImportBatch } from '../../types/financial-data';
 import { enrolmentService } from '../../services/enrolment/enrolmentService';
 
+export function useEnrolmentFilterOptions() {
+  return useQuery({
+    queryKey: ['enrolment', 'filter-options'],
+    queryFn: () => enrolmentService.fetchEnrolmentFilterOptions(),
+    staleTime: 1000 * 60 * 10,
+  });
+}
+
 export function useEnrollees(filters: EnrolmentFilters = {}) {
   return useQuery({
     queryKey: ['enrolment', 'records', filters],
