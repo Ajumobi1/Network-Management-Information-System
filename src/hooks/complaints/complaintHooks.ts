@@ -46,3 +46,27 @@ export function useComplaintHistory(id: string) {
     enabled: !!id,
   });
 }
+
+export function useComplaintMessages(id: string) {
+  return useQuery({
+    queryKey: ['complaint-messages', id],
+    queryFn: () => complaintService.getComplaintMessages(id),
+    enabled: !!id,
+  });
+}
+
+export function useSendComplaintMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: {
+      complaintId: string;
+      senderType: 'staff' | 'complainant';
+      senderName: string;
+      senderEmail?: string;
+      message: string;
+    }) => complaintService.sendMessage(payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['complaint-messages', variables.complaintId] });
+    },
+  });
+}

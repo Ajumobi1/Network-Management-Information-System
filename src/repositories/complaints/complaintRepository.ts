@@ -1,7 +1,7 @@
 import { supabase } from '../../lib/supabase/supabaseClient';
 import { SecureContractError } from '../../lib/security/secureContracts';
 import { useMockData } from '../common';
-import { ComplaintCategory, ComplaintFilters, ComplaintPriority, ComplaintRecord, ComplaintStatus, ComplaintHistoryItem } from '../../types/complaints/complaintTypes';
+import { ComplaintCategory, ComplaintFilters, ComplaintPriority, ComplaintRecord, ComplaintStatus, ComplaintHistoryItem, ComplaintMessage } from '../../types/complaints/complaintTypes';
 
 // Mock store for fallback
 let mockComplaints: ComplaintRecord[] = [
@@ -72,6 +72,9 @@ export interface ComplaintDbRecord {
   description: string;
   resolution_notes: string | null;
   assigned_to: string | null;
+  complainant_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -100,6 +103,9 @@ function mapRecord(c: ComplaintDbRecord): ComplaintRecord {
     description: c.description,
     resolutionNotes: c.resolution_notes,
     assignedTo: c.assigned_to,
+    complainantName: c.complainant_name,
+    contactPhone: c.contact_phone,
+    contactEmail: c.contact_email,
     createdAt: c.created_at,
     updatedAt: c.updated_at,
   };
@@ -238,5 +244,47 @@ export const complaintRepository = {
       createdByEmail: h.created_by_email,
       createdAt: h.created_at,
     }));
+  },
+
+  async fetchComplaintMessages(id: string): Promise<ComplaintMessage[]> {
+    if (useMockData) return [];
+
+    const { data, error } = await supabase.rpc('nmis_get_complaint_messages', {
+      p_complaint_id: id,
+    });
+
+    if (error) throw new Error(error.message);
+
+    return (data || []).map((m: any) => ({
+      id: m.id,
+      complaintId: m.complaint_id,
+      senderType: m.sender_type,
+      senderName: m.sender_name,
+      senderEmail: m.sender_email,
+      message: m.message,
+      createdAt: m.created_at,
+    }));
+  },
+
+  async sendComplaintMessage(payload: {
+    complaintId: string;
+    senderType: 'staff' | 'complainant';
+    senderName: string;
+    senderEmail?: string;
+    message: string;
+  }): Promise<string> {
+    if (useMockData) return 'mock-msg-id';
+
+    const { data, error } = await supabase.rpc('nmis_send_complaint_message', {
+      p_complaint_id: payload.complaintId,
+      p_sender_type: payload.senderType,
+      p_sender_name: payload.senderName,
+      p_sender_email: payload.senderEmail || null,
+      p_message: payload.message,
+    });
+
+    if (error) throw new Error(error.message);
+
+    return data;
   }
 };

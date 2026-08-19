@@ -16,6 +16,9 @@ export interface ComplaintRecord {
   description: string;
   resolutionNotes: string | null;
   assignedTo: string | null;
+  complainantName?: string | null;
+  contactPhone?: string | null;
+  contactEmail?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -26,6 +29,16 @@ export interface ComplaintHistoryItem {
   statusTo: string;
   notes: string | null;
   createdByEmail: string;
+  createdAt: string;
+}
+
+export interface ComplaintMessage {
+  id: string;
+  complaintId: string;
+  senderType: 'staff' | 'complainant';
+  senderName: string;
+  senderEmail: string | null;
+  message: string;
   createdAt: string;
 }
 

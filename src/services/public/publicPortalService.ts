@@ -57,7 +57,30 @@ export type PublicComplaintStatus = {
   category: string;
   providerName: string | null;
   status: string;
+  description?: string;
   submittedAt: string;
+};
+
+export type PublicComplaintMessage = {
+  id: string;
+  senderType: 'staff' | 'complainant';
+  senderName: string;
+  message: string;
+  createdAt: string;
+};
+
+export type PublicComplaintUpdate = {
+  id: string;
+  statusFrom: string | null;
+  statusTo: string;
+  notes: string | null;
+  createdAt: string;
+};
+
+export type PublicComplaintThread = {
+  complaint: PublicComplaintStatus;
+  messages: PublicComplaintMessage[];
+  updates: PublicComplaintUpdate[];
 };
 
 function mapProvider(row: any): PublicProvider {
@@ -146,5 +169,49 @@ export const publicPortalService = {
       status: row.status,
       submittedAt: row.submitted_at ?? row.submittedAt,
     };
+  },
+
+  async getComplaintThread(reference: string, contact: string): Promise<PublicComplaintThread> {
+    const { data, error } = await supabase.rpc('nmis_public_get_complaint_thread', {
+      p_reference: reference,
+      p_contact: contact,
+    });
+    if (error) throw error;
+    const thread = data ?? {};
+    const complaint = thread.complaint ?? {};
+    return {
+      complaint: {
+        referenceNumber: complaint.referenceNumber ?? complaint.reference_number ?? reference,
+        category: complaint.category ?? '',
+        providerName: complaint.providerName ?? complaint.provider_name ?? null,
+        status: complaint.status ?? '',
+        description: complaint.description ?? '',
+        submittedAt: complaint.submittedAt ?? complaint.submitted_at ?? new Date().toISOString(),
+      },
+      messages: Array.isArray(thread.messages) ? thread.messages.map((message: any) => ({
+        id: message.id,
+        senderType: message.senderType ?? message.sender_type,
+        senderName: message.senderName ?? message.sender_name,
+        message: message.message,
+        createdAt: message.createdAt ?? message.created_at,
+      })) : [],
+      updates: Array.isArray(thread.updates) ? thread.updates.map((update: any) => ({
+        id: update.id,
+        statusFrom: update.statusFrom ?? update.status_from ?? null,
+        statusTo: update.statusTo ?? update.status_to,
+        notes: update.notes ?? null,
+        createdAt: update.createdAt ?? update.created_at,
+      })) : [],
+    };
+  },
+
+  async sendComplaintReply(reference: string, contact: string, message: string): Promise<string> {
+    const { data, error } = await supabase.rpc('nmis_public_send_complaint_message', {
+      p_reference: reference,
+      p_contact: contact,
+      p_message: message,
+    });
+    if (error) throw error;
+    return data;
   },
 };

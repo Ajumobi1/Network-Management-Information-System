@@ -21,7 +21,7 @@ import {
   Navigation,
   Info,
 } from 'lucide-react';
-import { publicPortalService, PublicComplaintStatus, PublicProvider, PublicPortalSnapshot } from '../../services/public/publicPortalService';
+import { publicPortalService, PublicComplaintStatus, PublicComplaintThread, PublicProvider, PublicPortalSnapshot } from '../../services/public/publicPortalService';
 
 const emptySnapshot: PublicPortalSnapshot = {
   kpis: { registeredEnrollees: 0, accreditedProviders: 0, lgasCovered: 0, capitationRate: 0, hospitals: 0, pharmacies: 0, diagnosticCentres: 0, populationPeriod: null, populationPeriodLabel: null },
@@ -102,8 +102,13 @@ export default function PublicHomePage() {
   const [complaintResult, setComplaintResult] = useState<string | null>(null);
   const [complaintError, setComplaintError] = useState<string | null>(null);
   const [complaintStatusRef, setComplaintStatusRef] = useState('');
+  const [complaintStatusContact, setComplaintStatusContact] = useState('');
   const [complaintStatusResult, setComplaintStatusResult] = useState<PublicComplaintStatus | null>(null);
+  const [complaintThread, setComplaintThread] = useState<PublicComplaintThread | null>(null);
   const [complaintStatusLoading, setComplaintStatusLoading] = useState(false);
+  const [complaintStatusError, setComplaintStatusError] = useState<string | null>(null);
+  const [complaintReply, setComplaintReply] = useState('');
+  const [complaintReplyLoading, setComplaintReplyLoading] = useState(false);
 
   useEffect(() => {
     publicPortalService.getSnapshot().then(setSnapshot).catch(err => setSnapshotError(err.message)).finally(() => setSnapshotLoading(false));
@@ -174,15 +179,39 @@ export default function PublicHomePage() {
   };
 
   const checkComplaintStatus = async () => {
-    if (!complaintStatusRef.trim()) return;
+    if (!complaintStatusRef.trim() || !complaintStatusContact.trim()) {
+      setComplaintStatusError('Enter both your reference number and the phone number or email used when you submitted the complaint.');
+      return;
+    }
     setComplaintStatusLoading(true);
+    setComplaintStatusError(null);
     try {
-      const status = await publicPortalService.trackComplaint(complaintStatusRef);
-      setComplaintStatusResult(status);
+      const thread = await publicPortalService.getComplaintThread(complaintStatusRef, complaintStatusContact);
+      setComplaintThread(thread);
+      setComplaintStatusResult(thread.complaint);
     } catch (err: any) {
-      alert(err.message);
+      setComplaintThread(null);
+      setComplaintStatusResult(null);
+      setComplaintStatusError(err.message || 'We could not verify this complaint.');
     } finally {
       setComplaintStatusLoading(false);
+    }
+  };
+
+  const sendComplaintReply = async () => {
+    if (!complaintReply.trim() || !complaintStatusRef.trim() || !complaintStatusContact.trim()) return;
+    setComplaintReplyLoading(true);
+    setComplaintStatusError(null);
+    try {
+      await publicPortalService.sendComplaintReply(complaintStatusRef, complaintStatusContact, complaintReply.trim());
+      const refreshed = await publicPortalService.getComplaintThread(complaintStatusRef, complaintStatusContact);
+      setComplaintThread(refreshed);
+      setComplaintStatusResult(refreshed.complaint);
+      setComplaintReply('');
+    } catch (err: any) {
+      setComplaintStatusError(err.message || 'We could not send your reply.');
+    } finally {
+      setComplaintReplyLoading(false);
     }
   };
 
@@ -479,22 +508,44 @@ export default function PublicHomePage() {
             <div className="flex flex-col justify-start pt-12 lg:pt-0">
               <div className="public-complaint-tracker p-7 text-white sm:p-8">
                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200">Track your complaint</p>
-                <h3 className="mt-3 text-2xl font-black">Stay informed after you submit.</h3>
-                <p className="mt-4 text-sm leading-relaxed text-white/60">Enter the reference number sent after submission to see the latest public-safe status.</p>
+                <h3 className="mt-3 text-2xl font-black">Stay informed and reply securely.</h3>
+                <p className="mt-4 text-sm leading-relaxed text-white/60">Enter your reference number and the phone number or email used when you reported the case. You can read Commission updates and reply until the case is resolved.</p>
                 <div className="mt-8 space-y-4">
                   <input className="public-complaint-input w-full rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300/40" placeholder="ODCHC-2026-XXXXX" value={complaintStatusRef} onChange={e => setComplaintStatusRef(e.target.value)} />
+                  <input className="public-complaint-input w-full rounded-xl px-4 py-3 text-white placeholder:text-white/40 focus:border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300/40" placeholder="Your phone or email" value={complaintStatusContact} onChange={e => setComplaintStatusContact(e.target.value)} />
                   <button onClick={checkComplaintStatus} disabled={complaintStatusLoading} className="public-complaint-button flex w-full items-center justify-center gap-2 rounded-xl py-3 font-bold transition">
-                    {complaintStatusLoading ? 'Checking...' : 'Check Status'} <Search size={16} />
+                    {complaintStatusLoading ? 'Checking...' : 'Open Conversation'} <Search size={16} />
                   </button>
                 </div>
-                {complaintStatusResult && (
-                  <div className="public-complaint-result mt-6 rounded-xl p-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Status</span>
-                      <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-400">{complaintStatusResult.status}</span>
+                {complaintStatusError && <p className="mt-4 rounded-xl bg-red-500/15 p-3 text-sm font-medium text-red-100">{complaintStatusError}</p>}
+                {complaintStatusResult && complaintThread && (
+                  <div className="mt-6 space-y-4">
+                    <div className="public-complaint-result rounded-xl p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Current status</span>
+                        <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-400">{complaintStatusResult.status}</span>
+                      </div>
+                      <p className="mt-2 text-sm font-bold">{complaintStatusResult.category}</p>
+                      {complaintStatusResult.providerName && <p className="mt-1 text-xs text-white/60">Provider: {complaintStatusResult.providerName}</p>}
+                      <p className="mt-1 text-[10px] text-white/40">Submitted: {new Date(complaintStatusResult.submittedAt).toLocaleDateString()}</p>
                     </div>
-                    <p className="mt-2 text-sm font-bold">{complaintStatusResult.category}</p>
-                    <p className="mt-1 text-[10px] text-white/40">Submitted: {new Date(complaintStatusResult.submittedAt).toLocaleDateString()}</p>
+                    <PublicComplaintConversation thread={complaintThread} />
+                    {['resolved', 'closed'].includes(complaintStatusResult.status.toLowerCase()) ? (
+                      <p className="rounded-xl bg-emerald-400/15 p-3 text-sm text-emerald-100">This complaint is closed for new replies. If you need further assistance, submit a new complaint or contact the Commission.</p>
+                    ) : (
+                      <div className="rounded-xl bg-white/10 p-3">
+                        <textarea
+                          className="w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm text-white placeholder:text-white/40 focus:border-amber-300 focus:outline-none"
+                          rows={3}
+                          placeholder="Reply to the Commission..."
+                          value={complaintReply}
+                          onChange={e => setComplaintReply(e.target.value)}
+                        />
+                        <button onClick={sendComplaintReply} disabled={complaintReplyLoading || !complaintReply.trim()} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-300 py-3 text-sm font-black text-brand-navy transition hover:bg-amber-200 disabled:opacity-50">
+                          {complaintReplyLoading ? 'Sending...' : 'Send Reply'} <ArrowRight size={16} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -680,6 +731,43 @@ function KpiCard({ label, value, icon }: { label: string; value: string; icon: R
       </div>
       <p className="mt-4 text-[10px] font-bold uppercase tracking-widest text-white/40">{label}</p>
       <p className="mt-1 text-2xl font-black text-white">{value}</p>
+    </div>
+  );
+}
+
+function PublicComplaintConversation({ thread }: { thread: PublicComplaintThread }) {
+  return (
+    <div className="space-y-3 rounded-xl bg-black/15 p-3">
+      {thread.complaint.description && (
+        <div className="rounded-xl bg-white/5 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Your report</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-white/80">{thread.complaint.description}</p>
+        </div>
+      )}
+      {thread.updates.map(update => (
+        <div key={update.id} className="rounded-xl bg-white/5 p-3">
+          <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
+            <span>Commission update</span>
+            <span>{new Date(update.createdAt).toLocaleString()}</span>
+          </div>
+          <p className="mt-1 text-xs font-semibold text-amber-200">{update.statusFrom || 'Submitted'} → {update.statusTo}</p>
+          {update.notes && <p className="mt-1 whitespace-pre-wrap text-sm text-white/80">{update.notes}</p>}
+        </div>
+      ))}
+      {thread.messages.map(message => (
+        <div key={message.id} className={`flex ${message.senderType === 'complainant' ? 'justify-end' : 'justify-start'}`}>
+          <div className={`max-w-[90%] rounded-xl p-3 ${message.senderType === 'complainant' ? 'bg-amber-300 text-brand-navy' : 'bg-brand-blue/60 text-white'}`}>
+            <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-wider opacity-70">
+              <span>{message.senderType === 'complainant' ? 'You' : message.senderName}</span>
+              <span>{new Date(message.createdAt).toLocaleString()}</span>
+            </div>
+            <p className="mt-1 whitespace-pre-wrap text-sm">{message.message}</p>
+          </div>
+        </div>
+      ))}
+      {thread.updates.length === 0 && thread.messages.length === 0 && (
+        <p className="rounded-xl bg-white/5 p-3 text-xs text-white/50">No updates yet. The Commission will reply here when the case is reviewed.</p>
+      )}
     </div>
   );
 }

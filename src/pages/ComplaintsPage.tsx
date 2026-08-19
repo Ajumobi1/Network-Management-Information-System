@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import PageHeader from '../components/PageHeader';
-import { useComplaints, useCreateComplaint, useUpdateComplaintStatus, useComplaintHistory } from '../hooks/complaints/complaintHooks';
+import { useAuth } from '../contexts/AuthContext';
+import { useComplaints, useCreateComplaint, useUpdateComplaintStatus, useComplaintHistory, useComplaintMessages, useSendComplaintMessage } from '../hooks/complaints/complaintHooks';
+import { ComplaintMessage } from '../types/complaints/complaintTypes';
+import { Send } from 'lucide-react';
 import { useProviderDirectory } from '../features/providers/hooks';
 import { ComplaintFilters, ComplaintRecord, ComplaintStatus, ComplaintCategory, ComplaintPriority, COMPLAINT_STATUS_LABELS, COMPLAINT_CATEGORY_LABELS, COMPLAINT_PRIORITY_LABELS } from '../types/complaints/complaintTypes';
 
@@ -15,6 +18,7 @@ function ComplaintsPage() {
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintRecord | null>(null);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [resolutionInput, setResolutionInput] = useState('');
+  const [messageInput, setMessageInput] = useState('');
   const [newComplaintForm, setNewComplaintForm] = useState({
     providerId: '',
     title: '',
@@ -29,8 +33,10 @@ function ComplaintsPage() {
     search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all',
     capitationStatus: 'all', lga: 'all', category: 'all', subcategory: 'all', ownership: 'all', service: 'all',
   });
+  const { session } = useAuth();
   const createMutation = useCreateComplaint();
   const updateStatusMutation = useUpdateComplaintStatus();
+  const sendMessageMutation = useSendComplaintMessage();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +57,22 @@ function ComplaintsPage() {
       });
     } catch (err: any) {
       alert(err.message || 'Failed to create complaint');
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!selectedComplaint || !messageInput.trim()) return;
+    try {
+      await sendMessageMutation.mutateAsync({
+        complaintId: selectedComplaint.id,
+        senderType: 'staff',
+        senderName: session?.user.name || 'ODCHC Support',
+        senderEmail: session?.user.email,
+        message: messageInput.trim(),
+      });
+      setMessageInput('');
+    } catch (err: any) {
+      alert(err.message || 'Failed to send message');
     }
   };
 
@@ -275,12 +297,46 @@ function ComplaintsPage() {
                   </div>
                 </div>
 
+                {selectedComplaint.source === 'public' && (
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-800">Reported by</p>
+                    <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+                      <div><p className="text-xs text-amber-700/70">Name</p><p className="font-semibold text-slate-900">{selectedComplaint.complainantName || 'Not provided'}</p></div>
+                      <div><p className="text-xs text-amber-700/70">Phone</p><p className="font-semibold text-slate-900">{selectedComplaint.contactPhone || 'Not provided'}</p></div>
+                      <div><p className="text-xs text-amber-700/70">Email</p><p className="break-all font-semibold text-slate-900">{selectedComplaint.contactEmail || 'Not provided'}</p></div>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <p className="text-sm font-semibold text-slate-900">Description</p>
                   <p className="mt-1 text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl whitespace-pre-wrap">{selectedComplaint.description}</p>
                 </div>
 
                 <ComplaintHistory id={selectedComplaint.id} />
+                <ComplaintMessages id={selectedComplaint.id} />
+
+                <div className="rounded-2xl border border-brand-border bg-white p-4 shadow-sm">
+                  <p className="text-sm font-semibold text-slate-900">Reply to reporter</p>
+                  <p className="mt-1 text-xs text-slate-500">Messages are visible to the complainant when they track this reference number.</p>
+                  <div className="mt-3 flex gap-2">
+                    <textarea
+                      value={messageInput}
+                      onChange={e => setMessageInput(e.target.value)}
+                      placeholder="Write a message to the reporter..."
+                      rows={2}
+                      className="min-w-0 flex-1 rounded-xl border border-slate-200 p-3 text-sm text-slate-900 focus:border-brand-blue focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSendMessage}
+                      disabled={sendMessageMutation.isPending || !messageInput.trim()}
+                      className="self-end rounded-xl bg-brand-blue px-4 py-3 text-xs font-semibold text-white hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Send size={16} />
+                    </button>
+                  </div>
+                </div>
 
                 <div className="border-t border-slate-200 pt-4 space-y-4">
                   <p className="text-sm font-semibold text-slate-900">Update Status & Resolve</p>
@@ -437,6 +493,43 @@ function ComplaintsPage() {
         )}
       </div>
     </main>
+  );
+}
+
+function ComplaintMessages({ id }: { id: string }) {
+  const { data: messages = [], isLoading } = useComplaintMessages(id);
+
+  if (isLoading) return <div className="py-3 text-center text-xs text-slate-400 italic">Loading conversation...</div>;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-900">Conversation with reporter</p>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{messages.length} messages</span>
+      </div>
+      {messages.length === 0 ? (
+        <p className="rounded-2xl bg-slate-50 p-4 text-xs text-slate-500">No messages yet. Send the first reply to the reporter.</p>
+      ) : (
+        <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl bg-slate-50 p-3">
+          {messages.map(message => <ComplaintMessageBubble key={message.id} message={message} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComplaintMessageBubble({ message }: { message: ComplaintMessage }) {
+  const isStaff = message.senderType === 'staff';
+  return (
+    <div className={`flex ${isStaff ? 'justify-end' : 'justify-start'}`}>
+      <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${isStaff ? 'bg-brand-blue text-white' : 'bg-white text-slate-900 shadow-sm'}`}>
+        <div className={`flex items-center justify-between gap-3 text-[10px] font-bold ${isStaff ? 'text-white/70' : 'text-slate-400'}`}>
+          <span>{message.senderName}</span>
+          <span>{new Date(message.createdAt).toLocaleString()}</span>
+        </div>
+        <p className="mt-1 whitespace-pre-wrap text-sm">{message.message}</p>
+      </div>
+    </div>
   );
 }
 

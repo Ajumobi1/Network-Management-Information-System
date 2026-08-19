@@ -28,5 +28,20 @@ export const complaintService = {
 
   async getComplaintHistory(id: string) {
     return complaintRepository.fetchComplaintHistory(id);
+  },
+
+  async getComplaintMessages(id: string) {
+    return complaintRepository.fetchComplaintMessages(id);
+  },
+
+  async sendMessage(payload: {
+    complaintId: string;
+    senderType: 'staff' | 'complainant';
+    senderName: string;
+    senderEmail?: string;
+    message: string;
+  }) {
+    if (!payload.message.trim()) throw new Error('Message cannot be empty');
+    return complaintRepository.sendComplaintMessage(payload);
   }
 };
