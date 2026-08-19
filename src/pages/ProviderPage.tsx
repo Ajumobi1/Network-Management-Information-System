@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserPlus, Upload } from 'lucide-react';
+import { UserPlus } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -13,6 +13,7 @@ import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import { isSecureContractError } from '../lib/security/secureContracts';
 import { PROVIDER_CATEGORIES } from '../constants/providerNetwork';
+import ProviderImportExport from '../features/providers/components/ProviderImportExport/ProviderImportExport';
 
 export default function ProviderPage() {
   const navigate = useNavigate();
@@ -109,9 +110,7 @@ export default function ProviderPage() {
           subtitle="The authoritative official Network Provider Register within the Network Management Information System (NMIS). Search, filter, and inspect facility records and operational status."
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" className="gap-2" onClick={() => navigate('/financial/upload?type=provider-network')}>
-                <Upload size={16} /> Import Directory
-              </Button>
+              <ProviderImportExport filters={filters} />
               <Button onClick={() => navigate('/providers/new')} className="gap-2">
                 <UserPlus size={16} /> Register Provider
               </Button>
