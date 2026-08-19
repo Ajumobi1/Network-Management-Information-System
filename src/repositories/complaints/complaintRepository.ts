@@ -114,7 +114,8 @@ export const complaintRepository = {
         const matchStatus = filters.status === 'all' || c.status === filters.status;
         const matchCategory = filters.category === 'all' || c.category === filters.category;
         const matchPriority = filters.priority === 'all' || c.priority === filters.priority;
-        return matchSearch && matchStatus && matchCategory && matchPriority;
+        const matchProvider = !filters.providerId || c.providerId === filters.providerId;
+        return matchSearch && matchStatus && matchCategory && matchPriority && matchProvider;
       });
     }
 
@@ -123,7 +124,7 @@ export const complaintRepository = {
       p_category: filters.category === 'all' ? null : filters.category,
       p_priority: filters.priority === 'all' ? null : filters.priority,
       p_search: filters.search.trim() || null,
-      p_provider_id: null,
+      p_provider_id: filters.providerId || null,
     });
 
     if (error) {

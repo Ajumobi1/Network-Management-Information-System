@@ -1,7 +1,40 @@
 import { useState } from 'react';
-import { useComplaints, useCreateComplaint, useUpdateComplaintStatus } from '../../../../hooks/complaints/complaintHooks';
+import { useComplaints, useCreateComplaint, useUpdateComplaintStatus, useComplaintHistory } from '../../../../hooks/complaints/complaintHooks';
 import { ComplaintCategory, ComplaintPriority, ComplaintStatus, COMPLAINT_CATEGORY_LABELS, COMPLAINT_PRIORITY_LABELS, COMPLAINT_STATUS_LABELS, ComplaintRecord } from '../../../../types/complaints/complaintTypes';
 import { ProviderTabProps } from '../ProfileTabShell';
+
+function ComplaintHistory({ id }: { id: string }) {
+  const { data: history = [], isLoading } = useComplaintHistory(id);
+
+  if (isLoading) return <div className="py-2 text-center text-xs text-slate-400 italic">Loading history...</div>;
+  if (history.length === 0) return null;
+
+  return (
+    <div className="space-y-3 pt-2">
+      <p className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Activity History</p>
+      <div className="space-y-2">
+        {history.map((item) => (
+          <div key={item.id} className="rounded-xl border border-slate-100 bg-slate-50/50 p-3 text-xs">
+            <div className="flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              <span>{item.createdByEmail}</span>
+              <span>{new Date(item.createdAt).toLocaleString()}</span>
+            </div>
+            <div className="mt-1 flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-slate-600 capitalize">{item.statusFrom || 'new'}</span>
+              <span className="text-slate-300">→</span>
+              <span className="text-[10px] font-black text-indigo-600 capitalize">{item.statusTo}</span>
+            </div>
+            {item.notes && (
+              <p className="mt-1.5 text-slate-600 italic border-l-2 border-slate-200 pl-3 py-0.5">
+                {item.notes}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function ComplaintsTab({ provider }: ProviderTabProps) {
   const [filters] = useState({
@@ -9,10 +42,10 @@ export default function ComplaintsTab({ provider }: ProviderTabProps) {
     status: 'all' as 'all' | ComplaintStatus,
     category: 'all' as 'all' | ComplaintCategory,
     priority: 'all' as 'all' | ComplaintPriority,
+    providerId: provider.id,
   });
 
-  const { data: allComplaints = [], isLoading } = useComplaints(filters);
-  const providerComplaints = allComplaints.filter(c => c.providerId === provider.id);
+  const { data: providerComplaints = [], isLoading } = useComplaints(filters);
 
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [selectedComplaint, setSelectedComplaint] = useState<ComplaintRecord | null>(null);
@@ -53,7 +86,7 @@ export default function ComplaintsTab({ provider }: ProviderTabProps) {
       await updateStatusMutation.mutateAsync({
         id,
         status,
-        resolutionNotes: status === 'resolved' ? resolutionInput : undefined,
+        resolutionNotes: resolutionInput.trim() || undefined,
       });
       setSelectedComplaint(null);
       setResolutionInput('');
@@ -105,6 +138,7 @@ export default function ComplaintsTab({ provider }: ProviderTabProps) {
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                     c.status === 'resolved' || c.status === 'closed' ? 'bg-emerald-100 text-emerald-700' :
                     c.status === 'escalated' ? 'bg-rose-100 text-rose-700' :
+                    c.status === 'submitted' ? 'bg-amber-100 text-amber-700' :
                     'bg-blue-100 text-blue-700'
                   }`}>
                     {COMPLAINT_STATUS_LABELS[c.status]}
@@ -114,11 +148,7 @@ export default function ComplaintsTab({ provider }: ProviderTabProps) {
 
               <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl">{c.description}</p>
 
-              {c.resolutionNotes && (
-                <div className="text-sm text-emerald-700 bg-emerald-50 p-4 rounded-2xl">
-                  <span className="font-semibold">Resolution: </span>{c.resolutionNotes}
-                </div>
-              )}
+              <ComplaintHistory id={c.id} />
 
               <div className="flex items-center justify-between pt-2">
                 <span className="text-xs text-slate-500">Assigned: {c.assignedTo || 'Unassigned'}</span>
@@ -139,7 +169,10 @@ export default function ComplaintsTab({ provider }: ProviderTabProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl">
             <h3 className="text-xl font-semibold text-slate-900">Review Complaint: {selectedComplaint.title}</h3>
-            <div className="mt-4 space-y-4">
+            <p className="mt-2 text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl">{selectedComplaint.description}</p>
+            <ComplaintHistory id={selectedComplaint.id} />
+            <div className="mt-6 space-y-4 border-t border-slate-100 pt-4">
+              <p className="text-xs font-semibold text-slate-900 uppercase tracking-wider">Update Status</p>
               <textarea
                 placeholder="Resolution notes..."
                 value={resolutionInput}
@@ -147,12 +180,18 @@ export default function ComplaintsTab({ provider }: ProviderTabProps) {
                 className="w-full rounded-2xl border border-slate-200 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:outline-none"
                 rows={3}
               />
-              <div className="flex flex-wrap gap-2 justify-end">
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setSelectedComplaint(null)}
-                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700"
+                  onClick={() => handleStatusChange(selectedComplaint.id, 'in-review')}
+                  className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
                 >
-                  Cancel
+                  Set In Review
+                </button>
+                <button
+                  onClick={() => handleStatusChange(selectedComplaint.id, 'escalated')}
+                  className="rounded-xl bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700"
+                >
+                  Escalate
                 </button>
                 <button
                   onClick={() => handleStatusChange(selectedComplaint.id, 'resolved')}
@@ -161,10 +200,16 @@ export default function ComplaintsTab({ provider }: ProviderTabProps) {
                   Mark Resolved
                 </button>
                 <button
-                  onClick={() => handleStatusChange(selectedComplaint.id, 'escalated')}
-                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-semibold text-white hover:bg-rose-700"
+                  onClick={() => handleStatusChange(selectedComplaint.id, 'closed')}
+                  className="rounded-xl bg-slate-700 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-800"
                 >
-                  Escalate
+                  Close
+                </button>
+                <button
+                  onClick={() => setSelectedComplaint(null)}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 ml-auto"
+                >
+                  Cancel
                 </button>
               </div>
             </div>

@@ -1,0 +1,63 @@
+-- Unified complaint listing RPC with status normalization
+CREATE OR REPLACE FUNCTION public.nmis_list_complaints(
+  p_status text DEFAULT NULL,
+  p_category text DEFAULT NULL,
+  p_priority text DEFAULT NULL,
+  p_provider_id uuid DEFAULT NULL,
+  p_search text DEFAULT NULL
+)
+RETURNS TABLE (
+  id uuid,
+  reference_number text,
+  source text,
+  provider_id uuid,
+  provider_name text,
+  provider_code text,
+  title text,
+  category text,
+  priority text,
+  status text,
+  description text,
+  resolution_notes text,
+  assigned_to text,
+  created_at timestamptz,
+  updated_at timestamptz
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_catalog
+AS $$
+BEGIN
+  IF NOT COALESCE(public.nmis_has_any_role(ARRAY['super-admin','executive','head-of-network','network-officer','customer-service','inspector','finance','claims']), false) THEN
+    RAISE EXCEPTION 'ACCESS_RESTRICTED: Insufficient permissions to view complaints';
+  END IF;
+
+  RETURN QUERY
+  SELECT 
+    c.id, c.reference_number, 'internal'::text as source, c.provider_id, p.provider_name::text, p.provider_code::text,
+    c.title, c.category, c.priority, lower(c.status) as status, c.description,
+    c.resolution_notes, c.assigned_to, c.created_at, c.updated_at
+  FROM public.provider_complaints c
+  JOIN public.providers p ON p.id = c.provider_id
+  WHERE (p_status IS NULL OR lower(c.status) = lower(p_status))
+    AND (p_category IS NULL OR c.category = p_category)
+    AND (p_priority IS NULL OR c.priority = p_priority)
+    AND (p_provider_id IS NULL OR c.provider_id = p_provider_id)
+    AND (p_search IS NULL OR lower(concat_ws(' ', c.reference_number, c.title, c.description, p.provider_name, p.provider_code, c.assigned_to)) LIKE '%' || lower(trim(p_search)) || '%')
+  
+  UNION ALL
+  
+  SELECT 
+    c.id, c.reference_number, 'public'::text as source, c.provider_id, COALESCE(p.provider_name, c.provider_name)::text as provider_name, p.provider_code::text,
+    'Public Portal Submission'::text as title, c.category, 'medium'::text as priority, lower(c.status) as status, c.description,
+    NULL::text as resolution_notes, NULL::text as assigned_to, c.created_at, c.updated_at
+  FROM public.public_portal_complaints c
+  LEFT JOIN public.providers p ON p.id = c.provider_id
+  WHERE (p_status IS NULL OR lower(c.status) = lower(p_status))
+    AND (p_category IS NULL OR c.category = p_category)
+    AND (p_provider_id IS NULL OR c.provider_id = p_provider_id)
+    AND (p_search IS NULL OR lower(concat_ws(' ', c.reference_number, c.complainant_name, c.description, c.provider_name, p.provider_code)) LIKE '%' || lower(trim(p_search)) || '%')
+  
+  ORDER BY created_at DESC;
+END;
+$$;

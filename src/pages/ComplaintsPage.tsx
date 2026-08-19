@@ -59,7 +59,7 @@ function ComplaintsPage() {
       await updateStatusMutation.mutateAsync({
         id,
         status,
-        resolutionNotes: status === 'resolved' ? resolutionInput : undefined,
+        resolutionNotes: resolutionInput.trim() || undefined,
       });
       setSelectedComplaint(null);
       setResolutionInput('');
@@ -216,6 +216,7 @@ function ComplaintsPage() {
                         <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-full ${
                           c.status === 'resolved' || c.status === 'closed' ? 'bg-emerald-100 text-emerald-700' :
                           c.status === 'escalated' ? 'bg-rose-100 text-rose-700' :
+                          c.status === 'submitted' ? 'bg-amber-100 text-amber-700' :
                           'bg-blue-100 text-blue-700'
                         }`}>
                           {COMPLAINT_STATUS_LABELS[c.status]}

@@ -1,6 +1,6 @@
 export type ComplaintCategory = 'payment' | 'claims' | 'credentialing' | 'inspection' | 'enrolment' | 'other';
 export type ComplaintPriority = 'low' | 'medium' | 'high' | 'urgent';
-export type ComplaintStatus = 'open' | 'in-review' | 'escalated' | 'resolved' | 'closed';
+export type ComplaintStatus = 'submitted' | 'open' | 'in-review' | 'escalated' | 'resolved' | 'closed';
 
 export interface ComplaintRecord {
   id: string;
@@ -34,9 +34,11 @@ export interface ComplaintFilters {
   status: 'all' | ComplaintStatus;
   category: 'all' | ComplaintCategory;
   priority: 'all' | ComplaintPriority;
+  providerId?: string;
 }
 
 export const COMPLAINT_STATUS_LABELS: Record<ComplaintStatus, string> = {
+  'submitted': 'Submitted',
   'open': 'Open',
   'in-review': 'In Review',
   'escalated': 'Escalated',
