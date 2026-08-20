@@ -47,13 +47,26 @@ const EMPTY_PROFILE: FacilityProfileState = {
 
 const STEP_LABELS = ['Eligibility', 'Facility Profile', 'Review & Sign'];
 const DRAFT_KEY = 'nmis-structured-pharmacy-inspection-draft';
+const WORKFLOW_ONLY_SECTION_CODES = new Set(['REMARKS', 'TEAM']);
 
 function SectionCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return <Card><div className="mb-5 border-b border-brand-divider pb-4"><h2 className="text-lg font-black text-brand-foreground">{title}</h2><p className="mt-1 text-sm text-brand-muted">{subtitle}</p></div>{children}</Card>;
 }
 
+function isManualItem(item: InspectionTemplateItem) {
+  return item.scoring_method === 'manual_only' || item.manual_score_allowed;
+}
+
+function isResponseComplete(item: InspectionTemplateItem, response: ResponseState) {
+  if (isManualItem(item)) {
+    if (response.manual_score === '') return false;
+    return item.response_type === 'number' ? response.number !== '' : response.boolean !== null;
+  }
+  return item.response_type === 'number' ? response.number !== '' : response.boolean !== null;
+}
+
 function blankResponse(item: InspectionTemplateItem): ResponseState {
-  return { number: item.response_type === 'number' ? '' : '', manual_score: item.scoring_method === 'manual_only' ? '' : '', boolean: item.response_type === 'boolean' ? null : null, remark: '' };
+  return { number: '', manual_score: isManualItem(item) ? '' : '', boolean: item.response_type === 'boolean' ? null : null, remark: '' };
 }
 
 function SignaturePad({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -290,6 +303,7 @@ export default function NewInspectionPage() {
   const [profile, setProfile] = useState<FacilityProfileState>(EMPTY_PROFILE);
   const [extraProfile, setExtraProfile] = useState<Record<string, string>>({});
   const [eligibility, setEligibility] = useState<Record<string, EligibilityState>>({});
+  const [generalRemarks, setGeneralRemarks] = useState('');
   const [responses, setResponses] = useState<Record<string, ResponseState>>({});
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [saveMessage, setSaveMessage] = useState('');
@@ -309,6 +323,7 @@ export default function NewInspectionPage() {
     setProfile(EMPTY_PROFILE);
     setExtraProfile({});
     setEligibility({});
+    setGeneralRemarks('');
     setResponses({});
     setTeam([]);
     setValidationErrors({});
@@ -321,7 +336,7 @@ export default function NewInspectionPage() {
     if (raw) {
       try {
         const draft = JSON.parse(raw);
-        setStep(draft.step || 0); setInspectionId(draft.inspectionId || null); setProviderId(draft.providerId || ''); setProfile({ ...EMPTY_PROFILE, ...(draft.profile || {}) }); setExtraProfile(draft.extraProfile || {}); setEligibility(draft.eligibility || {}); setResponses(draft.responses || {}); setTeam(draft.team || []); setValidationErrors(draft.validationErrors || {});
+        setStep(draft.step || 0); setInspectionId(draft.inspectionId || null); setProviderId(draft.providerId || ''); setProfile({ ...EMPTY_PROFILE, ...(draft.profile || {}) }); setExtraProfile(draft.extraProfile || {}); setEligibility(draft.eligibility || {}); setGeneralRemarks(draft.generalRemarks || ''); setResponses(draft.responses || {}); setTeam(draft.team || []); setValidationErrors(draft.validationErrors || {});
       } catch { localStorage.removeItem(draftKey); }
     }
     setDraftLoaded(true);
@@ -343,8 +358,8 @@ export default function NewInspectionPage() {
 
   useEffect(() => {
     if (!template || !draftLoaded) return;
-    localStorage.setItem(draftKey, JSON.stringify({ step, inspectionId, providerId, profile, extraProfile, eligibility, responses, team, validationErrors }));
-  }, [draftKey, template, draftLoaded, step, inspectionId, providerId, profile, extraProfile, eligibility, responses, team, validationErrors]);
+    localStorage.setItem(draftKey, JSON.stringify({ step, inspectionId, providerId, profile, extraProfile, eligibility, generalRemarks, responses, team, validationErrors }));
+  }, [draftKey, template, draftLoaded, step, inspectionId, providerId, profile, extraProfile, eligibility, generalRemarks, responses, team, validationErrors]);
 
   useEffect(() => {
     if (profileQuery.data) {
@@ -362,21 +377,21 @@ export default function NewInspectionPage() {
     }
   }, [profileQuery.data]);
 
-  const scoredSections = useMemo(() => (template?.sections || []).filter(section => !['A', 'ELIGIBILITY', 'PROFILE'].includes(section.section_code)).sort((a, b) => a.sort_order - b.sort_order), [template]);
-  const stepLabels = useMemo(() => ['ELIGIBILITY', 'FACILITY PROFILE', ...scoredSections.map(section => section.section_label.toUpperCase()), 'REVIEW & SIGN'], [scoredSections]);
+  const scoredSections = useMemo(() => (template?.sections || []).filter(section => !['A', 'ELIGIBILITY', 'PROFILE'].includes(section.section_code) && !WORKFLOW_ONLY_SECTION_CODES.has(section.section_code.toUpperCase()) && (template?.items || []).some(item => item.section_code === section.section_code)).sort((a, b) => a.sort_order - b.sort_order), [template]);
+  const remarksSection = useMemo(() => (template?.sections || []).find(section => section.section_code.toUpperCase() === 'REMARKS'), [template]);
+  const stepLabels = useMemo(() => ['ELIGIBILITY', 'FACILITY PROFILE', ...scoredSections.map(section => section.section_label.toUpperCase()), remarksSection?.section_label.toUpperCase() || 'GENERAL REMARKS / RECOMMENDATION', 'REVIEW & SIGN'], [remarksSection, scoredSections]);
+  const remarksStep = stepLabels.length - 2;
   const reviewStep = stepLabels.length - 1;
   const selectedProvider = useMemo(() => scopedProviders.find(provider => provider.id === providerId), [providerId, scopedProviders]);
   const allEligibilityMet = template?.eligibility.filter(item => item.required).every(item => eligibility[item.criterion_code]?.met) ?? false;
   const answeredCount = items.filter(item => {
     const response = responses[item.item_code];
-    if (!response) return false;
-    if (item.scoring_method === 'manual_only' || item.manual_score_allowed) return response.number !== '' && response.manual_score !== '' && !validationErrors[item.item_code];
-    return item.response_type === 'number' ? response.number !== '' : response.boolean !== null;
+    return Boolean(response && isResponseComplete(item, response) && !validationErrors[item.item_code]);
   }).length;
   const signedCount = team.filter(member => Boolean(member.signature_data)).length;
   const score = useMemo(() => {
     let points = 0;
-    let possible = 0;
+    let possible = items.reduce((sum, item) => sum + item.max_points, 0);
     let credentialingPoints = 0;
     let accreditationPoints = 0;
     const credentialingPossible = items.filter(item => isCredentialingSection(item.section_code)).reduce((sum, item) => sum + item.max_points, 0);
@@ -387,12 +402,12 @@ export default function NewInspectionPage() {
       if (!response) return;
       let earned = 0;
       let included = false;
-      if (item.scoring_method === 'manual_only' || item.manual_score_allowed) {
-        if (response.number === '' || response.manual_score === '' || validationErrors[item.item_code]) return;
+      if (isManualItem(item)) {
+        if (!isResponseComplete(item, response) || validationErrors[item.item_code]) return;
         included = true;
         earned = Math.min(Number(response.manual_score), item.max_points);
       } else if (item.response_type === 'number') {
-        if (!response.number) return;
+        if (response.number === '') return;
         included = true;
         earned = Number(response.number) >= Number(item.min_required || 0) ? item.max_points : 0;
       } else if (response.boolean !== null) {
@@ -401,7 +416,6 @@ export default function NewInspectionPage() {
       }
 
       if (!included) return;
-      possible += item.max_points;
       points += earned;
       if (isCredentialingSection(item.section_code)) credentialingPoints += earned;
       if (isAccreditationSection(item.section_code)) accreditationPoints += earned;
@@ -415,7 +429,7 @@ export default function NewInspectionPage() {
   const setProfileValue = (key: keyof FacilityProfileState, value: string) => setProfile(previous => ({ ...previous, [key]: value }));
   const setResponse = (itemCode: string, response: ResponseState) => {
     const item = items.find(entry => entry.item_code === itemCode);
-    if (item && (item.scoring_method === 'manual_only' || item.manual_score_allowed)) {
+    if (item && isManualItem(item)) {
       const rawScore = response.manual_score.trim();
       const parsedScore = rawScore === '' ? null : Number(rawScore);
       if (parsedScore !== null && (!Number.isFinite(parsedScore) || parsedScore < 0 || parsedScore > item.max_points)) {
@@ -432,7 +446,7 @@ export default function NewInspectionPage() {
     const points = section.reduce((sum, item) => {
       const response = responses[item.item_code];
       if (!response) return sum;
-      if (item.scoring_method === 'manual_only' || item.manual_score_allowed) return validationErrors[item.item_code] || response.manual_score === '' ? sum : sum + Math.min(Number(response.manual_score), item.max_points);
+      if (isManualItem(item)) return !isResponseComplete(item, response) || validationErrors[item.item_code] ? sum : sum + Math.min(Number(response.manual_score), item.max_points);
       if (item.response_type === 'number') return response.number === '' ? sum : sum + (Number(response.number) >= Number(item.min_required || 0) ? item.max_points : 0);
       return sum + (response.boolean ? item.max_points : 0);
     }, 0);
@@ -458,7 +472,7 @@ export default function NewInspectionPage() {
     }));
   };
 
-  const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({ mode, step: stepLabels[step].toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: (item.response_type === 'number' || item.scoring_method === 'manual_only' || item.manual_score_allowed) ? Number(responses[item.item_code]?.number || 0) : null, manual_score: (item.scoring_method === 'manual_only' || item.manual_score_allowed) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
+  const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({ mode, step: stepLabels[step].toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
 
   const saveDraft = async () => {
     if (!providerId) { setSaveMessage('Select a provider before saving the draft.'); return; }
@@ -528,9 +542,11 @@ export default function NewInspectionPage() {
           return <Field key={field.key} label={field.label} value={val || ''} onChange={value => Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? setProfileValue(field.key as any, value) : setExtraProfile(prev => ({ ...prev, [field.key]: value }))} type={field.type} required={field.required} />;
         })}</div></div></SectionCard>}
 
-    {step >= 2 && step < reviewStep && scoredSections[step - 2] && <SectionCard title={scoredSections[step - 2].section_label} subtitle={scoredSections[step - 2].description || (step === 2 ? 'Enter the observed headcount and manually award points within each maximum.' : 'Mark each facility requirement YES or NO and record a concise evidence remark.')}><div className="space-y-4">{sectionItems(scoredSections[step - 2].section_code).map(item => <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} />)}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - 2].section_code).points} / {sectionScore(scoredSections[step - 2].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div></SectionCard>}
+    {step >= 2 && step < remarksStep && scoredSections[step - 2] && <SectionCard title={scoredSections[step - 2].section_label} subtitle={scoredSections[step - 2].description || (step === 2 ? 'Enter the observed headcount and manually award points within each maximum.' : 'Mark each facility requirement YES or NO and record a concise evidence remark.')}><div className="space-y-4">{sectionItems(scoredSections[step - 2].section_code).map(item => <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} />)}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - 2].section_code).points} / {sectionScore(scoredSections[step - 2].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div></SectionCard>}
 
-    {step === reviewStep && <div className="space-y-6"><SectionCard title="Review & Sign" subtitle="Confirm the computed recommendation, add the inspection team, and submit only after all evidence is complete."><div className="grid gap-4 sm:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Overall score</p><p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p><p className="text-xs text-brand-muted">{score.points} / {score.possible || 100} included points</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Credentialing Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p><p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Accreditation Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p><p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:col-span-3"><p className="nmis-label">Recommendation</p><p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p><p className="mt-1 text-xs text-brand-muted">Thresholds: ≥{template.template.passing_threshold}% recommended · {template.template.conditional_threshold}–{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional · below {template.template.conditional_threshold}% not recommended</p></div></div><div className="mt-6 grid gap-4 sm:grid-cols-3"><div><p className="nmis-label">Eligibility</p><p className="mt-1 font-black text-brand-foreground">{allEligibilityMet ? 'All MET' : 'Incomplete'}</p></div><div><p className="nmis-label">Scored responses</p><p className="mt-1 font-black text-brand-foreground">{answeredCount} / {items.length}</p></div><div><p className="nmis-label">Signed team members</p><p className="mt-1 font-black text-brand-foreground">{signedCount}</p></div></div></SectionCard><SectionCard title="Inspection team" subtitle="Add each inspector or reviewer and capture a signature on the tablet or laptop."><div className="space-y-4">{team.map((member, index) => <div key={member.id} className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-brand-foreground">Team member {index + 1}</p><button type="button" onClick={() => setTeam(previous => previous.filter(item => item.id !== member.id))} className="rounded-control p-2 text-status-danger hover:bg-status-dangerSoft"><Trash2 size={16} /></button></div><div className="mt-4 grid gap-4 sm:grid-cols-3"><Field label="Name" value={member.name} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, name: value } : item))} required /><Field label="Role" value={member.role} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, role: value } : item))} /><Field label="Date" value={member.inspection_date} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, inspection_date: value } : item))} type="date" required /></div><div className="mt-4"><p className="nmis-label">Signature</p><SignaturePad value={member.signature_data} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, signature_data: value } : item))} /></div></div>)}<button type="button" onClick={() => setTeam(previous => [...previous, { id: crypto.randomUUID(), name: '', role: 'Inspector', inspection_date: profile.inspection_date, signature_data: '' }])} className="inline-flex min-h-11 items-center gap-2 rounded-control border border-dashed border-brand-blue px-4 py-2 text-sm font-black text-brand-blue hover:bg-brand-soft"><Plus size={16} /> Add inspection team member</button></div></SectionCard></div>}
+    {step === remarksStep && <SectionCard title={remarksSection?.section_label || 'GENERAL REMARKS / RECOMMENDATION'} subtitle="Record the inspector's overall findings, risks, conditions, and recommended follow-up actions."><div className="space-y-4"><label className="block space-y-1.5"><span className="nmis-label">General remarks and recommendation</span><textarea rows={8} value={generalRemarks} onChange={event => setGeneralRemarks(event.target.value)} className="nmis-control min-h-40 resize-y" placeholder="Summarise the inspection findings, deficiencies, corrective actions, and any recommendation for ODCHC." /></label><div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Current overall score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.percentage}%</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Included points</p><p className="mt-1 text-2xl font-black text-brand-foreground">{score.points} / {score.possible}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Calculated recommendation</p><p className="mt-1 text-sm font-black text-brand-foreground">{score.recommendation}</p></div></div></div></SectionCard>}
+
+    {step === reviewStep && <div className="space-y-6"><SectionCard title="Review & Sign" subtitle="Review the complete inspection record, add the inspection team, and submit the signed recommendation."><div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Overall score</p><p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p><p className="text-xs text-brand-muted">{score.points} / {score.possible} total points</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Credentialing Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p><p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Accreditation Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p><p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 md:col-span-3"><p className="nmis-label">Recommendation</p><p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p><p className="mt-1 text-xs text-brand-muted">Thresholds: ≥{template.template.passing_threshold}% recommended · {template.template.conditional_threshold}–{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional · below {template.template.conditional_threshold}% not recommended</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Eligibility status</p><p className="mt-1 font-black text-brand-foreground">{allEligibilityMet ? 'All required criteria MET' : 'Criteria recorded with follow-up required'}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Scored responses</p><p className="mt-1 font-black text-brand-foreground">{answeredCount} / {items.length}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Signed team members</p><p className="mt-1 font-black text-brand-foreground">{signedCount}</p></div></div>{generalRemarks && <div className="mt-6 rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">General remarks</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-secondary">{generalRemarks}</p></div>}</SectionCard><SectionCard title="Inspection team" subtitle="Add each inspector or reviewer and capture a signature before submission."><div className="space-y-4">{team.map((member, index) => <div key={member.id} className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-brand-foreground">Team member {index + 1}</p><button type="button" onClick={() => setTeam(previous => previous.filter(item => item.id !== member.id))} className="rounded-control p-2 text-status-danger hover:bg-status-dangerSoft"><Trash2 size={16} /></button></div><div className="mt-4 grid gap-4 md:grid-cols-3"><Field label="Name" value={member.name} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, name: value } : item))} required /><Field label="Role" value={member.role} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, role: value } : item))} /><Field label="Date" value={member.inspection_date} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, inspection_date: value } : item))} type="date" required /></div><div className="mt-4"><p className="nmis-label">Signature</p><SignaturePad value={member.signature_data} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, signature_data: value } : item))} /></div></div>)}<button type="button" onClick={() => setTeam(previous => [...previous, { id: crypto.randomUUID(), name: '', role: 'Inspector', inspection_date: profile.inspection_date, signature_data: '' }])} className="inline-flex min-h-11 items-center gap-2 rounded-control border border-dashed border-brand-blue px-4 py-2 text-sm font-black text-brand-blue hover:bg-brand-soft"><Plus size={16} /> Add inspection team member</button></div></SectionCard></div>}
 
     {saveMessage && <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 text-sm font-bold text-brand-secondary">{saveMessage}</div>}
     <div className="flex flex-col-reverse gap-3 border-t border-brand-divider pt-5 sm:flex-row sm:items-center sm:justify-between"><Button variant="secondary" onClick={() => setStep(previous => Math.max(0, previous - 1))} disabled={step === 0}><ChevronLeft size={16} /> Back</Button><div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" onClick={saveDraft} disabled={saveMutation.isPending}><Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save draft'}</Button>{step < stepLabels.length - 1 ? <Button onClick={() => { setSaveMessage(''); setStep(previous => Math.min(stepLabels.length - 1, previous + 1)); }}><ChevronRight size={16} /> Continue</Button> : <Button onClick={submitInspection} disabled={saveMutation.isPending}><Send size={16} /> {saveMutation.isPending ? 'Submitting...' : 'Submit inspection'}</Button>}</div></div>
