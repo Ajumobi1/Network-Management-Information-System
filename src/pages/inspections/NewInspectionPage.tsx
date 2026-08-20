@@ -38,6 +38,7 @@ type FacilityProfileState = {
   smoh_reg_no: string;
   reference_quarter?: string;
   reference_year?: string;
+  lga_district?: string;
 };
 
 type ResponseState = { number: string; manual_score: string; boolean: boolean | null; remark: string };
