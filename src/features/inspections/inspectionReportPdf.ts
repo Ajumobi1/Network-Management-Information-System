@@ -48,6 +48,18 @@ export type InspectionReportPdfInput = {
   };
 };
 
+function pdfSafeText(value: unknown) {
+  return String(value ?? '')
+    .replace(/₦/g, 'NGN ')
+    .replace(/[≥]/g, '>=')
+    .replace(/[–—]/g, '-')
+    .replace(/[·•]/g, '-')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .normalize('NFKD')
+    .replace(/[^\\x00-\\xFF]/g, '?');
+}
+
 const COLORS = {
   blue: rgb(0.04, 0.31, 0.51),
   orange: rgb(0.94, 0.48, 0.08),
@@ -106,7 +118,7 @@ class ReportWriter {
   }
 
   private wrap(text: string, font: PDFFont, size: number, maxWidth: number) {
-    const words = String(text || '').split(/\s+/).filter(Boolean);
+    const words = pdfSafeText(text).split(/\s+/).filter(Boolean);
     const lines: string[] = [];
     let line = '';
     words.forEach(word => {
@@ -142,7 +154,7 @@ class ReportWriter {
   }
 
   labelValue(label: string, value: string, x: number, width: number) {
-    this.page.drawText(label.toUpperCase(), { x, y: this.y, size: 7, font: this.bold, color: COLORS.muted, maxWidth: width });
+    this.page.drawText(pdfSafeText(label).toUpperCase(), { x, y: this.y, size: 7, font: this.bold, color: COLORS.muted, maxWidth: width });
     this.page.drawText(this.wrap(value, this.regular, 9, width).join('\n'), { x, y: this.y - 12, size: 9, font: this.regular, color: COLORS.ink, maxWidth: width, lineHeight: 11 });
   }
 
@@ -197,8 +209,8 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
   writer.setY(720);
 
   writer.text(input.templateName, { size: 16, font: bold, color: COLORS.blue, lineHeight: 20 });
-  writer.text(`${input.facilityType} · ${input.providerName}`, { size: 11, font: bold, color: COLORS.ink });
-  writer.text(`Inspection date: ${formatDate(input.inspectionDate)} · Report ID: ${input.inspectionId}`, { size: 8, color: COLORS.muted });
+  writer.text(`${input.facilityType} - ${input.providerName}`, { size: 11, font: bold, color: COLORS.ink });
+  writer.text(`Inspection date: ${formatDate(input.inspectionDate)} - Report ID: ${input.inspectionId}`, { size: 8, color: COLORS.muted });
   writer.addGap(8);
 
   const scoreBoxes = [
@@ -217,7 +229,7 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
   });
   writer.setY(scoreY - 76);
   writer.text(`Recommendation: ${input.score.recommendation}`, { size: 11, font: bold, color: recommendationColor(input.score.recommendation) });
-  writer.text(`Thresholds: ≥${input.passingThreshold}% recommended · ${input.conditionalThreshold}–${Math.max(input.passingThreshold - 1, input.conditionalThreshold)}% conditional · below ${input.conditionalThreshold}% not recommended`, { size: 8, color: COLORS.muted });
+  writer.text(`Thresholds: >=${input.passingThreshold}% recommended - ${input.conditionalThreshold}-${Math.max(input.passingThreshold - 1, input.conditionalThreshold)}% conditional - below ${input.conditionalThreshold}% not recommended`, { size: 8, color: COLORS.muted });
 
   writer.heading('Facility profile');
   writer.twoColumn([
@@ -241,7 +253,7 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
     const status = criterion.met ? 'MET' : 'NOT MET';
     const statusColor = criterion.met ? COLORS.success : COLORS.danger;
     writer.getPage().drawText(`${index + 1}.`, { x: margin, y: writer.getY(), size: 9, font: bold, color: COLORS.blue });
-    writer.getPage().drawText(criterion.criterion_label, { x: margin + 18, y: writer.getY(), size: 9, font: regular, color: COLORS.ink, maxWidth: pageWidth - margin * 2 - 90 });
+    writer.getPage().drawText(pdfSafeText(criterion.criterion_label), { x: margin + 18, y: writer.getY(), size: 9, font: regular, color: COLORS.ink, maxWidth: pageWidth - margin * 2 - 90 });
     writer.getPage().drawText(status, { x: pageWidth - margin - 68, y: writer.getY(), size: 8, font: bold, color: statusColor });
     writer.addGap(13);
     if (criterion.notes) writer.text(`Evidence: ${criterion.notes}`, { size: 8, color: COLORS.muted, maxWidth: pageWidth - margin * 2 - 18 });
@@ -255,11 +267,11 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
     items.forEach(item => {
       const response = input.responses[item.item_code] || { number: '', manual_score: '', boolean: null, remark: '' };
       const available = item.response_type === 'number' ? displayValue(response.number) : response.boolean === null ? 'Not answered' : response.boolean ? 'YES' : 'NO';
-      const score = (item.scoring_method === 'manual_only' || item.manual_score_allowed) && response.manual_score !== '' ? `${response.manual_score} / ${item.max_points}` : response.boolean === null && response.number === '' ? `Not scored / ${item.max_points}` : `${available} · ${item.max_points} max`;
+      const score = (item.scoring_method === 'manual_only' || item.manual_score_allowed) && response.manual_score !== '' ? `${response.manual_score} / ${item.max_points}` : response.boolean === null && response.number === '' ? `Not scored / ${item.max_points}` : `${available} - ${item.max_points} max`;
       writer.ensureSpace(42);
       const itemY = writer.getY();
       writer.getPage().drawText(item.item_code.replace(/[^0-9A-Za-z]/g, ''), { x: margin, y: itemY, size: 8, font: bold, color: COLORS.blue });
-      writer.getPage().drawText(item.item_label, { x: margin + 28, y: itemY, size: 9, font: bold, color: COLORS.ink, maxWidth: pageWidth - margin * 2 - 160 });
+      writer.getPage().drawText(pdfSafeText(item.item_label), { x: margin + 28, y: itemY, size: 9, font: bold, color: COLORS.ink, maxWidth: pageWidth - margin * 2 - 160 });
       writer.getPage().drawText(score, { x: pageWidth - margin - 120, y: itemY, size: 8, font: bold, color: COLORS.blue, maxWidth: 120 });
       writer.setY(itemY - 13);
       if (item.response_type === 'number') writer.text(`Observed: ${available}`, { size: 8, color: COLORS.muted });
@@ -278,8 +290,8 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
   for (const member of input.team) {
     writer.ensureSpace(96);
     const teamY = writer.getY();
-    writer.getPage().drawText(member.name || 'Unnamed team member', { x: margin, y: teamY, size: 10, font: bold, color: COLORS.ink });
-    writer.getPage().drawText(`${member.role || 'Inspector'} · ${formatDate(member.inspection_date)}`, { x: margin, y: teamY - 14, size: 8, font: regular, color: COLORS.muted });
+    writer.getPage().drawText(pdfSafeText(member.name || 'Unnamed team member'), { x: margin, y: teamY, size: 10, font: bold, color: COLORS.ink });
+    writer.getPage().drawText(pdfSafeText(`${member.role || 'Inspector'} - ${formatDate(member.inspection_date)}`), { x: margin, y: teamY - 14, size: 8, font: regular, color: COLORS.muted });
     if (member.signature_data) {
       try {
         const signature = await document.embedPng(toBytes(member.signature_data));
@@ -293,7 +305,7 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
 
   const pages = document.getPages();
   pages.forEach((page, index) => {
-    page.drawText(`ODCHC NMIS · Inspection Outcome Report · Page ${index + 1} of ${pages.length}`, { x: margin, y: 20, size: 7, font: regular, color: COLORS.muted });
+    page.drawText(`ODCHC NMIS - Inspection Outcome Report - Page ${index + 1} of ${pages.length}`, { x: margin, y: 20, size: 7, font: regular, color: COLORS.muted });
   });
 
   return document.save();

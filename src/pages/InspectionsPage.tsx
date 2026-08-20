@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, CheckCircle2, ChevronRight, Download, Filter, Plus, Search, User, X, ClipboardCheck, AlertCircle } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Download, Filter, Plus, Search, User, X, ClipboardCheck, AlertCircle, FilePenLine } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -14,6 +14,17 @@ import { Inspection, InspectionFilters } from '../types/inspections/inspectionsT
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import ActiveFilterChips from '../components/ui/ActiveFilterChips';
+
+function facilityTypeCodeFromInspectionType(type: string) {
+  const normalized = type.toLowerCase();
+  if (normalized.includes('government') && normalized.includes('hospital')) return 'government-hospital';
+  if ((normalized.includes('private') || normalized.includes('primary services')) && normalized.includes('hospital')) return 'private-hospital';
+  if (normalized.includes('optical')) return 'optical-centre';
+  if (normalized.includes('dental')) return 'dental-centre';
+  if (normalized.includes('diagnostic')) return 'diagnostic-centre';
+  if (normalized.includes('pharmacy')) return 'pharmacy';
+  return 'pharmacy';
+}
 
 export default function InspectionsPage() {
   const navigate = useNavigate();
@@ -47,10 +58,11 @@ export default function InspectionsPage() {
   }, [allInspections, filters]);
 
   const summary = useMemo(() => {
-    const completed = inspections.filter(i => i.status === 'completed').length;
+    const completed = inspections.filter(i => i.status === 'completed' || i.status === 'submitted').length;
     const scheduled = inspections.filter(i => i.status === 'scheduled').length;
+    const drafts = inspections.filter(i => i.status === 'draft').length;
     const needsFollowUp = inspections.filter(i => i.rating === 'poor' || i.rating === 'fair').length;
-    return { completed, scheduled, needsFollowUp };
+    return { completed, scheduled, drafts, needsFollowUp };
   }, [inspections]);
 
   const activeFilterChips = [
@@ -67,6 +79,14 @@ export default function InspectionsPage() {
   const handleViewDetails = (id: string) => {
     setSelectedInspectionId(id);
     setIsDrawerOpen(true);
+  };
+
+  const handleOpenInspection = (item: any) => {
+    if (item.status === 'draft') {
+      navigate(`/inspections/new?draftId=${encodeURIComponent(item.id)}&facilityType=${encodeURIComponent(facilityTypeCodeFromInspectionType(item.type))}`);
+      return;
+    }
+    handleViewDetails(item.id);
   };
 
   const handleExport = () => {
@@ -122,9 +142,10 @@ export default function InspectionsPage() {
           }
         />
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <KpiCard title="Due this week" value={summary.scheduled.toString()} subtitle="Scheduled field work" tone="primary" icon={<Calendar size={20} />} />
-          <KpiCard title="Completed" value={summary.completed.toString()} subtitle="Completed inspections" tone="success" icon={<CheckCircle2 size={20} />} />
+          <KpiCard title="Drafts" value={summary.drafts.toString()} subtitle="Saved inspections to resume" tone="warning" icon={<FilePenLine size={20} />} />
+          <KpiCard title="Submitted" value={summary.completed.toString()} subtitle="Submitted inspection outcomes" tone="success" icon={<CheckCircle2 size={20} />} />
           <KpiCard title="Needs follow-up" value={summary.needsFollowUp.toString()} subtitle="Requires management review" tone="warning" icon={<AlertCircle size={20} />} />
         </section>
 
@@ -145,7 +166,7 @@ export default function InspectionsPage() {
                 label="Status"
                 value={filters.status}
                 onChange={e => setFilters(prev => ({ ...prev, status: e.target.value as any }))}
-                options={[{ label: 'All Statuses', value: 'all' }, { label: 'Scheduled', value: 'scheduled' }, { label: 'In Progress', value: 'in-progress' }, { label: 'Completed', value: 'completed' }]}
+                options={[{ label: 'All Statuses', value: 'all' }, { label: 'Drafts', value: 'draft' }, { label: 'Scheduled', value: 'scheduled' }, { label: 'In Progress', value: 'in-progress' }, { label: 'Submitted', value: 'submitted' }, { label: 'Completed', value: 'completed' }]}
                 className="w-40"
               />
               <Select
@@ -228,12 +249,12 @@ export default function InspectionsPage() {
                         {item.accreditationPossible ? <span className="text-xs font-black text-brand-blue">{item.accreditationPoints ?? 0}/{item.accreditationPossible}</span> : <span className="text-xs text-brand-muted">—</span>}
                       </td>
                       <td>
-                        <Badge variant={item.status === 'completed' ? 'success' : item.status === 'scheduled' ? 'warning' : 'info'}>
+                        <Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : item.status === 'draft' ? 'warning' : item.status === 'scheduled' ? 'warning' : 'info'}>
                           {item.status.replace('-', ' ')}
                         </Badge>
                       </td>
                       <td className="text-right">
-                        <Button variant="ghost" size="sm" onClick={() => handleViewDetails(item.id)}><ChevronRight size={18} /></Button>
+                        <Button variant={item.status === 'draft' ? 'secondary' : 'ghost'} size="sm" onClick={() => handleOpenInspection(item)}>{item.status === 'draft' ? <><FilePenLine size={15} /> Resume</> : <ChevronRight size={18} />}</Button>
                       </td>
                     </tr>
                   ))

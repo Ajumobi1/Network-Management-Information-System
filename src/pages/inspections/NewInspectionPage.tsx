@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, FileText, Plus, RotateCcw, Save, Send, ShieldCheck, Trash2, UserRound, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -9,7 +9,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import { useProviderDirectory, useProviderProfile } from '../../hooks/providers/providersHooks';
 import { ProviderCategory, ProviderLifecycleStatus, ProviderOwnership } from '../../constants/providerNetwork';
 import { useInspectionTemplate, useInspectionTemplateOptions, useSaveStructuredInspection } from '../../hooks/inspections/structuredInspectionHooks';
-import { InspectionTemplateItem, StructuredInspectionPayload } from '../../repositories/inspections/structuredInspectionRepository';
+import { getStructuredInspection, InspectionTemplateItem, StructuredInspectionPayload } from '../../repositories/inspections/structuredInspectionRepository';
 import { providerDocumentsRepository } from '../../repositories/providers/providerDocumentsRepository';
 import { buildInspectionReportPdf, downloadPdf, inspectionReportFileName, pdfBytesToBlob, reportStoragePath } from '../../features/inspections/inspectionReportPdf';
 
@@ -242,8 +242,11 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
 
 export default function NewInspectionPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const draftId = searchParams.get('draftId');
+  const requestedFacilityTypeCode = searchParams.get('facilityType') || 'pharmacy';
   const templateOptionsQuery = useInspectionTemplateOptions();
-  const [facilityTypeCode, setFacilityTypeCode] = useState('pharmacy');
+  const [facilityTypeCode, setFacilityTypeCode] = useState(requestedFacilityTypeCode);
   const selectedFacilityType = useMemo(() => templateOptionsQuery.data?.find(option => option.facility_type.code === facilityTypeCode), [facilityTypeCode, templateOptionsQuery.data]);
   const templateCode = selectedFacilityType?.template?.code || 'pharmacy-accreditation';
   const templateQuery = useInspectionTemplate(templateCode, Boolean(selectedFacilityType?.configured));
@@ -313,11 +316,12 @@ export default function NewInspectionPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [draftLoaded, setDraftLoaded] = useState(false);
 
-  const draftKey = `${DRAFT_KEY}:${facilityTypeCode}`;
+  const draftKey = `${DRAFT_KEY}:${facilityTypeCode}:${inspectionId || 'new'}`;
   const template = templateQuery.data;
   const items = template?.items || [];
 
   useEffect(() => {
+    setFacilityTypeCode(requestedFacilityTypeCode);
     setDraftLoaded(false);
     setStep(0);
     setInspectionId(null);
@@ -331,19 +335,75 @@ export default function NewInspectionPage() {
     setTeam([]);
     setValidationErrors({});
     setSaveMessage('');
-  }, [facilityTypeCode]);
+  }, [requestedFacilityTypeCode]);
 
   useEffect(() => {
     if (!selectedFacilityType?.configured || !template || draftLoaded) return;
-    const raw = localStorage.getItem(draftKey);
-    if (raw) {
-      try {
-        const draft = JSON.parse(raw);
-        setStep(draft.step || 0); setInspectionId(draft.inspectionId || null); setProviderId(draft.providerId || ''); setProfile({ ...EMPTY_PROFILE, ...(draft.profile || {}) }); setExtraProfile(draft.extraProfile || {}); setEligibility(draft.eligibility || {}); setGeneralRemarks(draft.generalRemarks || ''); setResponses(draft.responses || {}); setTeam(draft.team || []); setValidationErrors(draft.validationErrors || {});
-      } catch { localStorage.removeItem(draftKey); }
+    if (!draftId) {
+      setDraftLoaded(true);
+      return;
     }
-    setDraftLoaded(true);
-  }, [draftKey, selectedFacilityType?.configured, template, draftLoaded]);
+
+    let cancelled = false;
+    setSaveMessage('Loading saved draft...');
+    getStructuredInspection(draftId)
+      .then((saved: any) => {
+        if (cancelled) return;
+        if (!saved?.inspection) throw new Error('Saved inspection draft was not found.');
+        if (String(saved.inspection.status || '').toLowerCase() !== 'draft') throw new Error('This inspection is no longer a draft and cannot be resumed.');
+
+        const facility = saved.facility_profile || {};
+        const metadata = facility.metadata || {};
+        const savedResponses = saved.responses || [];
+        const savedEligibility = saved.eligibility || [];
+        const savedTeam = saved.team || [];
+        const responseState: Record<string, ResponseState> = {};
+        template.items.forEach(item => {
+          const row = savedResponses.find((entry: any) => entry.item_code === item.item_code);
+          responseState[item.item_code] = {
+            number: row?.response_number === null || row?.response_number === undefined ? '' : String(row.response_number),
+            manual_score: row?.manual_score === null || row?.manual_score === undefined ? '' : String(row.manual_score),
+            boolean: row?.response_boolean === null || row?.response_boolean === undefined ? null : Boolean(row.response_boolean),
+            remark: row?.remark || '',
+          };
+        });
+        const eligibilityState: Record<string, EligibilityState> = {};
+        savedEligibility.forEach((entry: any) => { eligibilityState[entry.criterion_code] = { met: Boolean(entry.met), notes: entry.notes || '' }; });
+        const profileData = { ...metadata, ...facility };
+        delete profileData.metadata;
+        const stepValue = String(saved.inspection.workflow_step || 'eligibility').toLowerCase();
+        const workflowLabels = [
+          'ELIGIBILITY',
+          'FACILITY PROFILE',
+          ...Array.from(new Set((template.sections || []).filter(section => !['A', 'ELIGIBILITY', 'PROFILE', 'REMARKS', 'TEAM'].includes(section.section_code.toUpperCase()) && template.items.some(item => item.section_code === section.section_code)).sort((a, b) => a.sort_order - b.sort_order).map(section => section.section_label.toUpperCase()))),
+          (template.sections || []).find(section => section.section_code.toUpperCase() === 'REMARKS')?.section_label.toUpperCase() || 'GENERAL REMARKS / RECOMMENDATION',
+          'REVIEW & SIGN',
+        ];
+        const restoredStep = workflowLabels.findIndex(label => {
+          const normalized = label.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
+          return normalized === stepValue || stepValue.includes(normalized) || normalized.includes(stepValue);
+        });
+
+        setInspectionId(saved.inspection.id || draftId);
+        setProviderId(saved.inspection.provider_id || '');
+        setProfile({ ...EMPTY_PROFILE, ...profileData });
+        setExtraProfile(metadata);
+        setEligibility(eligibilityState);
+        setGeneralRemarks(metadata.general_remarks || '');
+        setResponses(responseState);
+        setTeam(savedTeam.map((member: any, index: number) => ({ id: member.id || `saved-team-${index}`, name: member.member_name || member.name || '', role: member.member_role || member.role || 'Inspector', inspection_date: member.inspection_date || profile.inspection_date || new Date().toISOString().slice(0, 10), signature_data: member.signature_data || '' })));
+        setStep(restoredStep >= 0 ? restoredStep : 0);
+        setSaveMessage('Draft loaded. Continue the inspection and submit when ready.');
+      })
+      .catch(error => {
+        if (!cancelled) setSaveMessage(error instanceof Error ? error.message : 'Unable to load saved draft.');
+      })
+      .finally(() => {
+        if (!cancelled) setDraftLoaded(true);
+      });
+
+    return () => { cancelled = true; };
+  }, [draftId, selectedFacilityType?.configured, template, draftLoaded]);
 
   useEffect(() => {
     if (!template || !draftLoaded) return;
@@ -487,7 +547,9 @@ export default function NewInspectionPage() {
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before saving.'); return; }
     try {
       const result = await saveMutation.mutateAsync({ inspectionId, payload: buildPayload('draft') });
-      setInspectionId(result.inspection_id); setSaveMessage(`Draft saved · ${result.overall_score}% preview score`); localStorage.removeItem(draftKey);
+      setInspectionId(result.inspection_id);
+      setSaveMessage(`Draft saved - ${result.overall_score}% preview score. You can start a new accreditation or resume this draft from the Drafts list.`);
+      navigate('/inspections');
     } catch (error) { setSaveMessage(error instanceof Error ? error.message : 'Unable to save draft.'); }
   };
 
@@ -534,7 +596,8 @@ export default function NewInspectionPage() {
       await providerDocumentsRepository.uploadInspectionReport(filePath, pdfBytesToBlob(reportBytes));
       await providerDocumentsRepository.registerInspectionReport({ providerId, inspectionId: submittedInspectionId, filePath, fileName: reportFileName });
 
-      localStorage.removeItem(draftKey);
+      localStorage.removeItem(`${DRAFT_KEY}:${facilityTypeCode}:${submittedInspectionId}`);
+      localStorage.removeItem(`${DRAFT_KEY}:${facilityTypeCode}:new`);
       setSaveMessage('Inspection submitted successfully. The PDF outcome was downloaded and attached to the provider Documents tab.');
       navigate(`/providers/${providerId}?tab=Documents`);
     } catch (error) {
