@@ -1069,3 +1069,51 @@ select:focus-visible {
     width: calc(100% - 1.7rem);
   }
 }
+
+/* Elite Custom Scrollbar System */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+  transition: background 0.2s ease;
+}
+
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #f7931e;
+}
+
+/* Main content scrollbar (Light/Dark mode adaptive) */
+.nmis-main.custom-scrollbar {
+  scrollbar-color: rgba(11, 101, 161, 0.2) transparent;
+}
+
+.nmis-main.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(11, 101, 161, 0.15);
+}
+
+.nmis-main.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(11, 101, 161, 0.25);
+}
+
+.nmis-main.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #0b65a1;
+}

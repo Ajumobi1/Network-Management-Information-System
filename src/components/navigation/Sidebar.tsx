@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, Bell, Building2, ChevronDown, ClipboardCheck, ClipboardList, FileChartColumn, FileText, Grid, Layers, LogOut, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, UploadCloud, Users, X } from 'lucide-react';
+import { Activity, Bell, Building2, ChevronDown, ClipboardCheck, ClipboardList, FileChartColumn, FileText, Grid, Layers, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, UploadCloud, Users, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 type SidebarProps = { mobileOpen?: boolean; onClose?: () => void };
@@ -83,7 +83,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             <button type="button" onClick={() => setCollapsed(value => !value)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-control border border-white/10 text-white/60 transition hover:bg-white/5" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}</button>
             {mobileOpen ? <button type="button" onClick={onClose} className="inline-flex h-9 w-9 items-center justify-center rounded-control border border-white/10 text-white/60 lg:hidden" aria-label="Close navigation"><X className="h-4 w-4" /></button> : null}
           </div>
-          <nav className="flex-1 space-y-1.5 overflow-y-auto pb-4 custom-scrollbar" aria-label="Primary navigation">
+          <nav className="flex-1 scroll-smooth space-y-1.5 overflow-y-auto pb-10 custom-scrollbar" aria-label="Primary navigation">
             {visibleSections.map(section => {
               if (!isGroup(section)) return <NavLink key={section.label} to={section.path} end={section.end} onClick={onClose} title={collapsed ? section.label : undefined} className={({ isActive }) => `flex items-center ${collapsed ? 'justify-center' : ''} gap-3 rounded-control px-3 py-2.5 text-sm font-semibold transition ${isActive ? 'bg-[#f7931e] text-white shadow-[0_8px_20px_-10px_rgba(247,147,30,0.9)]' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}><section.icon className="h-4 w-4 shrink-0" />{!collapsed ? <span>{section.label}</span> : null}</NavLink>;
               const isActiveGroup = section.children.some(child => location.pathname.startsWith(child.path));
@@ -93,9 +93,6 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
               </div>;
             })}
           </nav>
-        </div>
-        <div className={`mt-5 shrink-0 ${collapsed ? 'p-2' : 'p-3'} rounded-panel border border-white/10 bg-white/5 text-sm text-white/60`}>
-          {collapsed ? <button type="button" onClick={() => { void signOut(); }} className="flex w-full justify-center text-white/60" title="Logout" aria-label="Logout"><LogOut className="h-4 w-4" /></button> : <><p className="font-semibold text-white">Need help?</p><p className="mt-1.5 text-xs leading-5 text-white/50">Use the assistant to find modules, reports, and tasks.</p><button type="button" onClick={() => { void signOut(); }} className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-white/60 hover:text-white"><LogOut className="h-3.5 w-3.5" /> Logout</button></>}
         </div>
       </div>
     </aside>
