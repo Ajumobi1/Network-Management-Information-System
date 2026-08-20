@@ -10,6 +10,8 @@ import { useProviderDirectory, useProviderProfile } from '../../hooks/providers/
 import { ProviderCategory, ProviderLifecycleStatus, ProviderOwnership } from '../../constants/providerNetwork';
 import { useInspectionTemplate, useInspectionTemplateOptions, useSaveStructuredInspection } from '../../hooks/inspections/structuredInspectionHooks';
 import { InspectionTemplateItem, StructuredInspectionPayload } from '../../repositories/inspections/structuredInspectionRepository';
+import { providerDocumentsRepository } from '../../repositories/providers/providerDocumentsRepository';
+import { buildInspectionReportPdf, downloadPdf, inspectionReportFileName, pdfBytesToBlob, reportStoragePath } from '../../features/inspections/inspectionReportPdf';
 
 type FacilityProfileState = {
   facility_name: string;
@@ -307,6 +309,7 @@ export default function NewInspectionPage() {
   const [responses, setResponses] = useState<Record<string, ResponseState>>({});
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [saveMessage, setSaveMessage] = useState('');
+  const [reportProgress, setReportProgress] = useState(false);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [draftLoaded, setDraftLoaded] = useState(false);
 
@@ -393,7 +396,7 @@ export default function NewInspectionPage() {
     const response = responses[item.item_code];
     return Boolean(response && isResponseComplete(item, response) && !validationErrors[item.item_code]);
   }).length;
-  const signedCount = team.filter(member => Boolean(member.signature_data)).length;
+  const signedCount = team.filter(member => Boolean(member.name.trim() && member.signature_data)).length;
   const score = useMemo(() => {
     let points = 0;
     let possible = items.reduce((sum, item) => sum + item.max_points, 0);
@@ -490,14 +493,56 @@ export default function NewInspectionPage() {
 
   const submitInspection = async () => {
     if (!providerId) { setSaveMessage('Select a provider before submission.'); return; }
+    if (!template) { setSaveMessage('The inspection template is still loading. Please retry submission.'); return; }
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before submission.'); return; }
-    if (answeredCount !== items.length) { setSaveMessage('Complete every scored checklist item before submission.'); return; }
-    if (!signedCount) { setSaveMessage('At least one signed inspection team member is required.'); setStep(reviewStep); return; }
+    const blockers: string[] = [];
+    if (answeredCount !== items.length) blockers.push(`${items.length - answeredCount} checklist item(s) still need a response and awarded score.`);
+    if (!signedCount) blockers.push('Add at least one team member with a name and captured signature.');
+    if (blockers.length) {
+      setSaveMessage(`Cannot submit yet: ${blockers.join(' ')}`);
+      setStep(reviewStep);
+      return;
+    }
+
+    setSaveMessage('Submitting inspection and preparing the signed PDF outcome...');
+    setReportProgress(true);
     try {
-      await saveMutation.mutateAsync({ inspectionId, payload: buildPayload('submit') });
+      const result = await saveMutation.mutateAsync({ inspectionId, payload: buildPayload('submit') });
+      const submittedInspectionId = result.inspection_id;
+      setInspectionId(submittedInspectionId);
+      const reportFileName = inspectionReportFileName(selectedProvider?.providerName || profile.facility_name, profile.inspection_date);
+      const reportBytes = await buildInspectionReportPdf({
+        inspectionId: submittedInspectionId,
+        providerName: selectedProvider?.providerName || profile.facility_name,
+        providerCode: selectedProvider?.providerCode,
+        facilityType: selectedFacilityType?.facility_type.name || 'Facility',
+        inspectionDate: profile.inspection_date,
+        templateName: template.template.name,
+        passingThreshold: template.template.passing_threshold,
+        conditionalThreshold: template.template.conditional_threshold,
+        profile: { ...profile, ...extraProfile },
+        eligibility: template.eligibility.map(item => ({ criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })),
+        items,
+        sections: template.sections,
+        responses,
+        generalRemarks,
+        team,
+        score: { ...score, percentage: result.overall_score, points: result.total_points, possible: result.total_possible },
+      });
+      downloadPdf(reportBytes, reportFileName);
+
+      const filePath = reportStoragePath(providerId, submittedInspectionId);
+      await providerDocumentsRepository.uploadInspectionReport(filePath, pdfBytesToBlob(reportBytes));
+      await providerDocumentsRepository.registerInspectionReport({ providerId, inspectionId: submittedInspectionId, filePath, fileName: reportFileName });
+
       localStorage.removeItem(draftKey);
-      navigate('/inspections');
-    } catch (error) { setSaveMessage(error instanceof Error ? error.message : 'Unable to submit inspection.'); }
+      setSaveMessage('Inspection submitted successfully. The PDF outcome was downloaded and attached to the provider Documents tab.');
+      navigate(`/providers/${providerId}?tab=Documents`);
+    } catch (error) {
+      setSaveMessage(error instanceof Error ? error.message : 'Inspection submission or report generation failed.');
+    } finally {
+      setReportProgress(false);
+    }
   };
 
   if (templateOptionsQuery.isLoading || (selectedFacilityType?.configured && templateQuery.isLoading)) return <main className="nmis-page"><p className="text-brand-muted">Loading inspection facility types and template...</p></main>;
@@ -554,6 +599,6 @@ export default function NewInspectionPage() {
     {step === reviewStep && <div className="space-y-6"><SectionCard title="Review & Sign" subtitle="Review the complete inspection record, add the inspection team, and submit the signed recommendation."><div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Overall score</p><p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p><p className="text-xs text-brand-muted">{score.points} / {score.possible} total points</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Credentialing Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p><p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Accreditation Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p><p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 md:col-span-3"><p className="nmis-label">Recommendation</p><p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p><p className="mt-1 text-xs text-brand-muted">Thresholds: ≥{template.template.passing_threshold}% recommended · {template.template.conditional_threshold}–{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional · below {template.template.conditional_threshold}% not recommended</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Eligibility status</p><p className="mt-1 font-black text-brand-foreground">{allEligibilityMet ? 'All required criteria MET' : 'Criteria recorded with follow-up required'}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Scored responses</p><p className="mt-1 font-black text-brand-foreground">{answeredCount} / {items.length}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Signed team members</p><p className="mt-1 font-black text-brand-foreground">{signedCount}</p></div></div>{generalRemarks && <div className="mt-6 rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">General remarks</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-secondary">{generalRemarks}</p></div>}</SectionCard><SectionCard title="Inspection team" subtitle="Add each inspector or reviewer and capture a signature before submission."><div className="space-y-4">{team.map((member, index) => <div key={member.id} className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-brand-foreground">Team member {index + 1}</p><button type="button" onClick={() => setTeam(previous => previous.filter(item => item.id !== member.id))} className="rounded-control p-2 text-status-danger hover:bg-status-dangerSoft"><Trash2 size={16} /></button></div><div className="mt-4 grid gap-4 md:grid-cols-3"><Field label="Name" value={member.name} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, name: value } : item))} required /><Field label="Role" value={member.role} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, role: value } : item))} /><Field label="Date" value={member.inspection_date} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, inspection_date: value } : item))} type="date" required /></div><div className="mt-4"><p className="nmis-label">Signature</p><SignaturePad value={member.signature_data} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, signature_data: value } : item))} /></div></div>)}<button type="button" onClick={() => setTeam(previous => [...previous, { id: crypto.randomUUID(), name: '', role: 'Inspector', inspection_date: profile.inspection_date, signature_data: '' }])} className="inline-flex min-h-11 items-center gap-2 rounded-control border border-dashed border-brand-blue px-4 py-2 text-sm font-black text-brand-blue hover:bg-brand-soft"><Plus size={16} /> Add inspection team member</button></div></SectionCard></div>}
 
     {saveMessage && <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 text-sm font-bold text-brand-secondary">{saveMessage}</div>}
-    <div className="flex flex-col-reverse gap-3 border-t border-brand-divider pt-5 sm:flex-row sm:items-center sm:justify-between"><Button variant="secondary" onClick={() => setStep(previous => Math.max(0, previous - 1))} disabled={step === 0}><ChevronLeft size={16} /> Back</Button><div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" onClick={saveDraft} disabled={saveMutation.isPending}><Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save draft'}</Button>{step < stepLabels.length - 1 ? <Button onClick={() => { setSaveMessage(''); setStep(previous => Math.min(stepLabels.length - 1, previous + 1)); }}><ChevronRight size={16} /> Continue</Button> : <Button onClick={submitInspection} disabled={saveMutation.isPending}><Send size={16} /> {saveMutation.isPending ? 'Submitting...' : 'Submit inspection'}</Button>}</div></div>
+    <div className="flex flex-col-reverse gap-3 border-t border-brand-divider pt-5 sm:flex-row sm:items-center sm:justify-between"><Button variant="secondary" onClick={() => setStep(previous => Math.max(0, previous - 1))} disabled={step === 0}><ChevronLeft size={16} /> Back</Button><div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" onClick={saveDraft} disabled={saveMutation.isPending || reportProgress}><Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save draft'}</Button>{step < stepLabels.length - 1 ? <Button onClick={() => { setSaveMessage(''); setStep(previous => Math.min(stepLabels.length - 1, previous + 1)); }} disabled={reportProgress}><ChevronRight size={16} /> Continue</Button> : <Button onClick={submitInspection} disabled={saveMutation.isPending || reportProgress}><Send size={16} /> {reportProgress ? 'Generating PDF...' : saveMutation.isPending ? 'Submitting...' : 'Submit inspection'}</Button>}</div></div>
   </div></main>;
 }

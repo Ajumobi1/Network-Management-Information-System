@@ -5,12 +5,37 @@ import { ProviderTabProps } from '../ProfileTabShell';
 import { useProviderDocuments, useReviewProviderDocument } from '../../../../hooks/providers/useProviderDocuments';
 import Button from '../../../../components/ui/Button';
 import { isSecureContractError } from '../../../../lib/security/secureContracts';
-import { ProviderDocumentRecord } from '../../../../repositories/providers/providerDocumentsRepository';
+import { providerDocumentsRepository, ProviderDocumentRecord } from '../../../../repositories/providers/providerDocumentsRepository';
 
 export default function DocumentsTab({ provider }: ProviderTabProps) {
   const { data: documents, isLoading, isError, error } = useProviderDocuments(provider.id);
   const reviewMutation = useReviewProviderDocument();
   const [actionError, setActionError] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownload = async (document: ProviderDocumentRecord) => {
+    if (!document.file_url) {
+      setActionError('This document does not have a downloadable file attached.');
+      return;
+    }
+    setActionError('');
+    setDownloadingId(document.id);
+    try {
+      const url = await providerDocumentsRepository.getDownloadUrl(document.file_url);
+      const anchor = window.document.createElement('a');
+      anchor.href = url;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.download = document.name || 'odchc-nmis-document.pdf';
+      window.document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Unable to download this document');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const handleReview = async (documentId: string, status: string) => {
     setActionError('');
@@ -86,26 +111,38 @@ export default function DocumentsTab({ provider }: ProviderTabProps) {
                   <p className="text-xs text-slate-500">{document.type} • Version {document.version || '1.0'} • Expires {document.expiry_date || 'N/A'}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <ProviderStatusBadge status={document.status as any} />
-                <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
+                {document.file_url && (
                   <Button
                     variant="secondary"
-                    className="text-xs py-1 px-2.5 h-auto text-emerald-700 hover:bg-emerald-50"
-                    onClick={() => handleReview(document.id, 'Approved')}
-                    disabled={reviewMutation.isPending}
+                    className="gap-1.5 text-xs py-1 px-2.5 h-auto text-brand-blue hover:bg-brand-soft"
+                    onClick={() => handleDownload(document)}
+                    disabled={downloadingId === document.id}
                   >
-                    Approve
+                    <FileText size={14} /> {downloadingId === document.id ? 'Preparing...' : 'Download'}
                   </Button>
-                  <Button
-                    variant="secondary"
-                    className="text-xs py-1 px-2.5 h-auto text-rose-700 hover:bg-rose-50"
-                    onClick={() => handleReview(document.id, 'Rejected')}
-                    disabled={reviewMutation.isPending}
-                  >
-                    Reject
-                  </Button>
-                </div>
+                )}
+                {document.type !== 'Inspection Report' && (
+                  <div className="flex items-center gap-1 border-l border-slate-200 pl-3">
+                    <Button
+                      variant="secondary"
+                      className="text-xs py-1 px-2.5 h-auto text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => handleReview(document.id, 'Approved')}
+                      disabled={reviewMutation.isPending}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      className="text-xs py-1 px-2.5 h-auto text-rose-700 hover:bg-rose-50"
+                      onClick={() => handleReview(document.id, 'Rejected')}
+                      disabled={reviewMutation.isPending}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           ))
