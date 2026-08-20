@@ -10,12 +10,24 @@ import { isSecureContractError } from '../../../../lib/security/secureContracts'
 
 const naira = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
 
-function amountForRecord(record: { amountPaid?: number; netAmountPaid?: number; amountApproved?: number; amount?: number; grossAmount?: number; netAmount?: number }) {
-  return Number(record.amountPaid ?? record.netAmountPaid ?? record.amountApproved ?? record.netAmount ?? record.grossAmount ?? record.amount ?? 0);
+/**
+ * Robustly determine the recorded amount for a financial row.
+ * For historical 2025 data, amount_paid is often the only populated field.
+ */
+function amountForRecord(record: any) {
+  const val = record.netAmountPaid ?? record.amountPaid ?? record.amountApproved ?? record.netAmount ?? record.grossAmount ?? record.amount ?? 0;
+  return Number(val);
 }
 
-function submittedAmountForRecord(record: { amountSubmitted?: number; amountClaimed?: number; amountApproved?: number; amount?: number; grossAmount?: number }) {
-  return Number(record.amountSubmitted ?? record.amountClaimed ?? record.amountApproved ?? record.grossAmount ?? record.amount ?? 0);
+/**
+ * Determine the submitted/payable amount.
+ * If no submission amount is present (common in historical data), we fall back to the paid amount
+ * to ensure the 'Net Payable' summary reflects the known recorded value.
+ */
+function submittedAmountForRecord(record: any) {
+  const submitted = record.amountSubmitted ?? record.amountClaimed ?? record.amountApproved ?? record.grossAmount ?? record.amount;
+  if (submitted !== undefined && submitted !== null) return Number(submitted);
+  return amountForRecord(record);
 }
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];

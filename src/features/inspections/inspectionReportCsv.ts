@@ -38,46 +38,9 @@ export type InspectionReportCsvInput = {
   };
 };
 
-type CsvRow = Record<string, string | number | boolean | null | undefined>;
+type CsvValue = string | number | boolean | null | undefined;
 
-const columns = [
-  'Record Type',
-  'Inspection ID',
-  'Provider / Facility',
-  'Provider Code',
-  'Facility Type',
-  'Template',
-  'Inspection Date',
-  'Status',
-  'Overall Score (%)',
-  'Overall Points',
-  'Overall Possible',
-  'Credentialing Score',
-  'Credentialing Possible',
-  'Accreditation Score',
-  'Accreditation Possible',
-  'Recommendation',
-  'Eligibility Criterion',
-  'Eligibility Status',
-  'Eligibility Evidence',
-  'Section Code',
-  'Checklist Item Code',
-  'Checklist Item',
-  'Response',
-  'Observed Count',
-  'Manual Score',
-  'Awarded Points',
-  'Maximum Points',
-  'Included in Score',
-  'Evidence Remark',
-  'General Remarks',
-  'Inspector / Team Member',
-  'Team Role',
-  'Team Date',
-  'Signature Captured',
-];
-
-function csvValue(value: unknown) {
+function csvValue(value: CsvValue) {
   const text = String(value ?? '').replace(/\r?\n/g, ' ');
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
@@ -97,7 +60,6 @@ function downloadCsv(content: string, fileName: string) {
 function responseText(item: InspectionReportCsvInput['items'][number], response: InspectionReportCsvInput['responses'][string] | undefined) {
   if (!response) return 'Not answered';
   if (item.response_type === 'boolean') return response.boolean === null || response.boolean === undefined ? 'Not answered' : response.boolean ? 'YES' : 'NO';
-  if (response.manual_score !== undefined && response.manual_score !== '') return response.manual_score;
   return response.number || 'Not answered';
 }
 
@@ -107,81 +69,62 @@ export function inspectionCsvFileName(providerName: string, inspectionDate: stri
 }
 
 export function exportInspectionCsv(input: InspectionReportCsvInput) {
-  const rows: CsvRow[] = [];
+  const rows: CsvValue[][] = [];
+  const push = (...values: CsvValue[]) => rows.push(values);
+  const blank = () => rows.push([]);
   const summary = input.score;
-  rows.push({
-    'Record Type': 'OUTCOME SUMMARY',
-    'Inspection ID': input.inspectionId,
-    'Provider / Facility': input.providerName,
-    'Provider Code': input.providerCode,
-    'Facility Type': input.facilityType,
-    Template: input.templateName,
-    'Inspection Date': input.inspectionDate,
-    Status: input.status,
-    'Overall Score (%)': summary.percentage,
-    'Overall Points': summary.points,
-    'Overall Possible': summary.possible,
-    'Credentialing Score': summary.credentialingPoints,
-    'Credentialing Possible': summary.credentialingPossible,
-    'Accreditation Score': summary.accreditationPoints,
-    'Accreditation Possible': summary.accreditationPossible,
-    Recommendation: summary.recommendation,
-    'General Remarks': input.generalRemarks,
-  });
 
-  input.eligibility.forEach(criterion => rows.push({
-    'Record Type': 'ELIGIBILITY',
-    'Inspection ID': input.inspectionId,
-    'Provider / Facility': input.providerName,
-    'Provider Code': input.providerCode,
-    'Facility Type': input.facilityType,
-    Template: input.templateName,
-    'Inspection Date': input.inspectionDate,
-    Status: input.status,
-    'Eligibility Criterion': criterion.criterion_label,
-    'Eligibility Status': criterion.met ? 'MET' : 'NOT MET',
-    'Eligibility Evidence': criterion.notes,
-  }));
+  push('ODCHC NMIS', 'INSPECTION OUTCOME REPORT');
+  push('Report ID', input.inspectionId);
+  push('Generated', new Date().toLocaleString('en-NG'));
+  blank();
 
+  push('OUTCOME SUMMARY');
+  push('Field', 'Value');
+  push('Provider / Facility', input.providerName);
+  push('Provider Code', input.providerCode || 'Not recorded');
+  push('Facility Type', input.facilityType);
+  push('Inspection Template', input.templateName);
+  push('Inspection Date', input.inspectionDate);
+  push('Status', input.status || 'Not recorded');
+  push('Overall Score', `${summary.percentage}%`);
+  push('Overall Points', `${summary.points} / ${summary.possible}`);
+  push('Credentialing Score', `${summary.credentialingPoints} / ${summary.credentialingPossible}`);
+  push('Accreditation Score', `${summary.accreditationPoints} / ${summary.accreditationPossible}`);
+  push('Recommendation', summary.recommendation);
+  push('General Remarks', input.generalRemarks || 'No general remarks were recorded.');
+  blank();
+
+  push('ELIGIBILITY CRITERIA');
+  push('No.', 'Criterion', 'Status', 'Evidence / Remarks');
+  if (!input.eligibility.length) push('', 'No eligibility criteria were configured.', '', '');
+  input.eligibility.forEach((criterion, index) => push(index + 1, criterion.criterion_label, criterion.met ? 'MET' : 'NOT MET', criterion.notes || ''));
+  blank();
+
+  push('CHECKLIST ASSESSMENT');
+  push('Section', 'Item Code', 'Checklist Item', 'Response', 'Observed Count', 'Manual Score', 'Awarded Points', 'Maximum Points', 'Included in Score', 'Evidence Remark');
   input.items.forEach(item => {
     const response = input.responses[item.item_code];
-    rows.push({
-      'Record Type': 'CHECKLIST ITEM',
-      'Inspection ID': input.inspectionId,
-      'Provider / Facility': input.providerName,
-      'Provider Code': input.providerCode,
-      'Facility Type': input.facilityType,
-      Template: input.templateName,
-      'Inspection Date': input.inspectionDate,
-      Status: input.status,
-      'Section Code': item.section_code,
-      'Checklist Item Code': item.item_code,
-      'Checklist Item': item.item_label,
-      Response: responseText(item, response),
-      'Observed Count': response?.number,
-      'Manual Score': response?.manual_score,
-      'Awarded Points': response?.awarded_points,
-      'Maximum Points': item.max_points,
-      'Included in Score': Boolean(response?.included_in_denominator),
-      'Evidence Remark': response?.remark,
-    });
+    push(
+      item.section_code,
+      item.item_code,
+      item.item_label,
+      responseText(item, response),
+      response?.number || '',
+      response?.manual_score || '',
+      response?.awarded_points ?? 0,
+      item.max_points,
+      response?.included_in_denominator ? 'YES' : 'NO',
+      response?.remark || '',
+    );
   });
+  blank();
 
-  input.team.forEach(member => rows.push({
-    'Record Type': 'INSPECTION TEAM',
-    'Inspection ID': input.inspectionId,
-    'Provider / Facility': input.providerName,
-    'Provider Code': input.providerCode,
-    'Facility Type': input.facilityType,
-    Template: input.templateName,
-    'Inspection Date': input.inspectionDate,
-    Status: input.status,
-    'Inspector / Team Member': member.name,
-    'Team Role': member.role,
-    'Team Date': member.inspection_date,
-    'Signature Captured': Boolean(member.signature_data),
-  }));
+  push('INSPECTION TEAM');
+  push('Name', 'Role', 'Inspection Date', 'Signature Captured');
+  if (!input.team.length) push('No inspection team member was recorded.', '', '', 'NO');
+  input.team.forEach(member => push(member.name, member.role, member.inspection_date, member.signature_data ? 'YES' : 'NO'));
 
-  const csv = [columns.join(','), ...rows.map(row => columns.map(column => csvValue(row[column])).join(','))].join('\r\n');
+  const csv = rows.map(row => row.map(csvValue).join(',')).join('\r\n');
   downloadCsv(csv, inspectionCsvFileName(input.providerName, input.inspectionDate));
 }
