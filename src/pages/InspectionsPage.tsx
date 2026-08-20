@@ -9,6 +9,9 @@ import PageHeader from '../components/ui/PageHeader';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useInspections, useInspection, useInspectionChecklist, useSaveInspection, useUpdateInspection } from '../hooks/inspections/inspectionsHooks';
+import { useStructuredInspection } from '../hooks/inspections/structuredInspectionHooks';
+import { providerDocumentsRepository } from '../repositories/providers/providerDocumentsRepository';
+import { buildInspectionReportPdf, downloadPdf, inspectionReportFileName, pdfBytesToBlob, reportStoragePath } from '../features/inspections/inspectionReportPdf';
 import { useProviderDirectory } from '../features/providers/hooks';
 import { Inspection, InspectionFilters } from '../types/inspections/inspectionsTypes';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
@@ -299,7 +302,9 @@ export default function InspectionsPage() {
 
 function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
   const { data: inspection, isLoading } = useInspection(id);
+  const { data: structuredInspection, isLoading: isStructuredLoading } = useStructuredInspection(id);
   const updateInspectionMutation = useUpdateInspection();
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleComplete = async () => {
     try {
@@ -310,6 +315,81 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
     }
   };
   const { data: checklist = [], isLoading: isChecklistLoading } = useInspectionChecklist(id);
+
+  const handleExportPdf = async () => {
+    if (!inspection || !structuredInspection?.inspection) {
+      window.alert('The complete inspection outcome is still loading. Please try again.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const saved = structuredInspection as any;
+      const savedInspection = saved.inspection;
+      const savedTemplate = saved.template || {};
+      const templateDefinition = savedTemplate.template || {};
+      const facility = saved.facility_profile || {};
+      const profile = { ...(facility.metadata || {}), ...facility };
+      delete (profile as any).metadata;
+      const responseMap = (saved.responses || []).reduce((result: Record<string, any>, response: any) => {
+        result[response.item_code] = {
+          number: response.response_number === null || response.response_number === undefined ? '' : String(response.response_number),
+          manual_score: response.manual_score === null || response.manual_score === undefined ? '' : String(response.manual_score),
+          boolean: response.response_boolean === null || response.response_boolean === undefined ? null : Boolean(response.response_boolean),
+          remark: response.remark || '',
+        };
+        return result;
+      }, {});
+      const breakdown = saved.score_breakdown || {};
+      const reportBytes = await buildInspectionReportPdf({
+        inspectionId: id,
+        providerName: inspection.providerName || facility.facility_name || 'Provider Facility',
+        providerCode: inspection.providerCode,
+        facilityType: savedTemplate.facility_type?.name || inspection.type || 'Facility',
+        inspectionDate: facility.inspection_date || inspection.scheduledAt,
+        templateName: templateDefinition.name || inspection.type || 'Inspection Outcome',
+        passingThreshold: Number(templateDefinition.passing_threshold || 75),
+        conditionalThreshold: Number(templateDefinition.conditional_threshold || 60),
+        profile,
+        eligibility: (saved.eligibility || []).map((criterion: any) => ({ criterion_label: criterion.criterion_label, met: Boolean(criterion.met), notes: criterion.notes || '' })),
+        items: savedTemplate.items || [],
+        sections: savedTemplate.sections || [],
+        responses: responseMap,
+        generalRemarks: profile.general_remarks || '',
+        team: (saved.team || []).map((member: any) => ({ name: member.member_name || member.name || '', role: member.member_role || member.role || 'Inspector', inspection_date: member.inspection_date || '', signature_data: member.signature_data || '' })),
+        score: {
+          points: Number(savedInspection.total_points || savedInspection.score || 0),
+          possible: Number(savedInspection.total_possible || 0),
+          percentage: Number(savedInspection.overall_score ?? savedInspection.score ?? 0),
+          recommendation: savedInspection.recommendation || 'Not Recommended for Accreditation',
+          credentialingPoints: Number(breakdown.credentialing_points ?? savedInspection.credentialing_points ?? 0),
+          credentialingPossible: Number(breakdown.credentialing_possible ?? savedInspection.credentialing_possible ?? 0),
+          accreditationPoints: Number(breakdown.accreditation_points ?? savedInspection.accreditation_points ?? 0),
+          accreditationPossible: Number(breakdown.accreditation_possible ?? savedInspection.accreditation_possible ?? 0),
+        },
+      });
+      const fileName = inspectionReportFileName(inspection.providerName || facility.facility_name, facility.inspection_date || inspection.scheduledAt);
+      downloadPdf(reportBytes, fileName);
+
+      const filePath = reportStoragePath(inspection.providerId, id);
+      await providerDocumentsRepository.uploadInspectionReport(filePath, pdfBytesToBlob(reportBytes));
+      await providerDocumentsRepository.registerInspectionReport({ providerId: inspection.providerId, inspectionId: id, filePath, fileName });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Unable to export the inspection PDF.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const structured = structuredInspection as any;
+  const breakdown = structured?.score_breakdown || {};
+  const credentialingPoints = inspection?.credentialingPoints ?? breakdown.credentialing_points ?? 0;
+  const credentialingPossible = inspection?.credentialingPossible ?? breakdown.credentialing_possible ?? 0;
+  const accreditationPoints = inspection?.accreditationPoints ?? breakdown.accreditation_points ?? 0;
+  const accreditationPossible = inspection?.accreditationPossible ?? breakdown.accreditation_possible ?? 0;
+  const structuredItems = structured?.template?.items || [];
+  const structuredResponses = structured?.responses || [];
+  const generalRemarks = structured?.facility_profile?.metadata?.general_remarks || inspection?.findings || '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end bg-brand-navy/40 backdrop-blur-sm animate-in fade-in duration-200 sm:items-stretch">
@@ -335,7 +415,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
                 <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
                   <p className="nmis-label">Status & Rating</p>
                   <div className="mt-2 flex items-center gap-3">
-                    <Badge variant={inspection.status === 'completed' ? 'success' : 'warning'}>{inspection.status}</Badge>
+                    <Badge variant={inspection.status === 'completed' || inspection.status === 'submitted' ? 'success' : inspection.status === 'draft' ? 'warning' : 'info'}>{inspection.status}</Badge>
                     {inspection.score && <span className="text-lg font-black text-brand-foreground">{inspection.score}%</span>}
                     {inspection.rating && <Badge variant="info" className="uppercase">{inspection.rating}</Badge>}
                   </div>
@@ -355,12 +435,12 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
                 </div>
                 <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
                   <p className="nmis-label">Credentialing Score</p>
-                  <p className="mt-2 text-xl font-black text-brand-blue">{inspection.credentialingPoints ?? 0} / {inspection.credentialingPossible ?? 0}</p>
+                  <p className="mt-2 text-xl font-black text-brand-blue">{credentialingPoints} / {credentialingPossible}</p>
                   <p className="mt-1 text-xs text-brand-muted">Personnel licences and qualifications</p>
                 </div>
                 <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
                   <p className="nmis-label">Accreditation Score</p>
-                  <p className="mt-2 text-xl font-black text-brand-blue">{inspection.accreditationPoints ?? 0} / {inspection.accreditationPossible ?? 0}</p>
+                  <p className="mt-2 text-xl font-black text-brand-blue">{accreditationPoints} / {accreditationPossible}</p>
                   <p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p>
                 </div>
               </section>
@@ -371,22 +451,19 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
                   <h3 className="text-sm font-black uppercase tracking-wider">Inspection Checklist</h3>
                 </div>
 
-                {isChecklistLoading ? (
+                {isChecklistLoading && isStructuredLoading ? (
                   <LoadingState title="Loading checklist..." />
-                ) : (
+                ) : structuredItems.length ? (
                   <div className="space-y-3">
-                    {checklist.map(item => (
-                      <div key={item.id} className="flex items-start gap-4 rounded-control border border-brand-divider bg-brand-surface p-4">
-                        <div className={`mt-0.5 rounded-full p-1 ${item.completed ? 'bg-status-successSoft text-status-success' : 'bg-brand-soft text-brand-muted'}`}>
-                          <CheckCircle2 size={16} />
-                        </div>
-                        <div className="flex-1">
-                          <p className={`text-sm font-bold ${item.completed ? 'text-brand-foreground' : 'text-brand-secondary'}`}>{item.item}</p>
-                          {item.comments && <p className="mt-1 text-xs text-brand-muted italic">"{item.comments}"</p>}
-                        </div>
-                      </div>
-                    ))}
+                    {structuredItems.map((item: any) => {
+                      const response = structuredResponses.find((entry: any) => entry.item_code === item.item_code);
+                      const answered = response?.response_boolean !== null && response?.response_boolean !== undefined || response?.response_number !== null && response?.response_number !== undefined || response?.manual_score !== null && response?.manual_score !== undefined;
+                      const answer = item.response_type === 'boolean' ? (response?.response_boolean === null || response?.response_boolean === undefined ? 'Not answered' : response.response_boolean ? 'YES' : 'NO') : item.manual_score_allowed || item.scoring_method === 'manual_only' ? (response?.manual_score === null || response?.manual_score === undefined ? 'Not scored' : `${response.manual_score} / ${item.max_points}`) : (response?.response_number === null || response?.response_number === undefined ? 'Not answered' : String(response.response_number));
+                      return <div key={item.item_code} className="flex items-start gap-4 rounded-control border border-brand-divider bg-brand-surface p-4"><div className={`mt-0.5 rounded-full p-1 ${answered ? 'bg-status-successSoft text-status-success' : 'bg-brand-soft text-brand-muted'}`}><CheckCircle2 size={16} /></div><div className="flex-1"><p className="text-sm font-bold text-brand-foreground">{item.item_label}</p><p className="mt-1 text-xs font-black text-brand-blue">{answer} · {response?.awarded_points ?? 0}/{item.max_points} points</p>{response?.remark && <p className="mt-1 text-xs text-brand-muted italic">"{response.remark}"</p>}</div></div>;
+                    })}
                   </div>
+                ) : (
+                  <div className="space-y-3">{checklist.map(item => <div key={item.id} className="flex items-start gap-4 rounded-control border border-brand-divider bg-brand-surface p-4"><div className={`mt-0.5 rounded-full p-1 ${item.completed ? 'bg-status-successSoft text-status-success' : 'bg-brand-soft text-brand-muted'}`}><CheckCircle2 size={16} /></div><div className="flex-1"><p className={`text-sm font-bold ${item.completed ? 'text-brand-foreground' : 'text-brand-secondary'}`}>{item.item}</p>{item.comments && <p className="mt-1 text-xs text-brand-muted italic">"{item.comments}"</p>}</div></div>)}</div>
                 )}
               </section>
 
@@ -397,7 +474,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
                 </div>
                 <div className="rounded-control border border-brand-divider bg-brand-surface p-4">
                   <p className="text-sm leading-relaxed text-brand-secondary">
-                    {inspection.findings || 'No notes provided for this inspection.'}
+                    {generalRemarks || 'No notes provided for this inspection.'}
                   </p>
                 </div>
               </section>
@@ -408,6 +485,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
         </div>
 
         <div className="flex flex-col gap-3 border-t border-brand-divider bg-brand-surface/50 p-4 sm:flex-row sm:justify-end sm:p-6">
+          <Button variant="secondary" className="w-full gap-2 sm:w-auto" onClick={handleExportPdf} disabled={!inspection || !structuredInspection || isStructuredLoading || isExporting}>{isExporting ? 'Preparing PDF...' : 'Export PDF'}</Button>
           <Button variant="secondary" className="w-full sm:w-auto" onClick={onClose}>Close Review</Button>
           <Button className="w-full sm:w-auto" onClick={handleComplete} disabled={!inspection || inspection.status === 'completed' || updateInspectionMutation.isPending}>{updateInspectionMutation.isPending ? 'Saving...' : 'Mark as Completed'}</Button>
         </div>

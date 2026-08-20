@@ -40,8 +40,8 @@ export function useInspection(id: string | null) {
       return {
         id: i.id,
         providerId: i.provider_id,
-        providerName: 'Provider Facility',
-        providerCode: 'NMIS-FAC',
+        providerName: i.providerName || i.provider_name || 'Provider Facility',
+        providerCode: i.providerCode || i.provider_code || 'NMIS-FAC',
         type: i.inspection_type,
         scheduledAt: i.scheduled_date,
         inspectorName: i.inspector_name || 'Inspector General',

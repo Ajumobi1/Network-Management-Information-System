@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminUpsertInspectionTemplate, getInspectionTemplate, getInspectionTemplateOptions, saveStructuredInspection, StructuredInspectionPayload, InspectionTemplateAdminPayload } from '../../repositories/inspections/structuredInspectionRepository';
+import { adminUpsertInspectionTemplate, getInspectionTemplate, getInspectionTemplateOptions, getStructuredInspection, saveStructuredInspection, StructuredInspectionPayload, InspectionTemplateAdminPayload } from '../../repositories/inspections/structuredInspectionRepository';
 
 export function useInspectionTemplate(code = 'pharmacy-accreditation', enabled = true) {
   return useQuery({
@@ -15,6 +15,15 @@ export function useInspectionTemplateOptions() {
     queryKey: ['inspection-template-options'],
     queryFn: getInspectionTemplateOptions,
     staleTime: 1000 * 60 * 10,
+  });
+}
+
+export function useStructuredInspection(id: string | null) {
+  return useQuery({
+    queryKey: ['structured-inspection', id],
+    queryFn: () => (id ? getStructuredInspection(id) : null),
+    enabled: Boolean(id),
+    staleTime: 1000 * 60 * 5,
   });
 }
 
