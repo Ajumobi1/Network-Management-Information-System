@@ -382,6 +382,11 @@ export default function NewInspectionPage() {
   const stepLabels = useMemo(() => ['ELIGIBILITY', 'FACILITY PROFILE', ...scoredSections.map(section => section.section_label.toUpperCase()), remarksSection?.section_label.toUpperCase() || 'GENERAL REMARKS / RECOMMENDATION', 'REVIEW & SIGN'], [remarksSection, scoredSections]);
   const remarksStep = stepLabels.length - 2;
   const reviewStep = stepLabels.length - 1;
+
+  useEffect(() => {
+    if (step > reviewStep) setStep(reviewStep);
+  }, [reviewStep, step]);
+
   const selectedProvider = useMemo(() => scopedProviders.find(provider => provider.id === providerId), [providerId, scopedProviders]);
   const allEligibilityMet = template?.eligibility.filter(item => item.required).every(item => eligibility[item.criterion_code]?.met) ?? false;
   const answeredCount = items.filter(item => {
