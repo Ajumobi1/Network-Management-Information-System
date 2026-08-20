@@ -134,8 +134,41 @@ function SignaturePad({ value, onChange }: { value: string; onChange: (value: st
   return <div className="space-y-2"><div className="overflow-hidden rounded-control border border-brand-divider bg-white"><canvas ref={canvasRef} width={720} height={170} className="h-32 w-full touch-none" onPointerDown={start} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} /></div><div className="flex justify-end"><button type="button" onClick={clear} className="inline-flex items-center gap-1 text-xs font-bold text-brand-muted hover:text-brand-blue"><RotateCcw size={13} /> Clear signature</button></div></div>;
 }
 
-function Field({ label, value, onChange, type = 'text', placeholder, required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean }) {
-  return <label className="block space-y-1.5"><span className="nmis-label">{label}{required ? ' *' : ''}</span><input type={type} required={required} value={value} placeholder={placeholder} onChange={event => onChange(event.target.value)} className="nmis-control" /></label>;
+function Field({ label, value, onChange, type = 'text', placeholder, required = false, options = [] }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean; options?: string[] }) {
+  const isSelect = type === 'select' || (options && options.length > 0);
+  
+  if (isSelect) {
+    return (
+      <label className="block space-y-1.5">
+        <span className="nmis-label">{label}{required ? ' *' : ''}</span>
+        <select 
+          required={required} 
+          value={value || ''} 
+          onChange={event => onChange(event.target.value)} 
+          className="nmis-control"
+        >
+          <option value="">Select {label}</option>
+          {(options || []).map(opt => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+  
+  return (
+    <label className="block space-y-1.5">
+      <span className="nmis-label">{label}{required ? ' *' : ''}</span>
+      <input 
+        type={type === 'select' ? 'text' : type} 
+        required={required} 
+        value={value || ''} 
+        placeholder={placeholder} 
+        onChange={event => onChange(event.target.value)} 
+        className="nmis-control" 
+      />
+    </label>
+  );
 }
 
 function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (value: boolean) => void }) {
@@ -154,6 +187,131 @@ function isCredentialingSection(sectionCode: string) {
 function isAccreditationSection(sectionCode: string) {
   const code = sectionCode.toUpperCase();
   return !['A', 'ELIGIBILITY', 'PROFILE'].includes(code) && !isCredentialingSection(code);
+}
+
+function MonthlyAmountTable({ value, onChange, label }: { value: string; onChange: (next: string) => void; label: string }) {
+  const data = useMemo(() => {
+    try {
+      return JSON.parse(value || '[]');
+    } catch {
+      return [];
+    }
+  }, [value]);
+
+  const months = ['Month 1', 'Month 2', 'Month 3'];
+  const initializedData = useMemo(() => {
+    if (data.length === 3) return data;
+    return months.map((m, i) => data[i] || { month: m, amount: '', comment: '' });
+  }, [data]);
+
+  const updateRow = (index: number, field: string, val: string) => {
+    const next = [...initializedData];
+    next[index] = { ...next[index], [field]: val };
+    onChange(JSON.stringify(next));
+  };
+
+  return (
+    <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+      <p className="nmis-label mb-3">{label}</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-xs">
+          <thead>
+            <tr className="border-b border-brand-divider">
+              <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Month</th>
+              <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Amount (₦)</th>
+              <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Comment</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-brand-divider">
+            {initializedData.map((row: any, i: number) => (
+              <tr key={i}>
+                <td className="py-3 pr-4 font-bold text-brand-foreground">{row.month}</td>
+                <td className="py-2 pr-4">
+                  <input
+                    type="number"
+                    value={row.amount}
+                    onChange={e => updateRow(i, 'amount', e.target.value)}
+                    className="nmis-control h-9 min-w-32"
+                    placeholder="0.00"
+                  />
+                </td>
+                <td className="py-2">
+                  <input
+                    type="text"
+                    value={row.comment}
+                    onChange={e => updateRow(i, 'comment', e.target.value)}
+                    className="nmis-control h-9"
+                    placeholder="Note..."
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function QAItem({ item, response, onChange }: { item: InspectionTemplateItem; response: ResponseState; onChange: (next: ResponseState) => void }) {
+  if (item.response_type === 'json') {
+    return <MonthlyAmountTable label={item.item_label} value={response.remark} onChange={val => onChange({ ...response, remark: val })} />;
+  }
+
+  return (
+    <div className="rounded-2xl border border-brand-divider bg-brand-card p-4 shadow-sm">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-black text-brand-blue">
+            {displayItemCode(item.item_code)}
+          </span>
+          <p className="text-sm font-black text-brand-foreground">{item.item_label}</p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
+          {item.response_type === 'boolean' ? (
+            <label className="block space-y-1">
+              <span className="nmis-label">Observation</span>
+              <YesNoToggle value={response.boolean} onChange={boolean => onChange({ ...response, boolean })} />
+            </label>
+          ) : item.response_type === 'number' ? (
+            <label className="block space-y-1">
+              <span className="nmis-label">No. Observed</span>
+              <input
+                type="number"
+                min="0"
+                value={response.number}
+                onChange={event => onChange({ ...response, number: event.target.value })}
+                className="nmis-control"
+                placeholder="Count"
+              />
+            </label>
+          ) : null}
+
+          <label className="block space-y-1">
+            <span className="nmis-label">Remark / Comment</span>
+            {item.response_type === 'text' ? (
+              <textarea
+                rows={3}
+                value={response.remark}
+                onChange={event => onChange({ ...response, remark: event.target.value })}
+                className="nmis-control resize-y"
+                placeholder="Enter details..."
+              />
+            ) : (
+              <input
+                type="text"
+                value={response.remark}
+                onChange={event => onChange({ ...response, remark: event.target.value })}
+                className="nmis-control"
+                placeholder="Enter comment..."
+              />
+            )}
+          </label>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ScoredItem({ item, response, error, onChange }: { item: InspectionTemplateItem; response: ResponseState; error?: string; onChange: (next: ResponseState) => void }) {
@@ -320,13 +478,14 @@ export default function NewInspectionPage() {
   const draftKey = `${DRAFT_KEY}:${facilityTypeCode}:${inspectionId || 'new'}`;
   const template = templateQuery.data;
   const items = template?.items || [];
+  const isScoredTemplate = Boolean(template && template.template.passing_threshold > 0);
 
   useEffect(() => {
     setFacilityTypeCode(requestedFacilityTypeCode);
     setDraftLoaded(false);
     setStep(0);
     setInspectionId(null);
-    setProviderId('');
+    setProviderId(requestedProviderId || '');
     setProviderSearch('');
     setProfile(EMPTY_PROFILE);
     setExtraProfile({});
@@ -443,7 +602,15 @@ export default function NewInspectionPage() {
 
   const scoredSections = useMemo(() => (template?.sections || []).filter(section => !['A', 'ELIGIBILITY', 'PROFILE'].includes(section.section_code) && !WORKFLOW_ONLY_SECTION_CODES.has(section.section_code.toUpperCase()) && (template?.items || []).some(item => item.section_code === section.section_code)).sort((a, b) => a.sort_order - b.sort_order), [template]);
   const remarksSection = useMemo(() => (template?.sections || []).find(section => section.section_code.toUpperCase() === 'REMARKS'), [template]);
-  const stepLabels = useMemo(() => ['ELIGIBILITY', 'FACILITY PROFILE', ...scoredSections.map(section => section.section_label.toUpperCase()), remarksSection?.section_label.toUpperCase() || 'GENERAL REMARKS / RECOMMENDATION', 'REVIEW & SIGN'], [remarksSection, scoredSections]);
+  const stepLabels = useMemo(() => {
+    const labels = [];
+    if (isScoredTemplate) labels.push('ELIGIBILITY');
+    labels.push('FACILITY PROFILE');
+    scoredSections.forEach(s => labels.push(s.section_label.toUpperCase()));
+    labels.push(remarksSection?.section_label.toUpperCase() || 'GENERAL REMARKS / RECOMMENDATION');
+    labels.push('REVIEW & SIGN');
+    return labels;
+  }, [isScoredTemplate, remarksSection, scoredSections]);
   const remarksStep = stepLabels.length - 2;
   const reviewStep = stepLabels.length - 1;
 
@@ -623,9 +790,9 @@ export default function NewInspectionPage() {
     <Card><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Facility type *</span><select className="nmis-control" value={facilityTypeCode} onChange={event => setFacilityTypeCode(event.target.value)}>{templateOptionsQuery.data?.map(option => <option key={option.facility_type.code} value={option.facility_type.code}>{option.facility_type.name}</option>)}</select></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4 text-sm text-brand-secondary"><p className="font-black text-brand-foreground">Active checklist</p><p className="mt-1">{template.template.name} · v{template.template.version}</p></div></div></Card>
     <div className="grid gap-3 md:grid-cols-6">{stepLabels.map((label, index) => <button key={label} type="button" onClick={() => index <= step && setStep(index)} className={`rounded-2xl border p-3 text-left transition ${index === step ? 'border-brand-blue bg-brand-soft shadow-sm' : index < step ? 'border-status-success/30 bg-status-successSoft' : 'border-brand-divider bg-brand-card'}`}><div className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${index === step ? 'bg-brand-blue text-white' : index < step ? 'bg-status-success text-white' : 'bg-brand-surface text-brand-muted'}`}>{index < step ? <Check size={14} /> : index + 1}</span><span className="text-xs font-black text-brand-foreground">{label}</span></div></button>)}</div>
 
-    {step === 0 && <SectionCard title="ELIGIBILITY CRITERIA" subtitle="Record each criterion as observed. Eligibility findings do not block scored sections or submission."><div className="space-y-4">{template.eligibility.map(item => { const current = eligibility[item.criterion_code] || { met: false, notes: '' }; return <div key={item.criterion_code} className="flex flex-col gap-3 rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:flex-row sm:items-center"><div className="flex flex-1 items-start gap-3"><ShieldCheck size={20} className={current.met ? 'text-status-success' : 'text-brand-muted'} /><div><p className="text-sm font-black text-brand-foreground">{item.criterion_label}{item.required ? ' *' : ''}</p><input value={current.notes} onChange={event => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, notes: event.target.value } }))} placeholder="Optional note or evidence reference" className="nmis-control mt-2" /></div></div><YesNoToggle value={current.met} onChange={met => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, met } }))} /></div>; })}</div><div className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${allEligibilityMet ? 'border-status-success/30 bg-status-successSoft text-status-success' : 'border-status-warning/30 bg-status-warningSoft text-status-warning'}`}>{allEligibilityMet ? 'All required criteria are MET.' : 'One or more criteria are not MET. You may continue; record the finding and supporting evidence for follow-up.'}</div></SectionCard>}
+    {isScoredTemplate && step === 0 && <SectionCard title="ELIGIBILITY CRITERIA" subtitle="Record each criterion as observed. Eligibility findings do not block scored sections or submission."><div className="space-y-4">{template.eligibility.map(item => { const current = eligibility[item.criterion_code] || { met: false, notes: '' }; return <div key={item.criterion_code} className="flex flex-col gap-3 rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:flex-row sm:items-center"><div className="flex flex-1 items-start gap-3"><ShieldCheck size={20} className={current.met ? 'text-status-success' : 'text-brand-muted'} /><div><p className="text-sm font-black text-brand-foreground">{item.criterion_label}{item.required ? ' *' : ''}</p><input value={current.notes} onChange={event => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, notes: event.target.value } }))} placeholder="Optional note or evidence reference" className="nmis-control mt-2" /></div></div><YesNoToggle value={current.met} onChange={met => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, met } }))} /></div>; })}</div><div className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${allEligibilityMet ? 'border-status-success/30 bg-status-successSoft text-status-success' : 'border-status-warning/30 bg-status-warningSoft text-status-warning'}`}>{allEligibilityMet ? 'All required criteria are MET.' : 'One or more criteria are not MET. You may continue; record the finding and supporting evidence for follow-up.'}</div></SectionCard>}
 
-    {step === 1 && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5"><div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {scopedProviders.length.toLocaleString()} matching providers</p></div></div><label className="block space-y-1.5"><span className="nmis-label">Provider / Facility *</span><select className="nmis-control" value={providerId} onChange={event => applyProvider(event.target.value)} required disabled={providerQuery.isLoading || providerQuery.isError}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider Directory unavailable' : `Select an authoritative ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option>{scopedProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. Retry or refine the search.</span> : scopedProviders.length === 0 ? <span className="text-xs text-brand-muted">No {selectedFacilityType.facility_type.name.toLowerCase()} providers match this search.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}</label></div><div className="grid gap-4 md:grid-cols-2">{(template.template.facility_profile_fields || []).map(field => {
+    {step === (isScoredTemplate ? 1 : 0) && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5"><div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {scopedProviders.length.toLocaleString()} matching providers</p></div></div><label className="block space-y-1.5"><span className="nmis-label">Provider / Facility *</span><select className="nmis-control" value={providerId} onChange={event => applyProvider(event.target.value)} required disabled={providerQuery.isLoading || providerQuery.isError}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider Directory unavailable' : `Select an authoritative ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option>{scopedProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. Retry or refine the search.</span> : scopedProviders.length === 0 ? <span className="text-xs text-brand-muted">No {selectedFacilityType.facility_type.name.toLowerCase()} providers match this search.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}</label></div><div className="grid gap-4 md:grid-cols-2">{(template.template.facility_profile_fields || []).map(field => {
           if ((field as any).hidden) return null;
           if (field.type === 'boolean') {
             const val = Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? (profile as any)[field.key] : extraProfile[field.key];
@@ -658,38 +825,53 @@ export default function NewInspectionPage() {
             );
           }
           const val = Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? (profile as any)[field.key] : extraProfile[field.key];
-          return <Field key={field.key} label={field.label} value={val || ''} onChange={value => Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? setProfileValue(field.key as any, value) : setExtraProfile(prev => ({ ...prev, [field.key]: value }))} type={field.type} required={field.required} />;
+          return <Field key={field.key} label={field.label} value={val || ''} onChange={value => Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? setProfileValue(field.key as any, value) : setExtraProfile(prev => ({ ...prev, [field.key]: value }))} type={field.type} required={field.required} options={(field as any).options} />;
         })}</div></div></SectionCard>}
 
-    {step >= 2 && step < remarksStep && scoredSections[step - 2] && <SectionCard title={scoredSections[step - 2].section_label} subtitle={scoredSections[step - 2].description || (step === 2 ? 'Enter the observed headcount and manually award points within each maximum.' : 'Mark each facility requirement YES or NO and record a concise evidence remark.')}><div className="space-y-4">{sectionItems(scoredSections[step - 2].section_code).map(item => <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} />)}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - 2].section_code).points} / {sectionScore(scoredSections[step - 2].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div></SectionCard>}
+    {step >= (isScoredTemplate ? 2 : 1) && step < remarksStep && scoredSections[step - (isScoredTemplate ? 2 : 1)] && <SectionCard title={scoredSections[step - (isScoredTemplate ? 2 : 1)].section_label} subtitle={scoredSections[step - (isScoredTemplate ? 2 : 1)].description || (isScoredTemplate && step === 2 ? 'Enter the observed headcount and manually award points within each maximum.' : 'Mark each facility requirement and record a concise observation remark.')}><div className="space-y-4">{sectionItems(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).map(item => isScoredTemplate ? <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} /> : <QAItem key={item.item_code} item={item} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} />)}</div>{isScoredTemplate && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).points} / {sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div>}</SectionCard>}
 
-    {step === remarksStep && <SectionCard title={remarksSection?.section_label || 'GENERAL REMARKS / RECOMMENDATION'} subtitle="Record the inspector's overall findings, risks, conditions, and recommended follow-up actions."><div className="space-y-4"><label className="block space-y-1.5"><span className="nmis-label">General remarks and recommendation</span><textarea rows={8} value={generalRemarks} onChange={event => setGeneralRemarks(event.target.value)} className="nmis-control min-h-40 resize-y" placeholder="Summarise the inspection findings, deficiencies, corrective actions, and any recommendation for ODCHC." /></label><div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Current overall score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.percentage}%</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Included points</p><p className="mt-1 text-2xl font-black text-brand-foreground">{score.points} / {score.possible}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Calculated recommendation</p><p className="mt-1 text-sm font-black text-brand-foreground">{score.recommendation}</p></div></div></div></SectionCard>}
+    {step === remarksStep && <SectionCard title={remarksSection?.section_label || 'GENERAL REMARKS / RECOMMENDATION'} subtitle="Record the inspector's overall findings, risks, conditions, and recommended follow-up actions."><div className="space-y-4"><label className="block space-y-1.5"><span className="nmis-label">General remarks and recommendation</span><textarea rows={8} value={generalRemarks} onChange={event => setGeneralRemarks(event.target.value)} className="nmis-control min-h-40 resize-y" placeholder="Summarise the inspection findings, deficiencies, corrective actions, and any recommendation for ODCHC." /></label>{isScoredTemplate && <div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Current overall score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.percentage}%</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Included points</p><p className="mt-1 text-2xl font-black text-brand-foreground">{score.points} / {score.possible}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Calculated recommendation</p><p className="mt-1 text-sm font-black text-brand-foreground">{score.recommendation}</p></div></div>}</div></SectionCard>}
 
     {step === reviewStep && template && (
       <div className="space-y-6">
         <SectionCard title="Review & Sign" subtitle="Review the complete inspection record, add the inspection team, and submit the signed recommendation.">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-2xl border border-brand-divider bg-brand-soft p-4">
-              <p className="nmis-label">Overall score</p>
-              <p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p>
-              <p className="text-xs text-brand-muted">{score.points} / {score.possible} total points</p>
+          {isScoredTemplate ? (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-brand-divider bg-brand-soft p-4">
+                <p className="nmis-label">Overall score</p>
+                <p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p>
+                <p className="text-xs text-brand-muted">{score.points} / {score.possible} total points</p>
+              </div>
+              <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+                <p className="nmis-label">Credentialing Score</p>
+                <p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p>
+                <p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p>
+              </div>
+              <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+                <p className="nmis-label">Accreditation Score</p>
+                <p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p>
+                <p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p>
+              </div>
+              <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 md:col-span-3">
+                <p className="nmis-label">Recommendation</p>
+                <p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p>
+                <p className="mt-1 text-xs text-brand-muted">Thresholds: &gt;= {template.template.passing_threshold}% recommended - {template.template.conditional_threshold}-{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional</p>
+              </div>
             </div>
-            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
-              <p className="nmis-label">Credentialing Score</p>
-              <p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p>
-              <p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-brand-divider bg-brand-soft p-4">
+                <p className="nmis-label">Checklist Completion</p>
+                <p className="mt-1 text-3xl font-black text-brand-blue">{Math.round((answeredCount / (items.length || 1)) * 100)}%</p>
+                <p className="text-xs text-brand-muted">{answeredCount} / {items.length} items recorded</p>
+              </div>
+              <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+                <p className="nmis-label">QA Summary Status</p>
+                <p className="mt-1 text-xl font-black text-brand-foreground">Ready for Review</p>
+                <p className="mt-1 text-xs text-brand-muted">All sections completed and observations captured.</p>
+              </div>
             </div>
-            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
-              <p className="nmis-label">Accreditation Score</p>
-              <p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p>
-              <p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p>
-            </div>
-            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 md:col-span-3">
-              <p className="nmis-label">Recommendation</p>
-              <p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p>
-              <p className="mt-1 text-xs text-brand-muted">Thresholds: &gt;= {template.template.passing_threshold}% recommended - {template.template.conditional_threshold}-{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional - below {template.template.conditional_threshold}% not recommended</p>
-            </div>
-          </div>
+          )}
           <div className="mt-6 grid gap-4 md:grid-cols-3">
             <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
               <p className="nmis-label">Eligibility status</p>

@@ -338,6 +338,8 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
   writer.twoColumn([
     ['Facility', displayValue(input.profile.facility_name || input.providerName)],
     ['Provider code', displayValue(input.providerCode)],
+    ['Reference Quarter', displayValue(input.profile.reference_quarter)],
+    ['Reference Year', displayValue(input.profile.reference_year)],
     ['Address', displayValue(input.profile.address)],
     ['Telephone', displayValue(input.profile.telephone)],
     ['Facility email', displayValue(input.profile.facility_email)],
@@ -349,9 +351,11 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
     ['SMOH registration', displayValue(input.profile.smoh_reg_no || input.profile.smoh_pcn_registration_no)],
   ]);
 
-  writer.heading('Eligibility criteria');
-  if (!input.eligibility.length) writer.text('No eligibility criteria were configured for this template.', { size: 9, color: COLORS.muted });
-  input.eligibility.forEach((criterion, index) => writer.drawEligibilityRow(index, criterion));
+  if (isScored) {
+    writer.heading('Eligibility criteria');
+    if (!input.eligibility.length) writer.text('No eligibility criteria were configured for this template.', { size: 9, color: COLORS.muted });
+    input.eligibility.forEach((criterion, index) => writer.drawEligibilityRow(index, criterion));
+  }
 
   const sections = input.sections.filter(section => !['A', 'PROFILE', 'ELIGIBILITY', 'REMARKS', 'TEAM'].includes(section.section_code.toUpperCase()) && input.items.some(item => item.section_code === section.section_code));
   sections.forEach(section => {
@@ -359,10 +363,34 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
     const items = input.items.filter(item => item.section_code === section.section_code);
     items.forEach(item => {
       const response = input.responses[item.item_code] || { number: '', manual_score: '', boolean: null, remark: '' };
-      const available = item.response_type === 'number' ? displayValue(response.number) : response.boolean === null ? 'Not answered' : response.boolean ? 'YES' : 'NO';
-      const responseText = item.response_type === 'number' ? `Observed count: ${available}` : `Response: ${available}`;
-      const scoreText = (item.scoring_method === 'manual_only' || item.manual_score_allowed) && response.manual_score !== '' ? `Awarded: ${response.manual_score} / ${item.max_points}` : response.boolean === null && response.number === '' ? `Not scored / ${item.max_points} max` : `${available} - ${item.max_points} max`;
-      writer.drawChecklistRow(item.item_code.replace(/[^0-9A-Za-z.-]/g, ''), item.item_label, responseText, scoreText, response.remark || '');
+      let responseText = '';
+      let scoreText = '';
+      
+      if (item.response_type === 'json') {
+        try {
+          const tableData = JSON.parse(response.remark || '[]');
+          responseText = Array.isArray(tableData) ? tableData.map((r: any) => `${r.month}: NGN ${r.amount || '0.00'}`).join('; ') : 'No data';
+        } catch {
+          responseText = response.remark || 'No data';
+        }
+      } else if (item.response_type === 'boolean') {
+        const available = response.boolean === null ? 'Not answered' : response.boolean ? 'YES' : 'NO';
+        responseText = `Response: ${available}`;
+      } else if (item.response_type === 'text') {
+        responseText = response.remark || 'Not recorded';
+      } else {
+        const available = displayValue(response.number);
+        responseText = `Observed count: ${available}`;
+      }
+
+      if (isScored) {
+        const available = item.response_type === 'number' ? displayValue(response.number) : response.boolean === null ? 'Not answered' : response.boolean ? 'YES' : 'NO';
+        scoreText = (item.scoring_method === 'manual_only' || item.manual_score_allowed) && response.manual_score !== '' ? `Awarded: ${response.manual_score} / ${item.max_points}` : response.boolean === null && response.number === '' ? `Not scored / ${item.max_points} max` : `${available} - ${item.max_points} max`;
+      } else {
+        scoreText = 'Observation';
+      }
+
+      writer.drawChecklistRow(item.item_code.replace(/[^0-9A-Za-z.-]/g, ''), item.item_label, responseText, scoreText, item.response_type === 'json' || item.response_type === 'text' ? '' : response.remark || '');
     });
   });
 

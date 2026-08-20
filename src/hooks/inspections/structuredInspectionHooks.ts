@@ -6,7 +6,7 @@ export function useInspectionTemplate(code = 'pharmacy-accreditation', enabled =
     queryKey: ['inspection-template', code],
     queryFn: () => getInspectionTemplate(code),
     enabled,
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 30, // 30 seconds
   });
 }
 
@@ -14,7 +14,7 @@ export function useInspectionTemplateOptions() {
   return useQuery({
     queryKey: ['inspection-template-options'],
     queryFn: getInspectionTemplateOptions,
-    staleTime: 1000 * 60 * 10,
+    staleTime: 1000 * 30, // 30 seconds
   });
 }
 

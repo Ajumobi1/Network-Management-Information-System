@@ -6,7 +6,7 @@ export type InspectionTemplateItem = {
   section_code: string;
   item_code: string;
   item_label: string;
-  response_type: 'number' | 'boolean';
+  response_type: 'number' | 'boolean' | 'text' | 'json';
   min_required: number | null;
   max_points: number;
   scored_when_no: boolean;
@@ -40,7 +40,15 @@ export type InspectionTemplate = {
     passing_threshold: number;
     conditional_threshold: number;
     facility_type_code?: string | null;
-    facility_profile_fields?: Array<{ key: string; label: string; type: string; required: boolean; sort_order: number }>;
+    facility_profile_fields?: Array<{ 
+      key: string; 
+      label: string; 
+      type: 'text' | 'number' | 'date' | 'email' | 'boolean' | 'select'; 
+      required: boolean; 
+      sort_order: number;
+      options?: string[];
+      pair_with?: string;
+    }>;
   };
   sections: InspectionTemplateSection[];
   eligibility: Array<{

@@ -217,12 +217,12 @@ export default function PublicHomePage() {
 
   return (
     <div className="min-h-screen bg-brand-background font-sans text-brand-foreground antialiased selection:bg-brand-blue/10 selection:text-brand-blue">
-      <header className="public-header sticky top-0 z-50 w-full border-b border-white/10">
+      <header className="public-header sticky top-0 z-50 w-full border-b border-white/10 bg-brand-navy/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
             <img src="/assets/odchc-seal.png" alt="ODCHC seal" className="h-10 w-10 sm:h-12 sm:w-12" />
             <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tight text-white sm:text-xl">ODCHC</span>
+              <span className="text-lg font-black tracking-tight text-brand-orange sm:text-xl">ODCHC</span>
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200">Public Health Portal</span>
             </div>
           </div>
