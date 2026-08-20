@@ -658,7 +658,80 @@ export default function NewInspectionPage() {
 
     {step === remarksStep && <SectionCard title={remarksSection?.section_label || 'GENERAL REMARKS / RECOMMENDATION'} subtitle="Record the inspector's overall findings, risks, conditions, and recommended follow-up actions."><div className="space-y-4"><label className="block space-y-1.5"><span className="nmis-label">General remarks and recommendation</span><textarea rows={8} value={generalRemarks} onChange={event => setGeneralRemarks(event.target.value)} className="nmis-control min-h-40 resize-y" placeholder="Summarise the inspection findings, deficiencies, corrective actions, and any recommendation for ODCHC." /></label><div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Current overall score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.percentage}%</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Included points</p><p className="mt-1 text-2xl font-black text-brand-foreground">{score.points} / {score.possible}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Calculated recommendation</p><p className="mt-1 text-sm font-black text-brand-foreground">{score.recommendation}</p></div></div></div></SectionCard>}
 
-    {step === reviewStep && <div className="space-y-6"><SectionCard title="Review & Sign" subtitle="Review the complete inspection record, add the inspection team, and submit the signed recommendation."><div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Overall score</p><p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p><p className="text-xs text-brand-muted">{score.points} / {score.possible} total points</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Credentialing Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p><p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Accreditation Score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p><p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 md:col-span-3"><p className="nmis-label">Recommendation</p><p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p><p className="mt-1 text-xs text-brand-muted">Thresholds: ≥{template.template.passing_threshold}% recommended · {template.template.conditional_threshold}–{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional · below {template.template.conditional_threshold}% not recommended</p></div></div><div className="mt-6 grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Eligibility status</p><p className="mt-1 font-black text-brand-foreground">{allEligibilityMet ? 'All required criteria MET' : 'Criteria recorded with follow-up required'}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Scored responses</p><p className="mt-1 font-black text-brand-foreground">{answeredCount} / {items.length}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Signed team members</p><p className="mt-1 font-black text-brand-foreground">{signedCount}</p></div></div>{generalRemarks && <div className="mt-6 rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">General remarks</p><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-secondary">{generalRemarks}</p></div>}</SectionCard><SectionCard title="Inspection team" subtitle="Add each inspector or reviewer and capture a signature before submission."><div className="space-y-4">{team.map((member, index) => <div key={member.id} className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-brand-foreground">Team member {index + 1}</p><button type="button" onClick={() => setTeam(previous => previous.filter(item => item.id !== member.id))} className="rounded-control p-2 text-status-danger hover:bg-status-dangerSoft"><Trash2 size={16} /></button></div><div className="mt-4 grid gap-4 md:grid-cols-3"><Field label="Name" value={member.name} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, name: value } : item))} required /><Field label="Role" value={member.role} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, role: value } : item))} /><Field label="Date" value={member.inspection_date} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, inspection_date: value } : item))} type="date" required /></div><div className="mt-4"><p className="nmis-label">Signature</p><SignaturePad value={member.signature_data} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, signature_data: value } : item))} /></div></div>)}<button type="button" onClick={() => setTeam(previous => [...previous, { id: crypto.randomUUID(), name: '', role: 'Inspector', inspection_date: profile.inspection_date, signature_data: '' }])} className="inline-flex min-h-11 items-center gap-2 rounded-control border border-dashed border-brand-blue px-4 py-2 text-sm font-black text-brand-blue hover:bg-brand-soft"><Plus size={16} /> Add inspection team member</button></div></SectionCard></div>}
+    {step === reviewStep && template && (
+      <div className="space-y-6">
+        <SectionCard title="Review & Sign" subtitle="Review the complete inspection record, add the inspection team, and submit the signed recommendation.">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-brand-divider bg-brand-soft p-4">
+              <p className="nmis-label">Overall score</p>
+              <p className="mt-1 text-3xl font-black text-brand-blue">{score.percentage}%</p>
+              <p className="text-xs text-brand-muted">{score.points} / {score.possible} total points</p>
+            </div>
+            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+              <p className="nmis-label">Credentialing Score</p>
+              <p className="mt-1 text-2xl font-black text-brand-blue">{score.credentialingPoints} / {score.credentialingPossible}</p>
+              <p className="mt-1 text-xs text-brand-muted">Personnel licences, registrations, and qualifications</p>
+            </div>
+            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+              <p className="nmis-label">Accreditation Score</p>
+              <p className="mt-1 text-2xl font-black text-brand-blue">{score.accreditationPoints} / {score.accreditationPossible}</p>
+              <p className="mt-1 text-xs text-brand-muted">Infrastructure and Essential Services</p>
+            </div>
+            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 md:col-span-3">
+              <p className="nmis-label">Recommendation</p>
+              <p className={`mt-2 text-base font-black ${score.percentage >= (template.template.passing_threshold || 75) ? 'text-status-success' : score.percentage >= (template.template.conditional_threshold || 60) ? 'text-status-warning' : 'text-status-danger'}`}>{score.recommendation}</p>
+              <p className="mt-1 text-xs text-brand-muted">Thresholds: &gt;= {template.template.passing_threshold}% recommended - {template.template.conditional_threshold}-{Math.max((template.template.passing_threshold || 75) - 1, template.template.conditional_threshold)}% conditional - below {template.template.conditional_threshold}% not recommended</p>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+              <p className="nmis-label">Eligibility status</p>
+              <p className="mt-1 font-black text-brand-foreground">{allEligibilityMet ? 'All required criteria MET' : 'Criteria recorded with follow-up required'}</p>
+            </div>
+            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+              <p className="nmis-label">Scored responses</p>
+              <p className="mt-1 font-black text-brand-foreground">{answeredCount} / {items.length}</p>
+            </div>
+            <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+              <p className="nmis-label">Signed team members</p>
+              <p className="mt-1 font-black text-brand-foreground">{signedCount}</p>
+            </div>
+          </div>
+          {generalRemarks && (
+            <div className="mt-6 rounded-2xl border border-brand-divider bg-brand-soft p-4">
+              <p className="nmis-label">General remarks</p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-brand-secondary">{generalRemarks}</p>
+            </div>
+          )}
+        </SectionCard>
+        <SectionCard title="Inspection team" subtitle="Add each inspector or reviewer and capture a signature before submission.">
+          <div className="space-y-4">
+            {team.map((member, index) => (
+              <div key={member.id} className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-black text-brand-foreground">Team member {index + 1}</p>
+                  <button type="button" onClick={() => setTeam(previous => previous.filter(item => item.id !== member.id))} className="rounded-control p-2 text-status-danger hover:bg-status-dangerSoft">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-4 md:grid-cols-3">
+                  <Field label="Name" value={member.name} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, name: value } : item))} required />
+                  <Field label="Role" value={member.role} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, role: value } : item))} />
+                  <Field label="Date" value={member.inspection_date} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, inspection_date: value } : item))} type="date" required />
+                </div>
+                <div className="mt-4">
+                  <p className="nmis-label">Signature</p>
+                  <SignaturePad value={member.signature_data} onChange={value => setTeam(previous => previous.map(item => item.id === member.id ? { ...item, signature_data: value } : item))} />
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={() => setTeam(previous => [...previous, { id: crypto.randomUUID(), name: '', role: 'Inspector', inspection_date: profile.inspection_date, signature_data: '' }])} className="inline-flex min-h-11 items-center gap-2 rounded-control border border-dashed border-brand-blue px-4 py-2 text-sm font-black text-brand-blue hover:bg-brand-soft">
+              <Plus size={16} /> Add inspection team member
+            </button>
+          </div>
+        </SectionCard>
+      </div>
+    )}
 
     {saveMessage && <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 text-sm font-bold text-brand-secondary">{saveMessage}</div>}
     <div className="flex flex-col-reverse gap-3 border-t border-brand-divider pt-5 sm:flex-row sm:items-center sm:justify-between"><Button variant="secondary" onClick={() => setStep(previous => Math.max(0, previous - 1))} disabled={step === 0}><ChevronLeft size={16} /> Back</Button><div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" onClick={saveDraft} disabled={saveMutation.isPending || reportProgress}><Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save draft'}</Button>{step < stepLabels.length - 1 ? <Button onClick={() => { setSaveMessage(''); setStep(previous => Math.min(stepLabels.length - 1, previous + 1)); }} disabled={reportProgress}><ChevronRight size={16} /> Continue</Button> : <Button onClick={submitInspection} disabled={saveMutation.isPending || reportProgress}><Send size={16} /> {reportProgress ? 'Generating PDF...' : saveMutation.isPending ? 'Submitting...' : 'Submit inspection'}</Button>}</div></div>
