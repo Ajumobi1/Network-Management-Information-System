@@ -46,7 +46,7 @@ type TeamMember = { id: string; name: string; role: string; inspection_date: str
 
 const EMPTY_PROFILE: FacilityProfileState = {
   facility_name: '', address: '', telephone: '', superintendent_pharmacist: '', nhia_registered: '', nhia_registration_no: '', smoh_pcn_registered: '', smoh_pcn_registration_no: '', premises_registration_license_no: '', cac_registration_no: '', facility_email: '', inspection_date: new Date().toISOString().slice(0, 10), contact_person: '', facility_account_name: '',
-  physician_in_charge: '', physician_phone: '', desk_officer: '', desk_officer_phone: '', hospital_beds: '', nhia_reg_no: '', smoh_reg_no: '', reference_quarter: '', reference_year: '',
+  physician_in_charge: '', physician_phone: '', desk_officer: '', desk_officer_phone: '', hospital_beds: '', nhia_reg_no: '', smoh_reg_no: '', reference_quarter: '', reference_year: '', lga_district: '',
 };
 
 const STEP_LABELS = ['Eligibility', 'Facility Profile', 'Review & Sign'];
@@ -200,11 +200,25 @@ function MonthlyAmountTable({ value, onChange, label, quarter }: { value: string
     }
   }, [value]);
 
-  const months = ['Month 1', 'Month 2', 'Month 3'];
+  const months = useMemo(() => {
+    const q = (quarter || '').trim();
+    const mapping: Record<string, string[]> = {
+      'Q1': ['January', 'February', 'March'],
+      'Q2': ['April', 'May', 'June'],
+      'Q3': ['July', 'August', 'September'],
+      'Q4': ['October', 'November', 'December'],
+    };
+    // Support both short (Q1) and long (Q1 (Jan-Mar)) formats
+    const key = Object.keys(mapping).find(k => q.startsWith(k)) || '';
+    return mapping[key] || ['Month 1', 'Month 2', 'Month 3'];
+  }, [quarter]);
+
   const initializedData = useMemo(() => {
-    if (data.length === 3) return data;
-    return months.map((m, i) => data[i] || { month: m, amount: '', comment: '' });
-  }, [data]);
+    return months.map((m, i) => {
+      const existing = data[i] || {};
+      return { month: m, amount: existing.amount || '', comment: existing.comment || '' };
+    });
+  }, [data, months]);
 
   const updateRow = (index: number, field: string, val: string) => {
     const next = [...initializedData];

@@ -370,14 +370,15 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
       if (item.response_type === 'json') {
         try {
           const tableData = JSON.parse(response.remark || '[]');
-          const quarter = input.profile.reference_quarter || '';
+          const q = (input.profile.reference_quarter || '').trim();
           const quarterMonths: Record<string, string[]> = {
-            'Q1 (Jan-Mar)': ['January', 'February', 'March'],
-            'Q2 (Apr-Jun)': ['April', 'May', 'June'],
-            'Q3 (Jul-Sep)': ['July', 'August', 'September'],
-            'Q4 (Oct-Dec)': ['October', 'November', 'December'],
+            'Q1': ['January', 'February', 'March'],
+            'Q2': ['April', 'May', 'June'],
+            'Q3': ['July', 'August', 'September'],
+            'Q4': ['October', 'November', 'December'],
           };
-          const months = quarterMonths[quarter] || ['Month 1', 'Month 2', 'Month 3'];
+          const key = Object.keys(quarterMonths).find(k => q.startsWith(k)) || '';
+          const months = quarterMonths[key] || ['Month 1', 'Month 2', 'Month 3'];
           
           responseText = Array.isArray(tableData) 
             ? tableData.map((r: any, idx: number) => {
