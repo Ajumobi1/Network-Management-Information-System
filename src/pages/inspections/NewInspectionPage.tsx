@@ -271,8 +271,13 @@ function MonthlyAmountTable({ value, onChange, label, quarter }: { value: string
 }
 
 function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplateItem; response: ResponseState; quarter?: string; onChange: (next: ResponseState) => void }) {
+  const dynamicLabel = item.item_label
+    .replace(/·?\s*Quarter:\s*\(select quarter in Section A\)/gi, quarter ? `· Quarter: ${quarter}` : '· Quarter: (Select Quarter in Section A)')
+    .replace(/\(Select Quarter Above\)/gi, quarter ? `(${quarter})` : '(Select Quarter Above)')
+    .replace(/—\s*\(Select Quarter Above\)/gi, quarter ? `— ${quarter}` : '— (Select Quarter Above)');
+
   if (item.response_type === 'json') {
-    return <MonthlyAmountTable label={item.item_label} value={response.remark} quarter={quarter} onChange={val => onChange({ ...response, remark: val })} />;
+    return <MonthlyAmountTable label={dynamicLabel} value={response.remark} quarter={quarter} onChange={val => onChange({ ...response, remark: val })} />;
   }
 
   return (
@@ -282,7 +287,7 @@ function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplat
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-black text-brand-blue">
             {displayItemCode(item.item_code)}
           </span>
-          <p className="text-sm font-black text-brand-foreground">{item.item_label}</p>
+          <p className="text-sm font-black text-brand-foreground">{dynamicLabel}</p>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-[200px_1fr]">
@@ -829,7 +834,10 @@ export default function NewInspectionPage() {
             
             return (
               <div key={field.key} className={`space-y-1.5 ${pairedKey ? 'md:col-span-2' : ''}`}>
-                <span className="nmis-label">{field.label}{field.required ? ' *' : ''}</span>
+                <span className="nmis-label">
+                  {field.label.replace(/—\s*\(Select Quarter Above\)/gi, profile.reference_quarter ? `— ${profile.reference_quarter}` : '— (Select Quarter Above)')}
+                  {field.required ? ' *' : ''}
+                </span>
                 <div className="flex flex-wrap items-center gap-4">
                   <YesNoToggle 
                     value={val === 'true' ? true : val === 'false' ? false : null} 
@@ -852,7 +860,8 @@ export default function NewInspectionPage() {
             );
           }
           const val = Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? (profile as any)[field.key] : extraProfile[field.key];
-          return <Field key={field.key} label={field.label} value={val || ''} onChange={value => Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? setProfileValue(field.key as any, value) : setExtraProfile(prev => ({ ...prev, [field.key]: value }))} type={field.type} required={field.required} options={(field as any).options} />;
+          const dynamicLabel = field.label.replace(/—\s*\(Select Quarter Above\)/gi, profile.reference_quarter ? `— ${profile.reference_quarter}` : '— (Select Quarter Above)');
+          return <Field key={field.key} label={dynamicLabel} value={val || ''} onChange={value => Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? setProfileValue(field.key as any, value) : setExtraProfile(prev => ({ ...prev, [field.key]: value }))} type={field.type} required={field.required} options={(field as any).options} />;
         });
       })()}</div></div></SectionCard>}
 
