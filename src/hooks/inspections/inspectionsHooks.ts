@@ -24,6 +24,9 @@ export function useInspections(providerId?: string) {
         rating: i.rating || null,
         findings: i.findings || '',
         correctiveActions: i.corrective_actions || i.correctiveActions || '',
+        providerAddress: i.provider_address || null,
+        providerLatitude: i.provider_latitude || null,
+        providerLongitude: i.provider_longitude || null,
       }));
     },
     staleTime: 5 * 60 * 1000,

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, CheckCircle2, ChevronRight, Download, Filter, Plus, Search, User, X, ClipboardCheck, AlertCircle, FilePenLine } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Download, Filter, Plus, Search, User, X, ClipboardCheck, AlertCircle, FilePenLine, Map as MapIcon, List } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -10,6 +10,9 @@ import Select from '../components/ui/Select';
 import { useInspections, useInspection, useInspectionChecklist, useSaveInspection, useUpdateInspection } from '../hooks/inspections/inspectionsHooks';
 import { useStructuredInspection } from '../hooks/inspections/structuredInspectionHooks';
 import { providerDocumentsRepository } from '../repositories/providers/providerDocumentsRepository';
+import { useEffect } from 'react';
+import { subscribeToTable, unsubscribe } from '../lib/supabase/realtime';
+import { useQueryClient } from '@tanstack/react-query';
 import { buildInspectionReportPdf, downloadPdf, inspectionReportFileName, pdfBytesToBlob, reportStoragePath } from '../features/inspections/inspectionReportPdf';
 import { exportInspectionCsv } from '../features/inspections/inspectionReportCsv';
 import { exportInspectionDocx } from '../features/inspections/inspectionReportDocx';
@@ -39,6 +42,17 @@ export default function InspectionsPage() {
   const [scheduleForm, setScheduleForm] = useState({ providerId: '', type: 'Clinical', scheduledDate: '', inspectorName: '' });
 
   const { data: allInspections = [], isLoading, isError, refetch } = useInspections();
+  const queryClient = useQueryClient();
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [focusedLocation, setFocusedLocation] = useState<{ name: string; query: string } | null>(null);
+
+  useEffect(() => {
+    const channel = subscribeToTable('inspections', () => {
+      queryClient.invalidateQueries({ queryKey: ['inspections'] });
+    });
+    return () => { unsubscribe(channel); };
+  }, [queryClient]);
+
   const { data: providers = [] } = useProviderDirectory({
     search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all',
     capitationStatus: 'all', lga: 'all', category: 'all', subcategory: 'all', ownership: 'all', service: 'all',
@@ -193,11 +207,85 @@ export default function InspectionsPage() {
         <div className="nmis-table-wrap">
           <div className="flex flex-col gap-3 border-b border-[#cfe0ee] bg-gradient-to-r from-[#eef6fb] via-white to-[#fff8ef] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
             <div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-[#0b4f82] text-white shadow-sm"><ClipboardCheck size={17} /></span><SectionHeader title="Inspection Schedule" subtitle={`${inspections.length} records in current view.`} /></div>
-            <Badge variant="info" className="border border-[#b9d9ef] bg-[#eaf5fc] text-[#0b65a1]"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#10b981]" />Live Tracking</Badge>
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-control border border-[#cfe0ee] bg-white p-1 shadow-sm">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-xs font-black uppercase tracking-wider transition ${viewMode === 'list' ? 'bg-[#0b4f82] text-white shadow-sm' : 'text-[#6d879c] hover:bg-slate-50'}`}
+                >
+                  <List size={14} /> List
+                </button>
+                <button
+                  onClick={() => setViewMode('map')}
+                  className={`flex items-center gap-2 rounded-[6px] px-3 py-1.5 text-xs font-black uppercase tracking-wider transition ${viewMode === 'map' ? 'bg-[#0b4f82] text-white shadow-sm' : 'text-[#6d879c] hover:bg-slate-50'}`}
+                >
+                  <MapIcon size={14} /> Map
+                </button>
+              </div>
+              <Badge variant="info" className="border border-[#b9d9ef] bg-[#eaf5fc] text-[#0b65a1]"><span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#10b981]" />Live Tracking</Badge>
+            </div>
           </div>
 
           <div className="nmis-table-scroll">
-            <table className="nmis-table min-w-[1000px]">
+            {viewMode === 'map' ? (
+              <div className="flex flex-col lg:flex-row">
+                <div className="h-[600px] w-full border-r border-[#cfe0ee] bg-slate-50 lg:w-2/3">
+                  <iframe
+                    title="Live Inspection Tracking Map"
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    style={{ border: 0 }}
+                    src={`https://www.google.com/maps?q=${encodeURIComponent(focusedLocation?.query || 'Ondo State, Nigeria')}&output=embed&z=${focusedLocation ? 15 : 9}`}
+                    allowFullScreen
+                  />
+                </div>
+                <div className="h-[600px] w-full overflow-y-auto bg-white lg:w-1/3 custom-scrollbar">
+                  <div className="sticky top-0 z-10 border-b border-[#cfe0ee] bg-slate-50/80 px-4 py-3 backdrop-blur-sm">
+                    <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#0b65a1]">Ongoing & Recent Activity</p>
+                  </div>
+                  <div className="divide-y divide-[#eef6fb]">
+                    {inspections.length === 0 ? (
+                      <div className="p-8 text-center text-sm text-brand-muted italic">No inspections to track.</div>
+                    ) : (
+                      inspections.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            const query = (item as any).providerLatitude && (item as any).providerLongitude 
+                              ? `${(item as any).providerLatitude},${(item as any).providerLongitude}`
+                              : `${item.providerName}, ${(item as any).providerAddress || ''}, Ondo State, Nigeria`;
+                            setFocusedLocation({ name: item.providerName, query });
+                          }}
+                          className={`w-full p-4 text-left transition hover:bg-[#fff8ef] ${focusedLocation?.name === item.providerName ? 'bg-[#fff8ef] ring-1 ring-inset ring-[#f7931e]/20' : ''}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-black text-[#123b5d]">{item.providerName}</p>
+                              <p className="mt-1 text-[10px] font-bold text-[#6d879c]">{item.type}</p>
+                            </div>
+                            <Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : 'warning'} size="sm">
+                              {item.status}
+                            </Badge>
+                          </div>
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="flex items-center gap-1 text-[10px] font-bold text-[#0b65a1]">
+                              <Calendar size={10} /> {new Date(item.scheduledAt).toLocaleDateString()}
+                            </div>
+                            {item.score && (
+                              <div className="flex items-center gap-1 text-[10px] font-black text-[#15803d]">
+                                <ClipboardCheck size={10} /> {item.score}%
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <table className="nmis-table min-w-[1000px]">
               <thead className="bg-[#0b4f82]">
                 <tr className="border-0">
                   <th className="!text-white/80">Provider / Facility</th>
@@ -269,6 +357,7 @@ export default function InspectionsPage() {
                 )}
               </tbody>
             </table>
+            )}
           </div>
         </div>
       </div>
