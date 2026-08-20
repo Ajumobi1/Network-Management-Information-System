@@ -15,7 +15,7 @@ export default function Topbar({ onMenuOpen }: TopbarProps) {
   const displayName = user?.name || 'Authorized User';
   const displayRole = user?.role?.replace('-', ' ') || 'unassigned';
 
-  return <header className="nmis-topbar sticky top-0 z-30 border-b border-brand-border bg-brand-card/95 backdrop-blur-xl">
+  return <header className="nmis-topbar z-30 border-b border-brand-border bg-brand-card/95 backdrop-blur-xl">
     <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between gap-2 px-3 sm:h-[4.5rem] sm:gap-3 sm:px-6 lg:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <button type="button" onClick={onMenuOpen} className="inline-flex h-10 w-10 items-center justify-center rounded-control border border-brand-border bg-brand-card text-brand-secondary transition hover:bg-brand-surface lg:hidden" aria-label="Open navigation"><Menu className="h-5 w-5" /></button>
