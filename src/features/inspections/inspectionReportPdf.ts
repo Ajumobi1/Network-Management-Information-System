@@ -311,6 +311,7 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
   const writer = new ReportWriter(document, regular, bold);
   const pageWidth = writer.getWidth();
   const margin = writer.getMargin();
+  const isScored = input.passingThreshold > 0;
 
   writer.setY(710);
   writer.text(input.templateName, { size: 16, font: bold, color: COLORS.blue2, lineHeight: 20, gap: 3 });
