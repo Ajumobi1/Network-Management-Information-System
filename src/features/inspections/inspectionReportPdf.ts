@@ -139,10 +139,26 @@ class ReportWriter {
     const lines = this.wrap(text, font, size, maxWidth);
     this.ensure(lines.length * lineHeight + 2);
     lines.forEach(line => {
-      this.page.drawText(line, { x: this.margin, y: this.y, size, font, color, maxWidth });
+      this.page.drawText(line, { x: this.margin, y: this.y, size, font, color });
       this.y -= lineHeight;
     });
     this.y -= 2;
+  }
+
+  wrapForLayout(text: string, font: PDFFont, size: number, maxWidth: number) {
+    return this.wrap(text, font, size, maxWidth);
+  }
+
+  textAt(text: string, x: number, y: number, options: { size?: number; font?: PDFFont; color?: ReturnType<typeof rgb>; maxWidth: number; lineHeight?: number }) {
+    const size = options.size || 9;
+    const font = options.font || this.regular;
+    const color = options.color || COLORS.ink;
+    const lineHeight = options.lineHeight || size + 4;
+    const lines = this.wrap(text, font, size, options.maxWidth);
+    lines.forEach((line, index) => {
+      this.page.drawText(line, { x, y: y - (index * lineHeight), size, font, color });
+    });
+    return lines.length * lineHeight;
   }
 
   heading(text: string, size = 13) {
@@ -154,18 +170,23 @@ class ReportWriter {
   }
 
   labelValue(label: string, value: string, x: number, width: number) {
-    this.page.drawText(pdfSafeText(label).toUpperCase(), { x, y: this.y, size: 7, font: this.bold, color: COLORS.muted, maxWidth: width });
-    this.page.drawText(this.wrap(value, this.regular, 9, width).join('\n'), { x, y: this.y - 12, size: 9, font: this.regular, color: COLORS.ink, maxWidth: width, lineHeight: 11 });
+    const labelHeight = this.textAt(label.toUpperCase(), x, this.y, { size: 7, font: this.bold, color: COLORS.muted, maxWidth: width, lineHeight: 9 });
+    return labelHeight + this.textAt(value, x, this.y - labelHeight - 2, { size: 9, font: this.regular, color: COLORS.ink, maxWidth: width, lineHeight: 11 });
   }
 
   twoColumn(values: Array<[string, string]>) {
     const columnWidth = (this.width - (this.margin * 2) - 18) / 2;
     for (let index = 0; index < values.length; index += 2) {
-      this.ensure(36);
-      const y = this.y;
+      const measure = (entry: [string, string]) => {
+        const labelLines = this.wrap(entry[0].toUpperCase(), this.bold, 7, columnWidth).length;
+        const valueLines = this.wrap(entry[1], this.regular, 9, columnWidth).length;
+        return (labelLines * 9) + (valueLines * 11) + 2;
+      };
+      const rowHeight = Math.max(measure(values[index]), values[index + 1] ? measure(values[index + 1]) : 0) + 14;
+      this.ensure(rowHeight);
       this.labelValue(values[index][0], values[index][1], this.margin, columnWidth);
       if (values[index + 1]) this.labelValue(values[index + 1][0], values[index + 1][1], this.margin + columnWidth + 18, columnWidth);
-      this.y = y - 34;
+      this.y -= rowHeight;
     }
   }
 
@@ -249,15 +270,20 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
   writer.heading('Eligibility criteria');
   if (!input.eligibility.length) writer.text('No eligibility criteria were configured for this template.', { size: 9, color: COLORS.muted });
   input.eligibility.forEach((criterion, index) => {
-    writer.ensureSpace(34);
+    const labelWidth = pageWidth - margin * 2 - 96;
+    const labelLines = writer.wrapForLayout(criterion.criterion_label, regular, 9, labelWidth);
+    const evidenceLines = criterion.notes ? writer.wrapForLayout(`Evidence: ${criterion.notes}`, regular, 8, pageWidth - margin * 2 - 18) : [];
+    const rowHeight = Math.max(22, labelLines.length * 11) + (evidenceLines.length ? evidenceLines.length * 10 + 4 : 0) + 8;
+    writer.ensureSpace(rowHeight);
+    const rowY = writer.getY();
     const status = criterion.met ? 'MET' : 'NOT MET';
     const statusColor = criterion.met ? COLORS.success : COLORS.danger;
-    writer.getPage().drawText(`${index + 1}.`, { x: margin, y: writer.getY(), size: 9, font: bold, color: COLORS.blue });
-    writer.getPage().drawText(pdfSafeText(criterion.criterion_label), { x: margin + 18, y: writer.getY(), size: 9, font: regular, color: COLORS.ink, maxWidth: pageWidth - margin * 2 - 90 });
-    writer.getPage().drawText(status, { x: pageWidth - margin - 68, y: writer.getY(), size: 8, font: bold, color: statusColor });
-    writer.addGap(13);
-    if (criterion.notes) writer.text(`Evidence: ${criterion.notes}`, { size: 8, color: COLORS.muted, maxWidth: pageWidth - margin * 2 - 18 });
-    writer.addGap(3);
+    writer.getPage().drawText(`${index + 1}.`, { x: margin, y: rowY, size: 9, font: bold, color: COLORS.blue });
+    writer.textAt(criterion.criterion_label, margin + 18, rowY, { size: 9, font: regular, color: COLORS.ink, maxWidth: labelWidth, lineHeight: 11 });
+    writer.getPage().drawText(status, { x: pageWidth - margin - 58, y: rowY, size: 8, font: bold, color: statusColor });
+    writer.setY(rowY - Math.max(22, labelLines.length * 11));
+    if (criterion.notes) writer.text(`Evidence: ${criterion.notes}`, { size: 8, color: COLORS.muted, maxWidth: pageWidth - margin * 2 - 18, lineHeight: 10 });
+    writer.addGap(6);
   });
 
   const sections = input.sections.filter(section => !['A', 'PROFILE', 'ELIGIBILITY', 'REMARKS', 'TEAM'].includes(section.section_code.toUpperCase()) && input.items.some(item => item.section_code === section.section_code));
@@ -268,12 +294,15 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
       const response = input.responses[item.item_code] || { number: '', manual_score: '', boolean: null, remark: '' };
       const available = item.response_type === 'number' ? displayValue(response.number) : response.boolean === null ? 'Not answered' : response.boolean ? 'YES' : 'NO';
       const score = (item.scoring_method === 'manual_only' || item.manual_score_allowed) && response.manual_score !== '' ? `${response.manual_score} / ${item.max_points}` : response.boolean === null && response.number === '' ? `Not scored / ${item.max_points}` : `${available} - ${item.max_points} max`;
-      writer.ensureSpace(42);
+      const labelWidth = pageWidth - margin * 2 - 150;
+      const labelLines = writer.wrapForLayout(item.item_label, bold, 9, labelWidth);
+      const itemHeight = Math.max(18, labelLines.length * 11) + (item.response_type === 'number' ? 14 : 0) + (response.remark ? 20 : 0) + 12;
+      writer.ensureSpace(itemHeight);
       const itemY = writer.getY();
-      writer.getPage().drawText(item.item_code.replace(/[^0-9A-Za-z]/g, ''), { x: margin, y: itemY, size: 8, font: bold, color: COLORS.blue });
-      writer.getPage().drawText(pdfSafeText(item.item_label), { x: margin + 28, y: itemY, size: 9, font: bold, color: COLORS.ink, maxWidth: pageWidth - margin * 2 - 160 });
-      writer.getPage().drawText(pdfSafeText(score), { x: pageWidth - margin - 120, y: itemY, size: 8, font: bold, color: COLORS.blue, maxWidth: 120 });
-      writer.setY(itemY - 13);
+      writer.getPage().drawText(pdfSafeText(item.item_code.replace(/[^0-9A-Za-z]/g, '')), { x: margin, y: itemY, size: 8, font: bold, color: COLORS.blue });
+      writer.textAt(item.item_label, margin + 28, itemY, { size: 9, font: bold, color: COLORS.ink, maxWidth: labelWidth, lineHeight: 11 });
+      writer.textAt(score, pageWidth - margin - 120, itemY, { size: 8, font: bold, color: COLORS.blue, maxWidth: 120, lineHeight: 10 });
+      writer.setY(itemY - Math.max(18, labelLines.length * 11));
       if (item.response_type === 'number') writer.text(`Observed: ${available}`, { size: 8, color: COLORS.muted });
       if (response.remark) writer.text(`Evidence: ${response.remark}`, { size: 8, color: COLORS.muted });
       writer.getPage().drawLine({ start: { x: margin, y: writer.getY() }, end: { x: pageWidth - margin, y: writer.getY() }, thickness: 0.45, color: COLORS.line });

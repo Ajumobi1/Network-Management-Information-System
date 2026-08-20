@@ -12,6 +12,7 @@ import { useInspections, useInspection, useInspectionChecklist, useSaveInspectio
 import { useStructuredInspection } from '../hooks/inspections/structuredInspectionHooks';
 import { providerDocumentsRepository } from '../repositories/providers/providerDocumentsRepository';
 import { buildInspectionReportPdf, downloadPdf, inspectionReportFileName, pdfBytesToBlob, reportStoragePath } from '../features/inspections/inspectionReportPdf';
+import { exportInspectionCsv } from '../features/inspections/inspectionReportCsv';
 import { useProviderDirectory } from '../features/providers/hooks';
 import { Inspection, InspectionFilters } from '../types/inspections/inspectionsTypes';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
@@ -381,6 +382,57 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
     }
   };
 
+  const handleExportCsv = () => {
+    if (!inspection || !structuredInspection?.inspection) {
+      window.alert('The complete inspection outcome is still loading. Please try again.');
+      return;
+    }
+
+    const saved = structuredInspection as any;
+    const savedInspection = saved.inspection;
+    const savedTemplate = saved.template || {};
+    const templateDefinition = savedTemplate.template || {};
+    const facility = saved.facility_profile || {};
+    const profile = { ...(facility.metadata || {}), ...facility };
+    delete (profile as any).metadata;
+    const responseMap = (saved.responses || []).reduce((result: Record<string, any>, response: any) => {
+      result[response.item_code] = {
+        number: response.response_number === null || response.response_number === undefined ? '' : String(response.response_number),
+        manual_score: response.manual_score === null || response.manual_score === undefined ? '' : String(response.manual_score),
+        boolean: response.response_boolean === null || response.response_boolean === undefined ? null : Boolean(response.response_boolean),
+        remark: response.remark || '',
+        awarded_points: Number(response.awarded_points || 0),
+        included_in_denominator: Boolean(response.included_in_denominator),
+      };
+      return result;
+    }, {});
+    const csvBreakdown = saved.score_breakdown || {};
+    exportInspectionCsv({
+      inspectionId: id,
+      providerName: inspection.providerName || facility.facility_name || 'Provider Facility',
+      providerCode: inspection.providerCode,
+      facilityType: savedTemplate.facility_type?.name || inspection.type || 'Facility',
+      inspectionDate: facility.inspection_date || inspection.scheduledAt,
+      status: inspection.status,
+      templateName: templateDefinition.name || inspection.type || 'Inspection Outcome',
+      eligibility: (saved.eligibility || []).map((criterion: any) => ({ criterion_label: criterion.criterion_label, met: Boolean(criterion.met), notes: criterion.notes || '' })),
+      items: savedTemplate.items || [],
+      responses: responseMap,
+      generalRemarks: profile.general_remarks || '',
+      team: (saved.team || []).map((member: any) => ({ name: member.member_name || member.name || '', role: member.member_role || member.role || 'Inspector', inspection_date: member.inspection_date || '', signature_data: member.signature_data || '' })),
+      score: {
+        points: Number(savedInspection.total_points || savedInspection.score || 0),
+        possible: Number(savedInspection.total_possible || 0),
+        percentage: Number(savedInspection.overall_score ?? savedInspection.score ?? 0),
+        recommendation: savedInspection.recommendation || 'Not Recommended for Accreditation',
+        credentialingPoints: Number(csvBreakdown.credentialing_points ?? savedInspection.credentialing_points ?? 0),
+        credentialingPossible: Number(csvBreakdown.credentialing_possible ?? savedInspection.credentialing_possible ?? 0),
+        accreditationPoints: Number(csvBreakdown.accreditation_points ?? savedInspection.accreditation_points ?? 0),
+        accreditationPossible: Number(csvBreakdown.accreditation_possible ?? savedInspection.accreditation_possible ?? 0),
+      },
+    });
+  };
+
   const structured = structuredInspection as any;
   const breakdown = structured?.score_breakdown || {};
   const credentialingPoints = inspection?.credentialingPoints ?? breakdown.credentialing_points ?? 0;
@@ -486,6 +538,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
 
         <div className="flex flex-col gap-3 border-t border-brand-divider bg-brand-surface/50 p-4 sm:flex-row sm:justify-end sm:p-6">
           <Button variant="secondary" className="w-full gap-2 sm:w-auto" onClick={handleExportPdf} disabled={!inspection || !structuredInspection || isStructuredLoading || isExporting}>{isExporting ? 'Preparing PDF...' : 'Export PDF'}</Button>
+          <Button variant="secondary" className="w-full gap-2 sm:w-auto" onClick={handleExportCsv} disabled={!inspection || !structuredInspection || isStructuredLoading || isExporting}>Export CSV</Button>
           <Button variant="secondary" className="w-full sm:w-auto" onClick={onClose}>Close Review</Button>
           <Button className="w-full sm:w-auto" onClick={handleComplete} disabled={!inspection || inspection.status === 'completed' || updateInspectionMutation.isPending}>{updateInspectionMutation.isPending ? 'Saving...' : 'Mark as Completed'}</Button>
         </div>
