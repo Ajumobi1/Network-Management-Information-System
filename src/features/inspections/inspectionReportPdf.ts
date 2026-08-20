@@ -370,7 +370,21 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
       if (item.response_type === 'json') {
         try {
           const tableData = JSON.parse(response.remark || '[]');
-          responseText = Array.isArray(tableData) ? tableData.map((r: any) => `${r.month}: NGN ${r.amount || '0.00'}`).join('; ') : 'No data';
+          const quarter = input.profile.reference_quarter || '';
+          const quarterMonths: Record<string, string[]> = {
+            'Q1 (Jan-Mar)': ['January', 'February', 'March'],
+            'Q2 (Apr-Jun)': ['April', 'May', 'June'],
+            'Q3 (Jul-Sep)': ['July', 'August', 'September'],
+            'Q4 (Oct-Dec)': ['October', 'November', 'December'],
+          };
+          const months = quarterMonths[quarter] || ['Month 1', 'Month 2', 'Month 3'];
+          
+          responseText = Array.isArray(tableData) 
+            ? tableData.map((r: any, idx: number) => {
+                const monthLabel = months[idx] || r.month || `Month ${idx + 1}`;
+                return `${monthLabel}: NGN ${r.amount || '0.00'}`;
+              }).join('; ') 
+            : 'No data';
         } catch {
           responseText = response.remark || 'No data';
         }
