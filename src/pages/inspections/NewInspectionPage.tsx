@@ -243,7 +243,8 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
 export default function NewInspectionPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const draftId = searchParams.get('draftId');
+  const inspectionRecordId = searchParams.get('inspectionId') || searchParams.get('draftId');
+  const requestedProviderId = searchParams.get('providerId');
   const requestedFacilityTypeCode = searchParams.get('facilityType') || 'pharmacy';
   const templateOptionsQuery = useInspectionTemplateOptions();
   const [facilityTypeCode, setFacilityTypeCode] = useState(requestedFacilityTypeCode);
@@ -335,22 +336,21 @@ export default function NewInspectionPage() {
     setTeam([]);
     setValidationErrors({});
     setSaveMessage('');
-  }, [requestedFacilityTypeCode]);
+  }, [requestedFacilityTypeCode, requestedProviderId]);
 
   useEffect(() => {
     if (!selectedFacilityType?.configured || !template || draftLoaded) return;
-    if (!draftId) {
+    if (!inspectionRecordId) {
       setDraftLoaded(true);
       return;
     }
 
     let cancelled = false;
-    setSaveMessage('Loading saved draft...');
-    getStructuredInspection(draftId)
+    setSaveMessage('Loading saved inspection...');
+    getStructuredInspection(inspectionRecordId)
       .then((saved: any) => {
         if (cancelled) return;
-        if (!saved?.inspection) throw new Error('Saved inspection draft was not found.');
-        if (String(saved.inspection.status || '').toLowerCase() !== 'draft') throw new Error('This inspection is no longer a draft and cannot be resumed.');
+        if (!saved?.inspection) throw new Error('Saved inspection record was not found.');
 
         const facility = saved.facility_profile || {};
         const metadata = facility.metadata || {};
@@ -384,7 +384,7 @@ export default function NewInspectionPage() {
           return normalized === stepValue || stepValue.includes(normalized) || normalized.includes(stepValue);
         });
 
-        setInspectionId(saved.inspection.id || draftId);
+        setInspectionId(saved.inspection.id || inspectionRecordId);
         setProviderId(saved.inspection.provider_id || '');
         setProfile({ ...EMPTY_PROFILE, ...profileData });
         setExtraProfile(metadata);
@@ -393,7 +393,8 @@ export default function NewInspectionPage() {
         setResponses(responseState);
         setTeam(savedTeam.map((member: any, index: number) => ({ id: member.id || `saved-team-${index}`, name: member.member_name || member.name || '', role: member.member_role || member.role || 'Inspector', inspection_date: member.inspection_date || profile.inspection_date || new Date().toISOString().slice(0, 10), signature_data: member.signature_data || '' })));
         setStep(restoredStep >= 0 ? restoredStep : 0);
-        setSaveMessage('Draft loaded. Continue the inspection and submit when ready.');
+        const savedStatus = String(saved.inspection.status || '').toLowerCase();
+        setSaveMessage(savedStatus === 'draft' ? 'Draft loaded. Continue the inspection and submit when ready.' : 'Submitted inspection loaded. Update the evidence and submit again when ready.');
       })
       .catch(error => {
         if (!cancelled) setSaveMessage(error instanceof Error ? error.message : 'Unable to load saved draft.');
@@ -403,7 +404,7 @@ export default function NewInspectionPage() {
       });
 
     return () => { cancelled = true; };
-  }, [draftId, selectedFacilityType?.configured, template, draftLoaded]);
+  }, [inspectionRecordId, selectedFacilityType?.configured, template, draftLoaded]);
 
   useEffect(() => {
     if (!template || !draftLoaded) return;
@@ -540,7 +541,13 @@ export default function NewInspectionPage() {
     }));
   };
 
-  const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({ mode, step: stepLabels[step].toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
+    useEffect(() => {
+    if (inspectionRecordId || !requestedProviderId || providerId || !scopedProviders.some(provider => provider.id === requestedProviderId)) return;
+    applyProvider(requestedProviderId);
+  }, [inspectionRecordId, requestedProviderId, providerId, scopedProviders]);
+
+  const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({
+ mode, step: stepLabels[step].toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
 
   const saveDraft = async () => {
     if (!providerId) { setSaveMessage('Select a provider before saving the draft.'); return; }
@@ -599,7 +606,7 @@ export default function NewInspectionPage() {
       localStorage.removeItem(`${DRAFT_KEY}:${facilityTypeCode}:${submittedInspectionId}`);
       localStorage.removeItem(`${DRAFT_KEY}:${facilityTypeCode}:new`);
       setSaveMessage('Inspection submitted successfully. The PDF outcome was downloaded and attached to the provider Documents tab.');
-      navigate(`/providers/${providerId}?tab=Documents`);
+      navigate(`/providers/${providerId}?tab=Inspections`);
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'Inspection submission or report generation failed.');
     } finally {

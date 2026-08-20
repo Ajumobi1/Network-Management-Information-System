@@ -22,14 +22,22 @@ import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import ActiveFilterChips from '../components/ui/ActiveFilterChips';
 
-function facilityTypeCodeFromInspectionType(type: string) {
-  const normalized = type.toLowerCase();
+export function facilityTypeCodeFromInspectionType(type: string, providerCategory?: string | null, providerOwnership?: string | null, explicitFacilityTypeCode?: string | null) {
+  if (explicitFacilityTypeCode) return explicitFacilityTypeCode;
+  const normalized = String(type || '').toLowerCase();
   if (normalized.includes('government') && normalized.includes('hospital')) return 'government-hospital';
   if ((normalized.includes('private') || normalized.includes('primary services')) && normalized.includes('hospital')) return 'private-hospital';
   if (normalized.includes('optical')) return 'optical-centre';
   if (normalized.includes('dental')) return 'dental-centre';
   if (normalized.includes('diagnostic')) return 'diagnostic-centre';
   if (normalized.includes('pharmacy')) return 'pharmacy';
+  const category = String(providerCategory || '').toLowerCase();
+  const ownership = String(providerOwnership || '').toLowerCase();
+  if (category.includes('hospital')) return ownership.includes('government') ? 'government-hospital' : 'private-hospital';
+  if (category.includes('optical')) return 'optical-centre';
+  if (category.includes('dental')) return 'dental-centre';
+  if (category.includes('diagnostic')) return 'diagnostic-centre';
+  if (category.includes('pharmacy')) return 'pharmacy';
   return 'pharmacy';
 }
 
@@ -366,6 +374,7 @@ export default function InspectionsPage() {
       {isDrawerOpen && selectedInspectionId && (
         <InspectionDetailDrawer
           id={selectedInspectionId}
+          onEdit={(inspection) => navigate(`/inspections/new?inspectionId=${encodeURIComponent(inspection.id)}&facilityType=${encodeURIComponent(facilityTypeCodeFromInspectionType(inspection.type, inspection.providerCategory, inspection.providerOwnership, inspection.facilityTypeCode))}`)}
           onClose={() => {
             setIsDrawerOpen(false);
             setSelectedInspectionId(null);
@@ -394,7 +403,7 @@ export default function InspectionsPage() {
   );
 }
 
-function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => void }) {
+export function InspectionDetailDrawer({ id, onClose, onEdit }: { id: string; onClose: () => void; onEdit?: (inspection: { id: string; type: string; providerCategory?: string | null; providerOwnership?: string | null; facilityTypeCode?: string | null }) => void }) {
   const { data: inspection, isLoading } = useInspection(id);
   const { data: structuredInspection, isLoading: isStructuredLoading } = useStructuredInspection(id);
   const updateInspectionMutation = useUpdateInspection();
@@ -701,6 +710,7 @@ function InspectionDetailDrawer({ id, onClose }: { id: string; onClose: () => vo
           <Button variant="secondary" className="w-full gap-2 sm:w-auto" onClick={handleExportPdf} disabled={!inspection || !structuredInspection || isStructuredLoading || exportingFormat !== null}>{exportingFormat === 'pdf' ? 'Preparing PDF...' : 'Export PDF'}</Button>
           <Button variant="secondary" className="w-full gap-2 sm:w-auto" onClick={handleExportCsv} disabled={!inspection || !structuredInspection || isStructuredLoading || exportingFormat !== null}>{exportingFormat === 'csv' ? 'Preparing CSV...' : 'Export CSV'}</Button>
           <Button variant="secondary" className="w-full gap-2 sm:w-auto" onClick={handleExportDocx} disabled={!inspection || !structuredInspection || isStructuredLoading || exportingFormat !== null}>{exportingFormat === 'docx' ? 'Preparing Word...' : 'Export Word'}</Button>
+          {inspection && (inspection.status === 'submitted' || inspection.status === 'completed') && onEdit ? <Button variant="secondary" className="w-full border-[#f4d3ae] bg-[#fff8ef] text-[#b45309] hover:bg-[#f7931e] hover:text-white sm:w-auto" onClick={() => onEdit({ id: inspection.id, type: inspection.type, providerCategory: inspection.providerCategory, providerOwnership: inspection.providerOwnership, facilityTypeCode: inspection.facilityTypeCode })}><FilePenLine size={15} /> Edit & Re-submit</Button> : null}
           <Button variant="secondary" className="w-full sm:w-auto" onClick={onClose}>Close Review</Button>
           <Button className="w-full sm:w-auto" onClick={handleComplete} disabled={!inspection || inspection.status === 'completed' || updateInspectionMutation.isPending}>{updateInspectionMutation.isPending ? 'Saving...' : 'Mark as Completed'}</Button>
         </div>

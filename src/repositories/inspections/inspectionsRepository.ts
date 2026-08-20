@@ -12,6 +12,11 @@ export interface InspectionRecord {
   provider_code?: string;
   providerName?: string;
   providerCode?: string;
+  provider_category?: string | null;
+  provider_ownership?: string | null;
+  template_id?: string | null;
+  template_code?: string | null;
+  facility_type_code?: string | null;
   inspection_type: string;
   scheduled_date: string;
   inspector_name?: string;
