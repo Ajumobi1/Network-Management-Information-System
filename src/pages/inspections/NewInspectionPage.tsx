@@ -26,6 +26,14 @@ type FacilityProfileState = {
   inspection_date: string;
   contact_person: string;
   facility_account_name: string;
+  // Hospital-specific fields
+  physician_in_charge: string;
+  physician_phone: string;
+  desk_officer: string;
+  desk_officer_phone: string;
+  hospital_beds: string;
+  nhia_reg_no: string;
+  smoh_reg_no: string;
 };
 
 type ResponseState = { number: string; manual_score: string; boolean: boolean | null; remark: string };
@@ -34,6 +42,7 @@ type TeamMember = { id: string; name: string; role: string; inspection_date: str
 
 const EMPTY_PROFILE: FacilityProfileState = {
   facility_name: '', address: '', telephone: '', superintendent_pharmacist: '', nhia_registered: '', nhia_registration_no: '', smoh_pcn_registered: '', smoh_pcn_registration_no: '', premises_registration_license_no: '', cac_registration_no: '', facility_email: '', inspection_date: new Date().toISOString().slice(0, 10), contact_person: '', facility_account_name: '',
+  physician_in_charge: '', physician_phone: '', desk_officer: '', desk_officer_phone: '', hospital_beds: '', nhia_reg_no: '', smoh_reg_no: '',
 };
 
 const STEP_LABELS = ['Eligibility', 'Facility Profile', 'Review & Sign'];
@@ -223,7 +232,7 @@ export default function NewInspectionPage() {
   const selectedFacilityType = useMemo(() => templateOptionsQuery.data?.find(option => option.facility_type.code === facilityTypeCode), [facilityTypeCode, templateOptionsQuery.data]);
   const templateCode = selectedFacilityType?.template?.code || 'pharmacy-accreditation';
   const templateQuery = useInspectionTemplate(templateCode, Boolean(selectedFacilityType?.configured));
-  const providerCategory = useMemo(() => {
+  const { providerCategory, providerOwnership } = useMemo(() => {
     // Template codes use both short and hyphenated forms (for example,
     // `dental-centre`), while the provider directory uses canonical enum values.
     // Normalize separators so every configured facility type is strictly scoped.
@@ -231,14 +240,39 @@ export default function NewInspectionPage() {
     const categoryByFacilityType: Record<string, ProviderCategory> = {
       pharmacy: ProviderCategory.Pharmacy,
       hospital: ProviderCategory.Hospital,
+      privatehospital: ProviderCategory.Hospital,
+      governmenthospital: ProviderCategory.Hospital,
       opticalcentre: ProviderCategory.OpticalCentre,
       dentalcentre: ProviderCategory.DentalCentre,
       diagnosticcentre: ProviderCategory.DiagnosticCentre,
     };
-    return categoryByFacilityType[normalizedCode];
+
+    const ownershipByFacilityType: Record<string, string> = {
+      privatehospital: 'Private',
+      governmenthospital: 'Government',
+    };
+
+    return {
+      providerCategory: categoryByFacilityType[normalizedCode],
+      providerOwnership: ownershipByFacilityType[normalizedCode] || 'all'
+    };
   }, [facilityTypeCode]);
   const [providerSearch, setProviderSearch] = useState('');
-  const providerQuery = useProviderDirectory({ search: providerSearch, status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all', capitationStatus: 'all', lga: 'all', category: providerCategory || 'all', subcategory: 'all', ownership: 'all', service: 'all', page: 1, pageSize: -1 });
+  const providerQuery = useProviderDirectory({
+    search: providerSearch,
+    status: 'active',
+    contractStatus: 'all',
+    credentialStatus: 'all',
+    inspectionStatus: 'all',
+    capitationStatus: 'all',
+    lga: 'all',
+    category: providerCategory || 'all',
+    subcategory: 'all',
+    ownership: providerOwnership,
+    service: 'all',
+    page: 1,
+    pageSize: -1
+  });
   const saveMutation = useSaveStructuredInspection();
   const [step, setStep] = useState(0);
   const [inspectionId, setInspectionId] = useState<string | null>(null);
@@ -304,14 +338,18 @@ export default function NewInspectionPage() {
   }, [draftKey, template, draftLoaded, step, inspectionId, providerId, profile, extraProfile, eligibility, responses, team, validationErrors]);
 
   useEffect(() => {
-    if (profileQuery.data?.address && !profile.address) {
-      setProfile(prev => ({ ...prev, address: profileQuery.data.address }));
-    }
-    if (profileQuery.data?.phone && (!profile.telephone || profile.telephone === 'Pending verification')) {
-      setProfile(prev => ({ ...prev, telephone: profileQuery.data.phone }));
-    }
-    if (profileQuery.data?.email && (!profile.facility_email || profile.facility_email === 'Pending verification')) {
-      setProfile(prev => ({ ...prev, facility_email: profileQuery.data.email }));
+    if (profileQuery.data) {
+      const p = profileQuery.data;
+      setProfile(prev => ({
+        ...prev,
+        address: prev.address || p.address || '',
+        telephone: (!prev.telephone || prev.telephone === 'Pending verification') ? p.phone || '' : prev.telephone,
+        facility_email: (!prev.facility_email || prev.facility_email === 'Pending verification') ? p.email || '' : prev.facility_email,
+        facility_account_name: prev.facility_account_name || p.accountName || '',
+        // Auto-fill bank details if available
+        bank_name: (prev as any).bank_name || p.bankName || '',
+        account_number: (prev as any).account_number || p.accountNumber || '',
+      }));
     }
   }, [profileQuery.data]);
 
@@ -397,7 +435,18 @@ export default function NewInspectionPage() {
     setProviderId(id);
     const provider = providerQuery.data?.find(item => item.id === id) as any;
     if (!provider) return;
-    setProfile(previous => ({ ...previous, facility_name: provider.providerName || '', address: provider.address || provider.facility_address || '', telephone: provider.phone || '', facility_email: provider.email || '', inspection_date: previous.inspection_date || new Date().toISOString().slice(0, 10) }));
+    setProfile(previous => ({
+      ...previous,
+      facility_name: provider.providerName || '',
+      address: provider.address || provider.facility_address || '',
+      telephone: provider.phone || '',
+      facility_email: provider.email || '',
+      facility_account_name: provider.accountName || '',
+      inspection_date: previous.inspection_date || new Date().toISOString().slice(0, 10),
+      // Auto-fill additional fields if they exist in the provider record (e.g. from previous inspections)
+      bank_name: provider.bankName || '',
+      account_number: provider.accountNumber || '',
+    }));
   };
 
   const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({ mode, step: stepLabels[step].toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: (item.response_type === 'number' || item.scoring_method === 'manual_only' || item.manual_score_allowed) ? Number(responses[item.item_code]?.number || 0) : null, manual_score: (item.scoring_method === 'manual_only' || item.manual_score_allowed) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
