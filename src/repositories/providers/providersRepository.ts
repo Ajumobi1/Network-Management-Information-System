@@ -47,6 +47,7 @@ type ProviderDirectoryRpcRow = {
   inspection_rating?: string | null;
   last_inspection_date?: string | null;
   services?: string[] | null;
+  senatorial_district?: string | null;
 };
 
 type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
@@ -102,6 +103,7 @@ function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
     inspectionRating: row.inspection_rating ?? '',
     lastInspectionDate: row.last_inspection_date ?? '',
     services: row.services ?? [],
+    senatorialDistrict: row.senatorial_district ?? '',
   };
 }
 

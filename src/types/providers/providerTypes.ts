@@ -20,6 +20,7 @@ export type ProviderDirectoryItem = {
   subcategory: string;
   ownership: ProviderOwnership;
   lga: string;
+  senatorialDistrict?: string;
   state: string;
   contactPerson: string;
   phone: string;

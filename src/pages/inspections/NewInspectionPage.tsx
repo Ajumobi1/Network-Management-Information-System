@@ -706,6 +706,14 @@ export default function NewInspectionPage() {
       bank_name: provider.bankName || '',
       account_number: provider.accountNumber || '',
     }));
+    
+    // Auto-fill extra profile fields like LGA/District
+    setExtraProfile(previous => ({
+      ...previous,
+      lga_district: provider.lga && provider.senatorialDistrict 
+        ? `${provider.lga} / ${provider.senatorialDistrict}` 
+        : provider.lga || provider.senatorialDistrict || '',
+    }));
   };
 
     useEffect(() => {
