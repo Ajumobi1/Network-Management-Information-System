@@ -7,7 +7,7 @@ import Card from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/FeedbackStates';
 import PageHeader from '../../components/ui/PageHeader';
 import { useProviderDirectory, useProviderProfile } from '../../hooks/providers/providersHooks';
-import { ProviderCategory } from '../../constants/providerNetwork';
+import { ProviderCategory, ProviderLifecycleStatus, ProviderOwnership } from '../../constants/providerNetwork';
 import { useInspectionTemplate, useInspectionTemplateOptions, useSaveStructuredInspection } from '../../hooks/inspections/structuredInspectionHooks';
 import { InspectionTemplateItem, StructuredInspectionPayload } from '../../repositories/inspections/structuredInspectionRepository';
 
@@ -260,7 +260,7 @@ export default function NewInspectionPage() {
   const [providerSearch, setProviderSearch] = useState('');
   const providerQuery = useProviderDirectory({
     search: providerSearch,
-    status: 'active',
+    status: ProviderLifecycleStatus.Active,
     contractStatus: 'all',
     credentialStatus: 'all',
     inspectionStatus: 'all',
@@ -268,11 +268,20 @@ export default function NewInspectionPage() {
     lga: 'all',
     category: providerCategory || 'all',
     subcategory: 'all',
-    ownership: providerOwnership,
+    ownership: providerOwnership as 'all' | ProviderOwnership,
     service: 'all',
     page: 1,
     pageSize: -1
   });
+  const scopedProviders = useMemo(() => {
+    const category = providerCategory ? String(providerCategory).trim().toLowerCase() : null;
+    const ownership = providerOwnership !== 'all' ? String(providerOwnership).trim().toLowerCase() : null;
+    return (providerQuery.data || []).filter(provider => {
+      const providerCategoryValue = String(provider.category || '').trim().toLowerCase();
+      const providerOwnershipValue = String(provider.ownership || '').trim().toLowerCase();
+      return (!category || providerCategoryValue === category) && (!ownership || providerOwnershipValue === ownership);
+    });
+  }, [providerQuery.data, providerCategory, providerOwnership]);
   const saveMutation = useSaveStructuredInspection();
   const [step, setStep] = useState(0);
   const [inspectionId, setInspectionId] = useState<string | null>(null);
@@ -356,7 +365,7 @@ export default function NewInspectionPage() {
   const scoredSections = useMemo(() => (template?.sections || []).filter(section => !['A', 'ELIGIBILITY', 'PROFILE'].includes(section.section_code)).sort((a, b) => a.sort_order - b.sort_order), [template]);
   const stepLabels = useMemo(() => ['ELIGIBILITY', 'FACILITY PROFILE', ...scoredSections.map(section => section.section_label.toUpperCase()), 'REVIEW & SIGN'], [scoredSections]);
   const reviewStep = stepLabels.length - 1;
-  const selectedProvider = useMemo(() => providerQuery.data?.find(provider => provider.id === providerId), [providerId, providerQuery.data]);
+  const selectedProvider = useMemo(() => scopedProviders.find(provider => provider.id === providerId), [providerId, scopedProviders]);
   const allEligibilityMet = template?.eligibility.filter(item => item.required).every(item => eligibility[item.criterion_code]?.met) ?? false;
   const answeredCount = items.filter(item => {
     const response = responses[item.item_code];
@@ -433,7 +442,7 @@ export default function NewInspectionPage() {
 
   const applyProvider = (id: string) => {
     setProviderId(id);
-    const provider = providerQuery.data?.find(item => item.id === id) as any;
+    const provider = scopedProviders.find(item => item.id === id) as any;
     if (!provider) return;
     setProfile(previous => ({
       ...previous,
@@ -484,7 +493,7 @@ export default function NewInspectionPage() {
 
     {step === 0 && <SectionCard title="ELIGIBILITY CRITERIA" subtitle="All required criteria must be MET before scored sections unlock."><div className="space-y-4">{template.eligibility.map(item => { const current = eligibility[item.criterion_code] || { met: false, notes: '' }; return <div key={item.criterion_code} className="flex flex-col gap-3 rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:flex-row sm:items-center"><div className="flex flex-1 items-start gap-3"><ShieldCheck size={20} className={current.met ? 'text-status-success' : 'text-brand-muted'} /><div><p className="text-sm font-black text-brand-foreground">{item.criterion_label}{item.required ? ' *' : ''}</p><input value={current.notes} onChange={event => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, notes: event.target.value } }))} placeholder="Optional note or evidence reference" className="nmis-control mt-2" /></div></div><YesNoToggle value={current.met} onChange={met => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, met } }))} /></div>; })}</div><div className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${allEligibilityMet ? 'border-status-success/30 bg-status-successSoft text-status-success' : 'border-status-warning/30 bg-status-warningSoft text-status-warning'}`}>{allEligibilityMet ? 'Eligibility gate passed. Scored sections are unlocked.' : 'Eligibility gate not yet passed. Mark every required criterion MET to proceed.'}</div></SectionCard>}
 
-    {step === 1 && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5"><div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {(providerQuery.data?.length || 0).toLocaleString()} of {(providerQuery.data?.totalCount ?? providerQuery.data?.length ?? 0).toLocaleString()} matching providers</p></div></div><label className="block space-y-1.5"><span className="nmis-label">Provider / Facility *</span><select className="nmis-control" value={providerId} onChange={event => applyProvider(event.target.value)} required disabled={providerQuery.isLoading || providerQuery.isError}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider Directory unavailable' : `Select an authoritative ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option>{providerQuery.data?.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. Retry or refine the search.</span> : providerQuery.data?.length === 0 ? <span className="text-xs text-brand-muted">No {selectedFacilityType.facility_type.name.toLowerCase()} providers match this search.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}</label></div><div className="grid gap-4 md:grid-cols-2">{(template.template.facility_profile_fields || []).map(field => {
+    {step === 1 && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5"><div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {scopedProviders.length.toLocaleString()} matching providers</p></div></div><label className="block space-y-1.5"><span className="nmis-label">Provider / Facility *</span><select className="nmis-control" value={providerId} onChange={event => applyProvider(event.target.value)} required disabled={providerQuery.isLoading || providerQuery.isError}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider Directory unavailable' : `Select an authoritative ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option>{scopedProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. Retry or refine the search.</span> : scopedProviders.length === 0 ? <span className="text-xs text-brand-muted">No {selectedFacilityType.facility_type.name.toLowerCase()} providers match this search.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}</label></div><div className="grid gap-4 md:grid-cols-2">{(template.template.facility_profile_fields || []).map(field => {
           if ((field as any).hidden) return null;
           if (field.type === 'boolean') {
             const val = Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? (profile as any)[field.key] : extraProfile[field.key];
