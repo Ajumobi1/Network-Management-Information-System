@@ -36,6 +36,8 @@ type FacilityProfileState = {
   hospital_beds: string;
   nhia_reg_no: string;
   smoh_reg_no: string;
+  reference_quarter?: string;
+  reference_year?: string;
 };
 
 type ResponseState = { number: string; manual_score: string; boolean: boolean | null; remark: string };
@@ -44,7 +46,7 @@ type TeamMember = { id: string; name: string; role: string; inspection_date: str
 
 const EMPTY_PROFILE: FacilityProfileState = {
   facility_name: '', address: '', telephone: '', superintendent_pharmacist: '', nhia_registered: '', nhia_registration_no: '', smoh_pcn_registered: '', smoh_pcn_registration_no: '', premises_registration_license_no: '', cac_registration_no: '', facility_email: '', inspection_date: new Date().toISOString().slice(0, 10), contact_person: '', facility_account_name: '',
-  physician_in_charge: '', physician_phone: '', desk_officer: '', desk_officer_phone: '', hospital_beds: '', nhia_reg_no: '', smoh_reg_no: '',
+  physician_in_charge: '', physician_phone: '', desk_officer: '', desk_officer_phone: '', hospital_beds: '', nhia_reg_no: '', smoh_reg_no: '', reference_quarter: '', reference_year: '',
 };
 
 const STEP_LABELS = ['Eligibility', 'Facility Profile', 'Review & Sign'];
@@ -189,7 +191,7 @@ function isAccreditationSection(sectionCode: string) {
   return !['A', 'ELIGIBILITY', 'PROFILE'].includes(code) && !isCredentialingSection(code);
 }
 
-function MonthlyAmountTable({ value, onChange, label }: { value: string; onChange: (next: string) => void; label: string }) {
+function MonthlyAmountTable({ value, onChange, label, quarter }: { value: string; onChange: (next: string) => void; label: string; quarter?: string }) {
   const data = useMemo(() => {
     try {
       return JSON.parse(value || '[]');
@@ -253,9 +255,9 @@ function MonthlyAmountTable({ value, onChange, label }: { value: string; onChang
   );
 }
 
-function QAItem({ item, response, onChange }: { item: InspectionTemplateItem; response: ResponseState; onChange: (next: ResponseState) => void }) {
+function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplateItem; response: ResponseState; quarter?: string; onChange: (next: ResponseState) => void }) {
   if (item.response_type === 'json') {
-    return <MonthlyAmountTable label={item.item_label} value={response.remark} onChange={val => onChange({ ...response, remark: val })} />;
+    return <MonthlyAmountTable label={item.item_label} value={response.remark} quarter={quarter} onChange={val => onChange({ ...response, remark: val })} />;
   }
 
   return (
