@@ -496,7 +496,6 @@ export default function NewInspectionPage() {
     if (!template) { setSaveMessage('The inspection template is still loading. Please retry submission.'); return; }
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before submission.'); return; }
     const blockers: string[] = [];
-    if (answeredCount !== items.length) blockers.push(`${items.length - answeredCount} checklist item(s) still need a response and awarded score.`);
     if (!signedCount) blockers.push('Add at least one team member with a name and captured signature.');
     if (blockers.length) {
       setSaveMessage(`Cannot submit yet: ${blockers.join(' ')}`);
