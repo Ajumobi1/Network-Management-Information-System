@@ -5,7 +5,6 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import KpiCard from '../components/ui/KpiCard';
-import PageHeader from '../components/ui/PageHeader';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useInspections, useInspection, useInspectionChecklist, useSaveInspection, useUpdateInspection } from '../hooks/inspections/inspectionsHooks';
@@ -132,30 +131,34 @@ export default function InspectionsPage() {
   return (
     <main className="nmis-page">
       <div className="space-y-6">
-        <PageHeader
-          eyebrow="Quality & Compliance"
-          title="Inspection Rounds"
-          subtitle="Monitor scheduled inspections, completed reviews, and follow-up work across the provider network."
-          actions={
-            <div className="flex gap-2">
-              <Button variant="secondary" className="gap-2" onClick={handleExport} disabled={!inspections.length}><Download size={16} /> Export Schedule</Button>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => navigate('/inspections/new')}><Plus size={16} /> New Accreditation Inspection</Button>
-                <Button className="gap-2" onClick={() => setIsScheduleModalOpen(true)}><Plus size={16} /> Schedule Inspection</Button>
-              </div>
+        <section className="relative isolate overflow-hidden rounded-panel border border-[#174b78] bg-[linear-gradient(120deg,#071c4b_0%,#0b3d72_52%,#0b65a1_100%)] px-5 py-6 text-white shadow-[0_22px_50px_-30px_rgba(7,28,75,0.8)] sm:px-7 sm:py-7">
+          <div className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full border border-white/10 bg-white/[0.04]" aria-hidden="true" />
+          <div className="pointer-events-none absolute -bottom-28 right-28 h-64 w-64 rounded-full border border-[#f7931e]/20 bg-[#f7931e]/10" aria-hidden="true" />
+          <div className="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.24em] text-[#ffbe6a]"><ClipboardCheck size={14} /> Quality & Compliance</div>
+              <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">Inspection Rounds</h1>
+              <p className="mt-2 max-w-xl text-sm leading-6 text-blue-100">Monitor scheduled inspections, completed reviews, and follow-up work across the provider network.</p>
             </div>
-          }
-        />
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+              <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={handleExport} disabled={!inspections.length}><Download size={16} /> Export Schedule</Button>
+              <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => navigate('/inspections/new')}><Plus size={16} /> New Accreditation Inspection</Button>
+              <Button className="bg-[#f7931e] text-white shadow-lg shadow-orange-950/20 hover:bg-[#ff9f2f]" onClick={() => setIsScheduleModalOpen(true)}><Plus size={16} /> Schedule Inspection</Button>
+            </div>
+          </div>
+        </section>
 
-        <section className="grid gap-4 md:grid-cols-4">
-          <KpiCard title="Due this week" value={summary.scheduled.toString()} subtitle="Scheduled field work" tone="primary" icon={<Calendar size={20} />} />
-          <KpiCard title="Drafts" value={summary.drafts.toString()} subtitle="Saved inspections to resume" tone="warning" icon={<FilePenLine size={20} />} />
-          <KpiCard title="Submitted" value={summary.completed.toString()} subtitle="Submitted inspection outcomes" tone="success" icon={<CheckCircle2 size={20} />} />
-          <KpiCard title="Needs follow-up" value={summary.needsFollowUp.toString()} subtitle="Requires management review" tone="warning" icon={<AlertCircle size={20} />} />
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <KpiCard title="Due this week" value={summary.scheduled.toString()} subtitle="Scheduled field work" tone="primary" icon={<Calendar size={20} />} className="border-[#cfe0ee] bg-gradient-to-br from-white via-white to-[#eef6fb]" />
+          <KpiCard title="Drafts" value={summary.drafts.toString()} subtitle="Saved inspections to resume" tone="warning" icon={<FilePenLine size={20} />} className="border-[#f4d3ae] bg-gradient-to-br from-white via-white to-[#fff8ef]" />
+          <KpiCard title="Submitted" value={summary.completed.toString()} subtitle="Submitted inspection outcomes" tone="success" icon={<CheckCircle2 size={20} />} className="border-[#cdebd8] bg-gradient-to-br from-white via-white to-[#edf9f2]" />
+          <KpiCard title="Needs follow-up" value={summary.needsFollowUp.toString()} subtitle="Requires management review" tone="danger" icon={<AlertCircle size={20} />} className="border-[#f3cccc] bg-gradient-to-br from-white via-white to-[#fff3f1]" />
         </section>
 
         {/* Filters */}
-        <section className="nmis-card p-4 sm:p-5">
+        <section className="relative overflow-hidden rounded-panel border border-[#d6e5f0] bg-gradient-to-br from-white via-white to-[#f2f8fc] p-4 shadow-[0_14px_35px_-28px_rgba(11,79,130,0.55)] sm:p-5">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0b4f82] via-[#0b65a1] to-[#f7931e]" aria-hidden="true" />
+          <div className="mb-4 flex items-center gap-2 pt-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#0b65a1]"><Filter size={14} /> Round controls</div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
             <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-subtle" />
@@ -188,24 +191,24 @@ export default function InspectionsPage() {
         </section>
 
         <div className="nmis-table-wrap">
-          <div className="flex flex-col gap-3 border-b border-brand-divider bg-brand-surface/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
-            <SectionHeader title="Inspection Schedule" subtitle={`${inspections.length} records in current view.`} />
-            <Badge variant="info">Live Tracking</Badge>
+          <div className="flex flex-col gap-3 border-b border-[#cfe0ee] bg-gradient-to-r from-[#eef6fb] via-white to-[#fff8ef] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-5">
+            <div className="flex items-start gap-3"><span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-[#0b4f82] text-white shadow-sm"><ClipboardCheck size={17} /></span><SectionHeader title="Inspection Schedule" subtitle={`${inspections.length} records in current view.`} /></div>
+            <Badge variant="info" className="border border-[#b9d9ef] bg-[#eaf5fc] text-[#0b65a1]"><span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-[#10b981]" />Live Tracking</Badge>
           </div>
 
           <div className="nmis-table-scroll">
             <table className="nmis-table min-w-[1000px]">
-              <thead>
-                <tr>
-                  <th>Provider / Facility</th>
-                  <th>Type</th>
-                  <th>Date</th>
-                  <th>Inspector</th>
-                  <th className="text-center">Overall Score</th>
-                  <th className="text-center">Credentialing</th>
-                  <th className="text-center">Accreditation</th>
-                  <th>Status</th>
-                  <th className="text-right">Actions</th>
+              <thead className="bg-[#0b4f82]">
+                <tr className="border-0">
+                  <th className="!text-white/80">Provider / Facility</th>
+                  <th className="!text-white/80">Type</th>
+                  <th className="!text-white/80">Date</th>
+                  <th className="!text-white/80">Inspector</th>
+                  <th className="!text-white/80 text-center">Overall Score</th>
+                  <th className="!text-white/80 text-center">Credentialing</th>
+                  <th className="!text-white/80 text-center">Accreditation</th>
+                  <th className="!text-white/80">Status</th>
+                  <th className="!text-white/80 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -215,43 +218,43 @@ export default function InspectionsPage() {
                   <tr><td colSpan={9} className="py-20 text-center text-brand-muted">No inspections match the current filters.</td></tr>
                 ) : (
                   inspections.map(item => (
-                    <tr key={item.id} className="hover:bg-brand-surface/50 transition-colors">
+                    <tr key={item.id} className="odd:bg-white even:bg-[#fbfdff] transition-colors hover:!bg-[#fff8ef]">
                       <td>
-                        <div>
-                          <p className="font-bold text-brand-foreground">{item.providerName}</p>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">{item.providerCode}</p>
+                        <div className="min-w-[250px]">
+                          <p className="font-black leading-5 text-[#123b5d]">{item.providerName}</p>
+                          <span className="mt-1 inline-flex rounded-full border border-[#cfe0ee] bg-[#eef6fb] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#0b65a1]">{item.providerCode}</span>
                         </div>
                       </td>
-                      <td><Badge variant="default">{item.type}</Badge></td>
+                      <td><Badge variant="info" className="border border-[#cfe0ee] bg-[#eef6fb] text-[#0b65a1]">{item.type}</Badge></td>
                       <td>
                         <div className="flex items-center gap-1.5 text-xs font-medium text-brand-secondary">
-                          <Calendar size={12} className="text-brand-subtle" />
+                          <Calendar size={13} className="text-[#f7931e]" />
                           {new Date(item.scheduledAt).toLocaleDateString('en-NG', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </div>
                       </td>
                       <td>
                         <div className="flex items-center gap-1.5 text-xs font-medium text-brand-secondary">
-                          <User size={12} className="text-brand-subtle" />
+                          <User size={13} className="text-[#0b65a1]" />
                           {item.inspectorName}
                         </div>
                       </td>
                       <td className="text-center">
                         {item.score ? (
-                          <div className="inline-flex flex-col items-center">
-                            <span className={`text-sm font-black ${item.score >= 90 ? 'text-status-success' : item.score >= 75 ? 'text-brand-blue' : 'text-status-warning'}`}>
+                          <div className="inline-flex min-w-[76px] flex-col items-center rounded-control border border-[#cfe0ee] bg-[#eef6fb] px-2.5 py-1.5">
+                            <span className={`text-base font-black tabular-nums ${item.score >= 90 ? 'text-[#15803d]' : item.score >= 75 ? 'text-[#0b65a1]' : 'text-[#b45309]'}`}>
                               {item.score}%
                             </span>
-                            <span className="text-[9px] font-bold uppercase text-brand-muted">{item.rating}</span>
+                            <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[#6d879c]">{item.rating}</span>
                           </div>
                         ) : (
-                          <span className="text-xs text-brand-muted italic">Pending</span>
+                          <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500">Pending</span>
                         )}
                       </td>
                       <td className="text-center">
-                        {item.credentialingPossible ? <span className="text-xs font-black text-brand-blue">{item.credentialingPoints ?? 0}/{item.credentialingPossible}</span> : <span className="text-xs text-brand-muted">—</span>}
+                        {item.credentialingPossible ? <span className="inline-flex rounded-control border border-[#cfe0ee] bg-[#f4f9fc] px-2.5 py-1.5 text-xs font-black tabular-nums text-[#0b4f82]">{item.credentialingPoints ?? 0}/{item.credentialingPossible}</span> : <span className="text-xs text-brand-muted">—</span>}
                       </td>
                       <td className="text-center">
-                        {item.accreditationPossible ? <span className="text-xs font-black text-brand-blue">{item.accreditationPoints ?? 0}/{item.accreditationPossible}</span> : <span className="text-xs text-brand-muted">—</span>}
+                        {item.accreditationPossible ? <span className="inline-flex rounded-control border border-[#f4d3ae] bg-[#fff8ef] px-2.5 py-1.5 text-xs font-black tabular-nums text-[#b45309]">{item.accreditationPoints ?? 0}/{item.accreditationPossible}</span> : <span className="text-xs text-brand-muted">—</span>}
                       </td>
                       <td>
                         <Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : item.status === 'draft' ? 'warning' : item.status === 'scheduled' ? 'warning' : 'info'}>
@@ -259,7 +262,7 @@ export default function InspectionsPage() {
                         </Badge>
                       </td>
                       <td className="text-right">
-                        <Button variant={item.status === 'draft' ? 'secondary' : 'ghost'} size="sm" onClick={() => handleOpenInspection(item)}>{item.status === 'draft' ? <><FilePenLine size={15} /> Resume</> : <ChevronRight size={18} />}</Button>
+                        <Button variant={item.status === 'draft' ? 'secondary' : 'ghost'} size="sm" className={item.status === 'draft' ? 'border-[#f4d3ae] bg-[#fff8ef] text-[#b45309] hover:bg-[#f7931e] hover:text-white' : 'rounded-full bg-[#eef6fb] text-[#0b65a1] hover:bg-[#0b4f82] hover:text-white'} onClick={() => handleOpenInspection(item)}>{item.status === 'draft' ? <><FilePenLine size={15} /> Resume</> : <><span className="hidden sm:inline">Review</span><ChevronRight size={18} /></>}</Button>
                       </td>
                     </tr>
                   ))
