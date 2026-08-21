@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "mobile:build": "pnpm run build && pnpm exec cap copy android && pnpm exec cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@heroicons/react": "^2.0.18",
     "@hookform/resolvers": "^3.1.2",
     "@supabase/supabase-js": "^2.112.2",
