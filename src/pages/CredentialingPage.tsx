@@ -108,23 +108,125 @@ export default function CredentialingPage() {
         />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard title="Total Applications" value={stats.total} subtitle="Active pipeline" tone="primary" icon={<FileText size={20} className="text-brand-blue" />} />
-          <KpiCard title="Under Review" value={stats.underReview} subtitle="Awaiting audit" tone="warning" icon={<Clock size={20} className="text-status-warning" />} />
-          <KpiCard title="Approved & Active" value={stats.approved} subtitle="Verified providers" tone="success" icon={<CheckCircle2 size={20} className="text-status-success" />} />
-          <KpiCard title="Action Required" value={stats.actionNeeded} subtitle="Information requested" tone="danger" icon={<AlertCircle size={20} className="text-status-error" />} />
+          <div className="group relative overflow-hidden rounded-3xl border border-brand-divider bg-brand-card p-6 transition-all hover:border-brand-blue/30 hover:shadow-panel">
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-brand-blue/5 transition-transform group-hover:scale-110" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-blue/10 text-brand-blue">
+                <FileText size={24} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Total Applications</p>
+                <p className="mt-0.5 text-3xl font-black text-brand-foreground">{stats.total.toLocaleString()}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs font-bold text-brand-muted">Active pipeline in NMIS</p>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-brand-divider bg-brand-card p-6 transition-all hover:border-brand-orange/30 hover:shadow-panel">
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-status-warning/5 transition-transform group-hover:scale-110" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-status-warning/10 text-status-warning">
+                <Clock size={24} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Under Review</p>
+                <p className="mt-0.5 text-3xl font-black text-brand-foreground">{stats.underReview.toLocaleString()}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs font-bold text-brand-muted">Awaiting final audit</p>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-brand-divider bg-brand-card p-6 transition-all hover:border-status-success/30 hover:shadow-panel">
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-status-success/5 transition-transform group-hover:scale-110" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-status-success/10 text-status-success">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Approved & Active</p>
+                <p className="mt-0.5 text-3xl font-black text-brand-foreground">{stats.approved.toLocaleString()}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs font-bold text-brand-muted">Verified network providers</p>
+          </div>
+
+          <div className="group relative overflow-hidden rounded-3xl border border-brand-divider bg-brand-card p-6 transition-all hover:border-status-error/30 hover:shadow-panel">
+            <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-status-error/5 transition-transform group-hover:scale-110" />
+            <div className="relative flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-status-error/10 text-status-error">
+                <AlertCircle size={24} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-muted">Action Required</p>
+                <p className="mt-0.5 text-3xl font-black text-brand-foreground">{stats.actionNeeded.toLocaleString()}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-xs font-bold text-brand-muted">Information requested</p>
+          </div>
         </section>
 
-        <Card>
-          <SectionHeader title="Inspection score intelligence" subtitle="Credentialing and Accreditation subtotals from structured facility inspections." />
-          <div className="mt-5 overflow-x-auto">
-            <table className="nmis-table min-w-[760px]">
-              <thead><tr><th>Provider / Facility</th><th>Facility Type</th><th className="text-center">Overall</th><th className="text-center">Credentialing</th><th className="text-center">Accreditation</th><th>Status</th></tr></thead>
-              <tbody>
-                {inspectionsLoading ? <tr><td colSpan={6} className="py-10 text-center text-brand-muted">Loading inspection scores...</td></tr> : inspections.filter(item => item.credentialingPossible || item.accreditationPossible).length === 0 ? <tr><td colSpan={6} className="py-10 text-center text-brand-muted">No structured inspection scores are available yet.</td></tr> : inspections.filter(item => item.credentialingPossible || item.accreditationPossible).slice(0, 12).map(item => <tr key={item.id}><td><p className="font-bold text-brand-foreground">{item.providerName}</p><p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">{item.providerCode}</p></td><td>{item.type}</td><td className="text-center font-black text-brand-blue">{item.score ?? 0}%</td><td className="text-center font-black text-brand-blue">{item.credentialingPoints ?? 0}/{item.credentialingPossible ?? 0}</td><td className="text-center font-black text-brand-blue">{item.accreditationPoints ?? 0}/{item.accreditationPossible ?? 0}</td><td><Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : 'warning'}>{item.status}</Badge></td></tr>)}
+        <div className="overflow-hidden rounded-3xl border border-brand-divider bg-brand-card shadow-panel">
+          <div className="border-b border-brand-divider bg-brand-surface/50 p-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-blue text-white shadow-lg shadow-brand-blue/20">
+                <ShieldCheck size={20} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-brand-foreground">Inspection Score Intelligence</h3>
+                <p className="text-sm font-bold text-brand-muted uppercase tracking-wider">Credentialing and Accreditation subtotals from structured facility inspections</p>
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-brand-soft/50 text-[10px] font-black uppercase tracking-widest text-brand-muted">
+                <tr>
+                  <th className="px-6 py-4">Provider / Facility</th>
+                  <th className="px-6 py-4">Facility Type</th>
+                  <th className="px-6 py-4 text-center">Overall</th>
+                  <th className="px-6 py-4 text-center">Credentialing</th>
+                  <th className="px-6 py-4 text-center">Accreditation</th>
+                  <th className="px-6 py-4">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brand-divider">
+                {inspectionsLoading ? (
+                  <tr><td colSpan={6} className="py-12 text-center text-brand-muted italic font-bold">Loading secure inspection intelligence...</td></tr>
+                ) : inspections.filter(item => item.credentialingPossible || item.accreditationPossible).length === 0 ? (
+                  <tr><td colSpan={6} className="py-12 text-center text-brand-muted italic font-bold">No structured inspection scores are available yet.</td></tr>
+                ) : (
+                  inspections.filter(item => item.credentialingPossible || item.accreditationPossible).slice(0, 12).map(item => (
+                    <tr key={item.id} className="transition hover:bg-brand-surface/50">
+                      <td className="px-6 py-4">
+                        <p className="font-black text-brand-foreground">{item.providerName}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">{item.providerCode}</p>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-brand-secondary">{item.type}</td>
+                      <td className="px-6 py-4 text-center">
+                        <span className="inline-flex items-center justify-center rounded-lg bg-brand-blue/10 px-2 py-1 text-sm font-black text-brand-blue">
+                          {item.score ?? 0}%
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <p className="font-black text-brand-foreground">{item.credentialingPoints ?? 0}/{item.credentialingPossible ?? 0}</p>
+                        <p className="text-[9px] font-bold uppercase text-brand-muted">Personnel</p>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <p className="font-black text-brand-foreground">{item.accreditationPoints ?? 0}/{item.accreditationPossible ?? 0}</p>
+                        <p className="text-[9px] font-bold uppercase text-brand-muted">Infrastructure</p>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : 'warning'}>
+                          {item.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
 
         {/* Filters */}
         <div className="nmis-card p-4 sm:p-5">
@@ -173,38 +275,42 @@ export default function CredentialingPage() {
         </div>
 
         {/* Table */}
-        {isLoading ? (
-          <LoadingState title="Fetching applications..." />
-        ) : (
-          <div className="nmis-table-wrap">
-            <div className="nmis-table-scroll">
-              <table className="nmis-table min-w-[900px]">
-                <thead>
+        <div className="overflow-hidden rounded-3xl border border-brand-divider bg-brand-card shadow-panel">
+          <div className="border-b border-brand-divider bg-brand-surface/50 p-6">
+            <h3 className="text-lg font-black text-brand-foreground">Application Register</h3>
+            <p className="text-sm font-bold text-brand-muted uppercase tracking-wider">Official record of provider accreditation applications and status</p>
+          </div>
+          {isLoading ? (
+            <div className="py-20"><LoadingState title="Fetching applications..." /></div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-brand-soft/50 text-[10px] font-black uppercase tracking-widest text-brand-muted">
                   <tr>
-                    <th>Provider</th>
-                    <th>Facility Type</th>
-                    <th>Ownership</th>
-                    <th>Location</th>
-                    <th>Status</th>
-                    <th>Reviewer</th>
-                    <th>Expiry Date</th>
-                    <th className="text-right">Actions</th>
+                    <th className="px-6 py-4">Provider</th>
+                    <th className="px-6 py-4">Facility Type</th>
+                    <th className="px-6 py-4">Ownership</th>
+                    <th className="px-6 py-4">Location</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4">Reviewer</th>
+                    <th className="px-6 py-4">Expiry Date</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-brand-divider">
                   {applications.length === 0 ? (
-                    <tr><td colSpan={8} className="py-12 text-center text-brand-muted">No applications found matching the current criteria.</td></tr>
+                    <tr><td colSpan={8} className="py-12 text-center text-brand-muted italic font-bold">No applications found matching the current criteria.</td></tr>
                   ) : (
                     applications.map(app => (
-                      <tr key={app.id}>
-                        <td className="font-semibold text-brand-foreground">
-                          {app.providerName}
-                          <span className="block text-[10px] font-bold uppercase tracking-wider text-brand-muted mt-0.5">{app.providerCode}</span>
+                      <tr key={app.id} className="transition hover:bg-brand-surface/50">
+                        <td className="px-6 py-4">
+                          <p className="font-black text-brand-foreground">{app.providerName}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-brand-muted">{app.providerCode}</p>
                         </td>
-                        <td>{app.category}</td>
-                        <td><Badge variant="default">{app.ownership}</Badge></td>
-                        <td>{app.state}, {app.lga}</td>
-                        <td>
+                        <td className="px-6 py-4 font-bold text-brand-secondary">{app.category}</td>
+                        <td className="px-6 py-4"><Badge variant="default">{app.ownership}</Badge></td>
+                        <td className="px-6 py-4 text-brand-muted font-medium">{app.state}, {app.lga}</td>
+                        <td className="px-6 py-4">
                           <Badge
                             variant={
                               app.status === 'approved' ? 'success' :
@@ -215,10 +321,10 @@ export default function CredentialingPage() {
                             {app.status.replace(/-/g, ' ')}
                           </Badge>
                         </td>
-                        <td className="text-brand-secondary">{app.reviewer}</td>
-                        <td className="text-brand-secondary">{app.expiryDate}</td>
-                        <td className="text-right">
-                          <Button variant="secondary" size="sm" className="gap-1.5" onClick={() => setSelectedAppId(app.id)}>
+                        <td className="px-6 py-4 text-brand-secondary font-bold">{app.reviewer}</td>
+                        <td className="px-6 py-4 text-brand-muted font-medium">{app.expiryDate}</td>
+                        <td className="px-6 py-4 text-right">
+                          <Button variant="secondary" size="sm" className="gap-1.5 rounded-xl border-brand-divider" onClick={() => setSelectedAppId(app.id)}>
                             <Eye size={14} /> Audit
                           </Button>
                         </td>
@@ -228,8 +334,8 @@ export default function CredentialingPage() {
                 </tbody>
               </table>
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Review Drawer Overlay */}
         {selectedApp && (
