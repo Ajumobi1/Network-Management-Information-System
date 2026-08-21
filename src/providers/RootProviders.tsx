@@ -6,9 +6,16 @@ import { AuthProvider } from '../contexts/AuthContext';
 const defaultQueryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: false,
+      retry: 3,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5,
+      staleTime: 1000 * 60 * 10,
+      gcTime: 1000 * 60 * 60 * 24, // 24 hours persistence in memory
+      networkMode: 'offlineFirst',
+    },
+    mutations: {
+      networkMode: 'offlineFirst',
+      retry: 3,
     },
   },
 });
