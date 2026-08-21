@@ -65,6 +65,7 @@ const sections: Section[] = [
     roles: ['super-admin'],
     children: [
       { label: 'User Management', path: '/admin/users', icon: Users },
+      { label: 'Audit Logs', path: '/admin/audit', icon: History },
       { label: 'Reports Centre', path: '/reports', icon: FileText },
       { label: 'System Settings', path: '/settings', icon: Settings },
     ] 

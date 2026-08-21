@@ -7,6 +7,7 @@ import AcceptInvitationPage from '../pages/auth/AcceptInvitationPage';
 import OrganizationSetupPage from '../pages/auth/OrganizationSetupPage';
 import InviteProviderPage from '../pages/auth/InviteProviderPage';
 import ManageUsersPage from '../pages/auth/ManageUsersPage';
+import AuditLogPage from '../pages/admin/AuditLogPage';
 import DashboardPage from '../pages/dashboard/ExecutiveDashboardPage';
 import ProviderPage from '../pages/ProviderPage';
 import ProviderProfilePage from '../pages/ProviderProfilePage';
@@ -80,6 +81,7 @@ export default function AppRoutes() {
         <Route path="/communication" element={<CommunicationPage />} />
         <Route path="/complaints" element={<ComplaintsPage />} />
         <Route path="/admin/users" element={<ManageUsersPage />} />
+        <Route path="/admin/audit" element={<AuditLogPage />} />
         <Route path="/admin/invite-provider" element={<InviteProviderPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
