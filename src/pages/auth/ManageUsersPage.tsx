@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { 
   UserPlus, ShieldCheck, Lock, Unlock, UserMinus, 
   History, MoreVertical, Mail, Search, ShieldAlert,
-  UserCheck, AlertTriangle
+  UserCheck, AlertTriangle, Users, Clock
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
