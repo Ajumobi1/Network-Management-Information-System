@@ -376,23 +376,36 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
       
       if (item.response_type === 'json') {
         try {
-          const tableData = JSON.parse(response.remark || '[]');
-          const q = (input.profile.reference_quarter || '').trim();
-          const quarterMonths: Record<string, string[]> = {
-            'Q1': ['January', 'February', 'March'],
-            'Q2': ['April', 'May', 'June'],
-            'Q3': ['July', 'August', 'September'],
-            'Q4': ['October', 'November', 'December'],
-          };
-          const key = Object.keys(quarterMonths).find(k => q.startsWith(k)) || '';
-          const months = quarterMonths[key] || ['Month 1', 'Month 2', 'Month 3'];
-          
-          responseText = Array.isArray(tableData) 
-            ? tableData.map((r: any, idx: number) => {
-                const monthLabel = months[idx] || r.month || `Month ${idx + 1}`;
-                return `${monthLabel}: NGN ${r.amount || '0.00'}`;
-              }).join('; ') 
-            : 'No data';
+          const parsed = JSON.parse(response.remark || '{}');
+          if (Array.isArray(parsed)) {
+            const q = (input.profile.reference_quarter || '').trim();
+            const quarterMonths: Record<string, string[]> = {
+              'Q1': ['January', 'February', 'March'],
+              'Q2': ['April', 'May', 'June'],
+              'Q3': ['July', 'August', 'September'],
+              'Q4': ['October', 'November', 'December'],
+            };
+            const key = Object.keys(quarterMonths).find(k => q.startsWith(k)) || '';
+            const months = quarterMonths[key] || ['Month 1', 'Month 2', 'Month 3'];
+            responseText = parsed.map((r: any, idx: number) => {
+              const monthLabel = months[idx] || r.month || `Month ${idx + 1}`;
+              return `${monthLabel}: NGN ${r.amount || '0.00'}`;
+            }).join('; ');
+          } else if (parsed && typeof parsed === 'object') {
+            if (parsed.rows) {
+              responseText = `${parsed.quarter || ''} ${parsed.year || ''}: ` + parsed.rows.map((r: any) => {
+                const parts = [`${r.month}: NGN ${r.amount || '0.00'}`];
+                if (r.received !== undefined) parts.push(`Received: ${r.received ? 'YES' : 'NO'}`);
+                return parts.join(' (');
+              }).join('); ') + (parsed.rows.length > 0 ? ')' : '');
+            } else {
+              responseText = Object.entries(parsed)
+                .map(([k, v]) => `${k.replace(/_/g, ' ').toUpperCase()}: ${v}`)
+                .join('; ');
+            }
+          } else {
+            responseText = 'No data';
+          }
         } catch {
           responseText = response.remark || 'No data';
         }
@@ -419,6 +432,18 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
 
   writer.heading('General remarks / recommendation');
   writer.box(input.generalRemarks || 'No general remarks were recorded.', margin, pageWidth - margin * 2, COLORS.soft);
+
+  const remarksItems = input.items.filter(item => item.section_code === 'REMARKS');
+  if (remarksItems.length > 0) {
+    writer.heading('Interviewer Details');
+    remarksItems.forEach(item => {
+      const response = input.responses[item.item_code];
+      if (response && response.remark) {
+        writer.getPage().drawText(pdfSafeText(`${item.item_label}: ${response.remark}`), { x: margin, y: writer.getY() - 12, size: 9, font: bold, color: COLORS.ink });
+        writer.setY(writer.getY() - 20);
+      }
+    });
+  }
 
   writer.heading('Inspection team');
   if (!input.team.length) writer.text('No inspection team member was recorded.', { size: 9, color: COLORS.danger });
