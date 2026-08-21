@@ -255,9 +255,10 @@ class ReportWriter {
     const contentWidth = this.width - this.margin * 2;
     const scoreWidth = 112;
     const leftWidth = contentWidth - scoreWidth - 20;
-    const labelLines = this.wrap(label, this.bold, 9, leftWidth - 28);
-    const responseLines = this.wrap(responseText, this.regular, 8, leftWidth - 28);
-    const evidenceLines = remark ? this.wrap(`Evidence: ${remark}`, this.regular, 8, leftWidth - 28) : [];
+    const indent = 72;
+    const labelLines = this.wrap(label, this.bold, 9, leftWidth - indent);
+    const responseLines = this.wrap(responseText, this.regular, 8, leftWidth - indent);
+    const evidenceLines = remark ? this.wrap(`Evidence: ${remark}`, this.regular, 8, leftWidth - indent) : [];
     const leftHeight = (labelLines.length * 11) + 4 + (responseLines.length * 10) + (evidenceLines.length ? evidenceLines.length * 10 + 4 : 0);
     const scoreLines = this.wrap(scoreText, this.bold, 8, scoreWidth - 16);
     const rowHeight = Math.max(56, leftHeight + 18, (scoreLines.length * 10) + 24);
@@ -267,11 +268,11 @@ class ReportWriter {
     this.page.drawRectangle({ x: this.margin, y: top - rowHeight + 4, width: contentWidth, height: rowHeight, color: COLORS.white, borderColor: COLORS.line, borderWidth: 0.6 });
     this.page.drawRectangle({ x: scoreX, y: top - rowHeight + 4, width: scoreWidth, height: rowHeight, color: COLORS.softOrange, borderColor: COLORS.line, borderWidth: 0.6 });
     this.page.drawText(pdfSafeText(code), { x: this.margin + 9, y: top - 14, size: 8, font: this.bold, color: COLORS.blue2 });
-    this.textAt(label, this.margin + 30, top - 14, { size: 9, font: this.bold, color: COLORS.ink, maxWidth: leftWidth - 30, lineHeight: 11 });
+    this.textAt(label, this.margin + indent, top - 14, { size: 9, font: this.bold, color: COLORS.ink, maxWidth: leftWidth - indent, lineHeight: 11 });
     let leftY = top - 14 - (labelLines.length * 11) - 3;
-    this.textAt(responseText, this.margin + 30, leftY, { size: 8, font: this.regular, color: COLORS.muted, maxWidth: leftWidth - 30, lineHeight: 10 });
+    this.textAt(responseText, this.margin + indent, leftY, { size: 8, font: this.regular, color: COLORS.muted, maxWidth: leftWidth - indent, lineHeight: 10 });
     leftY -= responseLines.length * 10 + 2;
-    if (evidenceLines.length) this.textAt(`Evidence: ${remark}`, this.margin + 30, leftY, { size: 8, font: this.regular, color: COLORS.muted, maxWidth: leftWidth - 30, lineHeight: 10 });
+    if (evidenceLines.length) this.textAt(`Evidence: ${remark}`, this.margin + indent, leftY, { size: 8, font: this.regular, color: COLORS.muted, maxWidth: leftWidth - indent, lineHeight: 10 });
     this.textAt(scoreText, scoreX + 8, top - 16, { size: 8, font: this.bold, color: COLORS.blue2, maxWidth: scoreWidth - 16, lineHeight: 10 });
     this.y = top - rowHeight - 8;
   }
