@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "DO $$ DECLARE v_template_id UUID; BEGIN SELECT id INTO v_template_id FROM public.inspection_templates WHERE code = 'government-hospital-accreditation'; IF v_template_id IS NOT NULL THEN INSERT INTO public.inspection_template_items (template_id, section_code, item_code, label, item_type, max_score, sort_order, is_required) VALUES (v_template_id, 'B', '015_13_others', 'Others (specify)', 'text', 0, 14, false) ON CONFLICT (template_id, item_code) DO UPDATE SET label = EXCLUDED.label, sort_order = EXCLUDED.sort_order; END IF; END $$;"
+}
