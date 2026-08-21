@@ -409,14 +409,22 @@ function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplat
           ) : null}
 
           <label className="block space-y-1">
-            <span className="nmis-label">Comment</span>
+            <span className="nmis-label">
+              {item.section_code === 'CHALLENGES' ? 'Response' : 'Comment'}
+            </span>
             {item.response_type === 'text' && !item.item_code.startsWith('Q017_') ? (
               <textarea
-                rows={3}
+                rows={item.item_code === 'OBS' ? 6 : 3}
                 value={response.remark}
                 onChange={event => onChange({ ...response, remark: event.target.value })}
                 className="nmis-control resize-y"
-                placeholder="Comment..."
+                placeholder={
+                  item.item_code === 'OBS' 
+                    ? 'Provide details here...' 
+                    : item.section_code === 'CHALLENGES' 
+                      ? 'Enter response...' 
+                      : 'Comment...'
+                }
               />
             ) : (
               <input
@@ -424,7 +432,7 @@ function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplat
                 value={response.remark}
                 onChange={event => onChange({ ...response, remark: event.target.value })}
                 className="nmis-control"
-                placeholder="Comment..."
+                placeholder={item.section_code === 'CHALLENGES' ? 'Enter response...' : 'Comment...'}
               />
             )}
           </label>
