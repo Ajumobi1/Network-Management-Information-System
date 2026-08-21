@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT id, section_code, section_label, sort_order FROM public.inspection_template_sections WHERE template_id = (SELECT id FROM public.inspection_templates WHERE code = 'government-hospital-accreditation') ORDER BY sort_order;"
+}
