@@ -37,11 +37,13 @@ export default function CredentialingPage() {
   const selectedApp = useMemo(() => applications.find(a => a.id === selectedAppId), [applications, selectedAppId]);
 
   const stats = useMemo(() => {
-    const inspectionCount = inspections.filter(i => i.status === 'submitted' || i.status === 'completed').length;
+    const submittedInspections = inspections.filter(i => i.status === 'submitted').length;
+    const completedInspections = inspections.filter(i => i.status === 'completed').length;
+    
     return {
-      total: applications.length + inspectionCount,
-      approved: applications.filter(a => a.status === 'approved').length,
-      underReview: applications.filter(a => a.status === 'under-review' || a.status === 'submitted').length + inspectionCount,
+      total: applications.length + submittedInspections + completedInspections,
+      approved: applications.filter(a => a.status === 'approved').length + completedInspections,
+      underReview: applications.filter(a => a.status === 'under-review' || a.status === 'submitted').length + submittedInspections,
       actionNeeded: applications.filter(a => a.status === 'additional-info-required').length,
     };
   }, [applications, inspections]);
