@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, Clock, FileText, AlertCircle, Search, Eye, X, ChevronRight, Download, Plus } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, AlertCircle, Search, Eye, X, ChevronRight, Download, Plus, ShieldCheck, FileSearch } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -15,6 +15,7 @@ import { SectionHeader } from '../components/ui/LayoutComponents';
 import { ProviderCategory, PROVIDER_CATEGORY_LABELS } from '../constants/providerNetwork';
 import { useInspections } from '../hooks/inspections/inspectionsHooks';
 import { downloadCsvReport } from '../utils/reportExport';
+import { InspectionDetailDrawer } from './InspectionsPage';
 
 export default function CredentialingPage() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function CredentialingPage() {
   const { data: applications = [], isLoading, isError, refetch } = useCredentialingApplications(filters);
   const { data: inspections = [], isLoading: inspectionsLoading } = useInspections();
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
+  const [selectedInspectionId, setSelectedInspectionId] = useState<string | null>(null);
   const updateStatus = useUpdateCredentialingStatus();
   const [actionComment, setActionComment] = useState('');
 
@@ -187,13 +189,14 @@ export default function CredentialingPage() {
                   <th className="px-6 py-4 text-center">Credentialing</th>
                   <th className="px-6 py-4 text-center">Accreditation</th>
                   <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-brand-divider">
                 {inspectionsLoading ? (
-                  <tr><td colSpan={6} className="py-12 text-center text-brand-muted italic font-bold">Loading secure inspection intelligence...</td></tr>
+                  <tr><td colSpan={7} className="py-12 text-center text-brand-muted italic font-bold">Loading secure inspection intelligence...</td></tr>
                 ) : inspections.filter(item => item.credentialingPossible || item.accreditationPossible).length === 0 ? (
-                  <tr><td colSpan={6} className="py-12 text-center text-brand-muted italic font-bold">No structured inspection scores are available yet.</td></tr>
+                  <tr><td colSpan={7} className="py-12 text-center text-brand-muted italic font-bold">No structured inspection scores are available yet.</td></tr>
                 ) : (
                   inspections.filter(item => item.credentialingPossible || item.accreditationPossible).slice(0, 12).map(item => (
                     <tr key={item.id} className="transition hover:bg-brand-surface/50">
@@ -219,6 +222,11 @@ export default function CredentialingPage() {
                         <Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : 'warning'}>
                           {item.status}
                         </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Button variant="secondary" size="sm" className="gap-1.5 rounded-xl border-brand-divider" onClick={() => setSelectedInspectionId(item.id)}>
+                          <FileSearch size={14} /> Audit
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -336,6 +344,14 @@ export default function CredentialingPage() {
             </div>
           )}
         </div>
+
+        {/* Inspection Review Drawer */}
+        {selectedInspectionId && (
+          <InspectionDetailDrawer
+            id={selectedInspectionId}
+            onClose={() => setSelectedInspectionId(null)}
+          />
+        )}
 
         {/* Review Drawer Overlay */}
         {selectedApp && (
