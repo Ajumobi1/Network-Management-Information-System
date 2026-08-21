@@ -270,11 +270,16 @@ function MonthlyAmountTable({ value, onChange, label, quarter }: { value: string
   );
 }
 
+function formatDynamicLabel(label: string, quarter?: string): string {
+  const q = quarter ? quarter.trim() : '';
+  return label
+    .replace(/·?\s*Quarter:\s*\(select quarter(\s+in\s+Section\s+A)?\)/gi, q ? `· Quarter: ${q}` : '· Quarter: (Select Quarter in Section A)')
+    .replace(/\(Select Quarter( Above)?\)/gi, q ? `(${q})` : '(Select Quarter Above)')
+    .replace(/—\s*\(Select Quarter( Above)?\)/gi, q ? `— ${q}` : '— (Select Quarter Above)');
+}
+
 function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplateItem; response: ResponseState; quarter?: string; onChange: (next: ResponseState) => void }) {
-  const dynamicLabel = item.item_label
-    .replace(/·?\s*Quarter:\s*\(select quarter in Section A\)/gi, quarter ? `· Quarter: ${quarter}` : '· Quarter: (Select Quarter in Section A)')
-    .replace(/\(Select Quarter Above\)/gi, quarter ? `(${quarter})` : '(Select Quarter Above)')
-    .replace(/—\s*\(Select Quarter Above\)/gi, quarter ? `— ${quarter}` : '— (Select Quarter Above)');
+  const dynamicLabel = formatDynamicLabel(item.item_label, quarter);
 
   if (item.response_type === 'json') {
     return <MonthlyAmountTable label={dynamicLabel} value={response.remark} quarter={quarter} onChange={val => onChange({ ...response, remark: val })} />;
@@ -835,7 +840,7 @@ export default function NewInspectionPage() {
             return (
               <div key={field.key} className={`space-y-1.5 ${pairedKey ? 'md:col-span-2' : ''}`}>
                 <span className="nmis-label">
-                  {field.label.replace(/—\s*\(Select Quarter Above\)/gi, profile.reference_quarter ? `— ${profile.reference_quarter}` : '— (Select Quarter Above)')}
+                  {formatDynamicLabel(field.label, profile.reference_quarter)}
                   {field.required ? ' *' : ''}
                 </span>
                 <div className="flex flex-wrap items-center gap-4">
@@ -860,7 +865,7 @@ export default function NewInspectionPage() {
             );
           }
           const val = Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? (profile as any)[field.key] : extraProfile[field.key];
-          const dynamicLabel = field.label.replace(/—\s*\(Select Quarter Above\)/gi, profile.reference_quarter ? `— ${profile.reference_quarter}` : '— (Select Quarter Above)');
+          const dynamicLabel = formatDynamicLabel(field.label, profile.reference_quarter);
           return <Field key={field.key} label={dynamicLabel} value={val || ''} onChange={value => Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? setProfileValue(field.key as any, value) : setExtraProfile(prev => ({ ...prev, [field.key]: value }))} type={field.type} required={field.required} options={(field as any).options} />;
         });
       })()}</div></div></SectionCard>}

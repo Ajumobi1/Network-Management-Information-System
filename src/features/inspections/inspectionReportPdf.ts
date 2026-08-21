@@ -364,10 +364,11 @@ export async function buildInspectionReportPdf(input: InspectionReportPdfInput) 
     const items = input.items.filter(item => item.section_code === section.section_code);
     items.forEach(item => {
       const quarterStr = input.profile.reference_quarter || '';
+      const q = quarterStr.trim();
       const formattedLabel = item.item_label
-        .replace(/·?\s*Quarter:\s*\(select quarter in Section A\)/gi, quarterStr ? `· Quarter: ${quarterStr}` : '· Quarter: (Select Quarter in Section A)')
-        .replace(/\(Select Quarter Above\)/gi, quarterStr ? `(${quarterStr})` : '(Select Quarter Above)')
-        .replace(/—\s*\(Select Quarter Above\)/gi, quarterStr ? `— ${quarterStr}` : '— (Select Quarter Above)');
+        .replace(/·?\s*Quarter:\s*\(select quarter(\s+in\s+Section\s+A)?\)/gi, q ? `· Quarter: ${q}` : '· Quarter: (Select Quarter in Section A)')
+        .replace(/\(Select Quarter( Above)?\)/gi, q ? `(${q})` : '(Select Quarter Above)')
+        .replace(/—\s*\(Select Quarter( Above)?\)/gi, q ? `— ${q}` : '— (Select Quarter Above)');
 
       const response = input.responses[item.item_code] || { number: '', manual_score: '', boolean: null, remark: '' };
       let responseText = '';
