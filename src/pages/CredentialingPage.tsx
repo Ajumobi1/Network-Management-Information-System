@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, Clock, FileText, AlertCircle, Search, Eye, X, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, Clock, FileText, AlertCircle, Search, Eye, X, ChevronRight, Download, Plus } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -13,8 +14,10 @@ import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import { ProviderCategory, PROVIDER_CATEGORY_LABELS } from '../constants/providerNetwork';
 import { useInspections } from '../hooks/inspections/inspectionsHooks';
+import { downloadCsvReport } from '../utils/reportExport';
 
 export default function CredentialingPage() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<CredentialingFilters>({
     search: '',
     status: 'all',
@@ -31,12 +34,29 @@ export default function CredentialingPage() {
 
   const selectedApp = useMemo(() => applications.find(a => a.id === selectedAppId), [applications, selectedAppId]);
 
-  const stats = useMemo(() => ({
-    total: applications.length,
-    approved: applications.filter(a => a.status === 'approved').length,
-    underReview: applications.filter(a => a.status === 'under-review' || a.status === 'submitted').length,
-    actionNeeded: applications.filter(a => a.status === 'additional-info-required').length,
-  }), [applications]);
+  const stats = useMemo(() => {
+    const inspectionCount = inspections.filter(i => i.status === 'submitted' || i.status === 'completed').length;
+    return {
+      total: applications.length + inspectionCount,
+      approved: applications.filter(a => a.status === 'approved').length,
+      underReview: applications.filter(a => a.status === 'under-review' || a.status === 'submitted').length + inspectionCount,
+      actionNeeded: applications.filter(a => a.status === 'additional-info-required').length,
+    };
+  }, [applications, inspections]);
+
+  const handleExport = () => {
+    const headers = ['Provider', 'Facility Type', 'Ownership', 'Location', 'Status', 'Reviewer', 'Expiry Date'];
+    const rows = applications.map(app => [
+      `${app.providerName} (${app.providerCode})`,
+      app.category,
+      app.ownership,
+      `${app.state}, ${app.lga}`,
+      app.status,
+      app.reviewer,
+      app.expiryDate
+    ]);
+    downloadCsvReport('nmis-credentialing-report.csv', headers, rows);
+  };
 
   function handleStatusChange(id: string, status: CredentialingStatus) {
     if ((status === 'rejected' || status === 'additional-info-required') && !actionComment.trim()) {
@@ -77,17 +97,21 @@ export default function CredentialingPage() {
           subtitle="Manage provider accreditation lifecycle, document verification, regulatory reviews, and renewal compliance."
           actions={
             <div className="flex gap-2">
-              <Button variant="secondary" disabled>Export Report (Soon)</Button>
-              <Button disabled>New Review (Soon)</Button>
+              <Button variant="secondary" onClick={handleExport} className="gap-2 border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+                <Download size={16} /> Export Report
+              </Button>
+              <Button onClick={() => navigate('/inspections/new')} className="gap-2">
+                <Plus size={16} /> New Review
+              </Button>
             </div>
           }
         />
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard title="Total Applications" value={stats.total} subtitle="Active pipeline" tone="primary" icon={<FileText size={20} />} />
-          <KpiCard title="Under Review" value={stats.underReview} subtitle="Awaiting audit" tone="warning" icon={<Clock size={20} />} />
-          <KpiCard title="Approved & Active" value={stats.approved} subtitle="Verified providers" tone="success" icon={<CheckCircle2 size={20} />} />
-          <KpiCard title="Action Required" value={stats.actionNeeded} subtitle="Information requested" tone="danger" icon={<AlertCircle size={20} />} />
+          <KpiCard title="Total Applications" value={stats.total} subtitle="Active pipeline" tone="primary" icon={<FileText size={20} className="text-brand-blue" />} />
+          <KpiCard title="Under Review" value={stats.underReview} subtitle="Awaiting audit" tone="warning" icon={<Clock size={20} className="text-status-warning" />} />
+          <KpiCard title="Approved & Active" value={stats.approved} subtitle="Verified providers" tone="success" icon={<CheckCircle2 size={20} className="text-status-success" />} />
+          <KpiCard title="Action Required" value={stats.actionNeeded} subtitle="Information requested" tone="danger" icon={<AlertCircle size={20} className="text-status-error" />} />
         </section>
 
         <Card>
