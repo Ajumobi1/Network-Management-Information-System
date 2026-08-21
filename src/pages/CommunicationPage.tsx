@@ -64,10 +64,12 @@ export default function CommunicationPage() {
         eyebrow="Communication Centre"
         title="Network Correspondence Hub"
         subtitle="Manage official provider communications, broadcast system-wide announcements, and monitor engagement across the ODCHC network."
-        actions={[
-          { label: 'New Communication', icon: <Send size={16} />, onClick: () => alert('Opening dispatch composer...') },
-          { label: 'Export Logs', variant: 'secondary', onClick: () => alert('Preparing communication audit export...') }
-        ]}
+        actions={
+          <>
+            <Button onClick={() => alert('Opening dispatch composer...')}><Send size={16} /> New Communication</Button>
+            <Button variant="secondary" onClick={() => alert('Preparing communication audit export...')}>Export Logs</Button>
+          </>
+        }
       />
 
       {/* Professional KPI Dashboard */}

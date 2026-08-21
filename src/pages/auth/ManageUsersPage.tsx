@@ -104,9 +104,9 @@ export default function ManageUsersPage() {
         eyebrow="Administration"
         title="Identity & Access Management"
         subtitle="Manage administrative accounts, control system-wide access levels, and monitor security-critical user activity."
-        actions={[
-          { label: 'Security Audit', icon: <History size={16} />, variant: 'secondary', onClick: () => alert('Opening security audit logs...') }
-        ]}
+        actions={
+          <Button variant="secondary" onClick={() => alert('Opening security audit logs...')}><History size={16} /> Security Audit</Button>
+        }
       />
 
       <div className="grid gap-8 lg:grid-cols-[1fr_350px]">

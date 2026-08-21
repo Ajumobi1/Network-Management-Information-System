@@ -50,9 +50,9 @@ export default function AuditLogPage() {
         eyebrow="Security & Governance"
         title="System Audit Logs"
         subtitle="Immutable record of all administrative actions, data modifications, and security events across the NMIS platform."
-        actions={[
-          { label: 'Download Full Archive', icon: <Download size={16} />, variant: 'secondary', onClick: () => alert('Preparing secure audit export...') }
-        ]}
+        actions={
+          <Button variant="secondary" onClick={() => alert('Preparing secure audit export...')}><Download size={16} /> Download Full Archive</Button>
+        }
       />
 
       {/* Security Overview Cards */}

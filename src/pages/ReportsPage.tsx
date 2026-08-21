@@ -77,9 +77,9 @@ export default function ReportsPage() {
         eyebrow="Intelligence & Governance"
         title="Reporting Centre"
         subtitle="Access high-fidelity operational data, financial summaries, and compliance audits with export-ready outputs."
-        actions={[
-          { label: 'Automation Settings', icon: <Settings size={16} />, variant: 'secondary' }
-        ]}
+        actions={
+          <Button variant="secondary"><Settings size={16} /> Automation Settings</Button>
+        }
       />
 
       {/* Analytics Overview */}
