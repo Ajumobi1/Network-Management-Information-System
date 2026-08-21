@@ -65,9 +65,13 @@ function isManualItem(item: InspectionTemplateItem) {
 function isResponseComplete(item: InspectionTemplateItem, response: ResponseState) {
   if (isManualItem(item)) {
     if (response.manual_score === '') return false;
-    return item.response_type === 'number' ? response.number !== '' : response.boolean !== null;
   }
-  return item.response_type === 'number' ? response.number !== '' : response.boolean !== null;
+  
+  if (item.response_type === 'number') return response.number !== '';
+  if (item.response_type === 'boolean') return response.boolean !== null;
+  if (item.response_type === 'text' || item.response_type === 'json') return response.remark !== '';
+  
+  return true;
 }
 
 function blankResponse(item: InspectionTemplateItem): ResponseState {
@@ -192,79 +196,142 @@ function isAccreditationSection(sectionCode: string) {
   return !['A', 'ELIGIBILITY', 'PROFILE'].includes(code) && !isCredentialingSection(code);
 }
 
-function MonthlyAmountTable({ value, onChange, label, quarter }: { value: string; onChange: (next: string) => void; label: string; quarter?: string }) {
-  const data = useMemo(() => {
+function FinancialTable({ label, value, itemCode, onChange }: { label: string; value: string; itemCode: string; onChange: (value: string) => void }) {
+  const [state, setState] = useState<{ quarter: string; year: string; rows: any[] }>({ quarter: '', year: '', rows: [] });
+
+  useEffect(() => {
     try {
-      return JSON.parse(value || '[]');
-    } catch {
-      return [];
-    }
+      if (value) {
+        const parsed = JSON.parse(value);
+        if (parsed && typeof parsed === 'object') setState(parsed);
+      }
+    } catch (e) {}
   }, [value]);
 
   const months = useMemo(() => {
-    const q = (quarter || '').trim();
+    const q = (state.quarter || '').trim();
     const mapping: Record<string, string[]> = {
       'Q1': ['January', 'February', 'March'],
       'Q2': ['April', 'May', 'June'],
       'Q3': ['July', 'August', 'September'],
       'Q4': ['October', 'November', 'December'],
     };
-    // Support both short (Q1) and long (Q1 (Jan-Mar)) formats
     const key = Object.keys(mapping).find(k => q.startsWith(k)) || '';
-    return mapping[key] || ['Month 1', 'Month 2', 'Month 3'];
-  }, [quarter]);
+    return mapping[key] || [];
+  }, [state.quarter]);
 
-  const initializedData = useMemo(() => {
-    return months.map((m, i) => {
-      const existing = data[i] || {};
-      return { month: m, amount: existing.amount || '', comment: existing.comment || '' };
-    });
-  }, [data, months]);
+  const updateField = (field: string, val: any) => {
+    const next = { ...state, [field]: val };
+    if (field === 'quarter') {
+      const mapping: Record<string, string[]> = {
+        'Q1': ['January', 'February', 'March'],
+        'Q2': ['April', 'May', 'June'],
+        'Q3': ['July', 'August', 'September'],
+        'Q4': ['October', 'November', 'December'],
+      };
+      const newMonths = mapping[val] || [];
+      next.rows = newMonths.map((m, i) => {
+        const existing = state.rows[i] || {};
+        return itemCode === 'Q024c' 
+          ? { month: m, received: existing.received ?? null, amount: existing.amount || '', comment: existing.comment || '' }
+          : { month: m, amount: existing.amount || '', comment: existing.comment || '' };
+      });
+    }
+    setState(next);
+    onChange(JSON.stringify(next));
+  };
 
-  const updateRow = (index: number, field: string, val: string) => {
-    const next = [...initializedData];
-    next[index] = { ...next[index], [field]: val };
+  const updateRow = (index: number, field: string, val: any) => {
+    const nextRows = [...state.rows];
+    nextRows[index] = { ...nextRows[index], [field]: val };
+    const next = { ...state, rows: nextRows };
+    setState(next);
     onChange(JSON.stringify(next));
   };
 
   return (
-    <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4">
-      <p className="nmis-label mb-3">{label}</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs">
-          <thead>
-            <tr className="border-b border-brand-divider">
-              <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Month</th>
-              <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Amount (₦)</th>
-              <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Comment</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-brand-divider">
-            {initializedData.map((row: any, i: number) => (
-              <tr key={i}>
-                <td className="py-3 pr-4 font-bold text-brand-foreground">{row.month}</td>
-                <td className="py-2 pr-4">
-                  <input
-                    type="number"
-                    value={row.amount}
-                    onChange={e => updateRow(i, 'amount', e.target.value)}
-                    className="nmis-control h-9 min-w-32"
-                    placeholder="0.00"
-                  />
-                </td>
-                <td className="py-2">
-                  <input
-                    type="text"
-                    value={row.comment}
-                    onChange={e => updateRow(i, 'comment', e.target.value)}
-                    className="nmis-control h-9"
-                    placeholder="Note..."
-                  />
-                </td>
+    <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 space-y-4">
+      <p className="nmis-label">{label}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <select value={state.quarter} onChange={e => updateField('quarter', e.target.value)} className="nmis-control">
+          <option value="">-- Quarter --</option>
+          <option value="Q1">Q1 (Jan-Mar)</option>
+          <option value="Q2">Q2 (Apr-Jun)</option>
+          <option value="Q3">Q3 (Jul-Sep)</option>
+          <option value="Q4">Q4 (Oct-Dec)</option>
+        </select>
+        <input type="text" value={state.year} onChange={e => updateField('year', e.target.value)} className="nmis-control" placeholder="Year e.g. 2025" />
+      </div>
+
+      {months.length > 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="border-b border-brand-divider">
+                <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Month</th>
+                {itemCode === 'Q024c' && <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Received?</th>}
+                <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Amount (₦)</th>
+                <th className="pb-2 font-black text-brand-muted uppercase tracking-wider">Comment</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-brand-divider">
+              {state.rows.map((row, i) => (
+                <tr key={i}>
+                  <td className="py-3 pr-4 font-bold text-brand-foreground">{row.month}</td>
+                  {itemCode === 'Q024c' && (
+                    <td className="py-2 pr-4">
+                      <div className="flex gap-2">
+                        <button onClick={() => updateRow(i, 'received', true)} className={`px-2 py-1 rounded-md text-[10px] font-bold ${row.received === true ? 'bg-status-success text-white' : 'bg-brand-soft text-brand-muted'}`}>Yes</button>
+                        <button onClick={() => updateRow(i, 'received', false)} className={`px-2 py-1 rounded-md text-[10px] font-bold ${row.received === false ? 'bg-status-error text-white' : 'bg-brand-soft text-brand-muted'}`}>No</button>
+                      </div>
+                    </td>
+                  )}
+                  <td className="py-2 pr-4">
+                    <input type="number" value={row.amount} onChange={e => updateRow(i, 'amount', e.target.value)} className="nmis-control h-8 min-w-24" placeholder="0.00" />
+                  </td>
+                  <td className="py-2">
+                    <input type="text" value={row.comment} onChange={e => updateRow(i, 'comment', e.target.value)} className="nmis-control h-8" placeholder="Note..." />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p className="text-xs text-brand-muted italic">Select quarter above to load months</p>
+      )}
+    </div>
+  );
+}
+
+function GroupedFields({ label, value, fields, onChange }: { label: string; value: string; fields: { key: string; label: string; placeholder: string }[]; onChange: (value: string) => void }) {
+  const [data, setData] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    try {
+      if (value) {
+        const parsed = JSON.parse(value);
+        if (parsed && typeof parsed === 'object') setData(parsed);
+      }
+    } catch (e) {}
+  }, [value]);
+
+  const update = (key: string, val: string) => {
+    const next = { ...data, [key]: val };
+    setData(next);
+    onChange(JSON.stringify(next));
+  };
+
+  return (
+    <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 space-y-3">
+      <p className="nmis-label">{label}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {fields.map(f => (
+          <label key={f.key} className="block space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-brand-muted">{f.label}</span>
+            <input type="text" value={data[f.key] || ''} onChange={e => update(f.key, e.target.value)} className="nmis-control h-9" placeholder={f.placeholder} />
+          </label>
+        ))}
       </div>
     </div>
   );
@@ -282,7 +349,33 @@ function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplat
   const dynamicLabel = formatDynamicLabel(item.item_label, quarter);
 
   if (item.response_type === 'json') {
-    return <MonthlyAmountTable label={dynamicLabel} value={response.remark} quarter={quarter} onChange={val => onChange({ ...response, remark: val })} />;
+    if (item.item_code === 'Q024c' || item.item_code.startsWith('Q025_')) {
+      return <FinancialTable label={dynamicLabel} value={response.remark} itemCode={item.item_code} onChange={val => onChange({ ...response, remark: val })} />;
+    }
+
+    if (item.item_code === 'Q026b_acct') {
+      return <GroupedFields label={dynamicLabel} value={response.remark} onChange={val => onChange({ ...response, remark: val })} fields={[
+        { key: 'account_name', label: 'Account Name:', placeholder: 'Enter account name' },
+        { key: 'account_number', label: 'Account Number:', placeholder: 'Enter account number' }
+      ]} />;
+    }
+
+    if (item.item_code === 'Q027' || item.item_code === 'Q027b') {
+      return <GroupedFields label={dynamicLabel} value={response.remark} onChange={val => onChange({ ...response, remark: val })} fields={[
+        { key: 'designation_1', label: 'Designation 1:', placeholder: 'Enter designation 1' },
+        { key: 'designation_2', label: 'Designation 2:', placeholder: 'Enter designation 2' },
+        { key: 'designation_3', label: 'Designation 3:', placeholder: 'Enter designation 3' }
+      ]} />;
+    }
+
+    if (item.item_code.startsWith('Q028')) {
+      return <GroupedFields label={dynamicLabel} value={response.remark} onChange={val => onChange({ ...response, remark: val })} fields={[
+        { key: 'name', label: 'Name:', placeholder: 'Enter full name' },
+        { key: 'phone', label: 'Phone:', placeholder: 'Enter phone number' }
+      ]} />;
+    }
+
+    return null;
   }
 
   return (
@@ -875,6 +968,8 @@ export default function NewInspectionPage() {
                 if (item.item_code.startsWith('Q017_')) return responses['Q016']?.boolean === true;
                 if (item.item_code.startsWith('Q021d_')) return responses['Q021c']?.boolean === true;
                 if (item.item_code.startsWith('Q022b_')) return responses['Q022a']?.boolean === true;
+                if (item.item_code === 'Q024b') return responses['Q024a']?.boolean === false;
+                if (item.item_code === 'Q026b_acct') return responses['Q026b']?.boolean === true;
                 return true;
               }).map(item => isScoredTemplate ? <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} /> : <QAItem key={item.item_code} item={item} response={responses[item.item_code] || blankResponse(item)} quarter={profile.reference_quarter} onChange={response => setResponse(item.item_code, response)} />)}</div>{isScoredTemplate && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).points} / {sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div>}</SectionCard>}
 

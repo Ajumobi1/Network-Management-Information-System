@@ -1,0 +1,47 @@
+DO $$
+DECLARE
+    v_template_id UUID;
+    v_section_e_id UUID;
+BEGIN
+    SELECT id INTO v_template_id FROM public.inspection_templates WHERE code = 'government-hospital-accreditation';
+    
+    IF v_template_id IS NOT NULL THEN
+        -- Ensure Section E exists
+        SELECT id INTO v_section_e_id FROM public.inspection_template_sections WHERE template_id = v_template_id AND section_code = 'FINANCIAL';
+        IF v_section_e_id IS NULL THEN
+            INSERT INTO public.inspection_template_sections (template_id, section_code, section_label, description, sort_order)
+            VALUES (v_template_id, 'FINANCIAL', 'SECTION E — FINANCIAL MANAGEMENT', 'Capitation, expenditure, and account details', 5)
+            RETURNING id INTO v_section_e_id;
+        ELSE
+            UPDATE public.inspection_template_sections 
+            SET section_label = 'SECTION E — FINANCIAL MANAGEMENT', 
+                sort_order = 5 
+            WHERE id = v_section_e_id;
+        END IF;
+
+        -- Clear existing items for this section
+        DELETE FROM public.inspection_template_items WHERE template_id = v_template_id AND section_code = 'FINANCIAL';
+
+        -- Insert exact items from Financial Management images
+        INSERT INTO public.inspection_template_items (template_id, section_code, item_code, item_label, response_type, max_points, sort_order) VALUES
+        (v_template_id, 'FINANCIAL', 'Q024a', 'Did you receive capitation from ODCHC? · Quarter: (select quarter)', 'boolean', 0, 1),
+        (v_template_id, 'FINANCIAL', 'Q024b', 'If no in Q024a, when last did you receive capitation?', 'text', 0, 2),
+        (v_template_id, 'FINANCIAL', 'Q024c', 'Evidence of capitation received — amounts per month (from Q024a quarter) · Quarter for Q024a: (pick quarter below)', 'json', 0, 3),
+        (v_template_id, 'FINANCIAL', 'Q025_1', 'Amount spent on Essential drugs and consumables · Select quarter for Q025 (applies to all Q025 items)', 'json', 0, 4),
+        (v_template_id, 'FINANCIAL', 'Q025_2', 'Amount spent on Maintenance of facilities, laboratory, equipment and transport · Quarter: (select quarter above)', 'json', 0, 5),
+        (v_template_id, 'FINANCIAL', 'Q025_3', 'Amount spent on Human resource development · Quarter: (select quarter above)', 'json', 0, 6),
+        (v_template_id, 'FINANCIAL', 'Q025_4', 'Amount spent on Other things (specify) · Quarter: (select quarter above)', 'json', 0, 7),
+        (v_template_id, 'FINANCIAL', 'Q026a', 'Total amount received from ODCHC — CAPITATION (Check bank statement) · Quarter: (select quarter)', 'number', 0, 8),
+        (v_template_id, 'FINANCIAL', 'Q026a_ffs', 'Total amount received from ODCHC — FEE FOR SERVICE · Quarter: (select quarter)', 'number', 0, 9),
+        (v_template_id, 'FINANCIAL', 'Q026b', 'Are funds from both CAPITATION and FEE-FOR-SERVICE paid into the same facility bank account?', 'boolean', 0, 10),
+        (v_template_id, 'FINANCIAL', 'Q026b_acct', 'If yes, state Account Details', 'json', 0, 11),
+        (v_template_id, 'FINANCIAL', 'Q027', 'Signatories to your account — Panel A', 'json', 0, 12),
+        (v_template_id, 'FINANCIAL', 'Q027b', 'Signatories — Panel B', 'json', 0, 13),
+        (v_template_id, 'FINANCIAL', 'Q028', 'Personnel — CMD/MD/OIC', 'json', 0, 14),
+        (v_template_id, 'FINANCIAL', 'Q028b', 'Personnel — Desk Officer', 'json', 0, 15),
+        (v_template_id, 'FINANCIAL', 'Q028c', 'Personnel — Head of Account', 'json', 0, 16),
+        (v_template_id, 'FINANCIAL', 'Q028d', 'Personnel — Head of Pharmacy', 'json', 0, 17),
+        (v_template_id, 'FINANCIAL', 'Q028e', 'Personnel — Head of Scheme', 'json', 0, 18);
+    END IF;
+END $$;
+COMMIT;
