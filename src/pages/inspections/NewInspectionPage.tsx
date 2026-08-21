@@ -310,20 +310,20 @@ function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplat
                 value={response.number}
                 onChange={event => onChange({ ...response, number: event.target.value })}
                 className="nmis-control"
-                placeholder="Count"
+                placeholder="0"
               />
             </label>
           ) : null}
 
           <label className="block space-y-1">
-            <span className="nmis-label">Remark / Comment</span>
-            {item.response_type === 'text' ? (
+            <span className="nmis-label">Comment</span>
+            {item.response_type === 'text' && !item.item_code.startsWith('Q017_') ? (
               <textarea
                 rows={3}
                 value={response.remark}
                 onChange={event => onChange({ ...response, remark: event.target.value })}
                 className="nmis-control resize-y"
-                placeholder="Enter details..."
+                placeholder="Comment..."
               />
             ) : (
               <input
@@ -331,7 +331,7 @@ function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplat
                 value={response.remark}
                 onChange={event => onChange({ ...response, remark: event.target.value })}
                 className="nmis-control"
-                placeholder="Enter comment..."
+                placeholder="Comment..."
               />
             )}
           </label>
@@ -870,7 +870,7 @@ export default function NewInspectionPage() {
         });
       })()}</div></div></SectionCard>}
 
-    {step >= (isScoredTemplate ? 2 : 1) && step < remarksStep && scoredSections[step - (isScoredTemplate ? 2 : 1)] && <SectionCard title={scoredSections[step - (isScoredTemplate ? 2 : 1)].section_label} subtitle={scoredSections[step - (isScoredTemplate ? 2 : 1)].description || (isScoredTemplate && step === 2 ? 'Enter the observed headcount and manually award points within each maximum.' : 'Mark each facility requirement and record a concise observation remark.')}><div className="space-y-4">{sectionItems(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).map(item => isScoredTemplate ? <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} /> : <QAItem key={item.item_code} item={item} response={responses[item.item_code] || blankResponse(item)} quarter={profile.reference_quarter} onChange={response => setResponse(item.item_code, response)} />)}</div>{isScoredTemplate && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).points} / {sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div>}</SectionCard>}
+    {step >= (isScoredTemplate ? 2 : 1) && step < remarksStep && scoredSections[step - (isScoredTemplate ? 2 : 1)] && <SectionCard title={scoredSections[step - (isScoredTemplate ? 2 : 1)].section_label} subtitle={scoredSections[step - (isScoredTemplate ? 2 : 1)].description || (isScoredTemplate && step === 2 ? 'Enter the observed headcount and manually award points within each maximum.' : 'Mark each facility requirement and record a concise observation remark.')}><div className="space-y-4">{sectionItems(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).filter(item => !item.item_code.startsWith('Q017_') || responses['Q016']?.boolean === true).map(item => isScoredTemplate ? <ScoredItem key={item.item_code} item={item} error={validationErrors[item.item_code]} response={responses[item.item_code] || blankResponse(item)} onChange={response => setResponse(item.item_code, response)} /> : <QAItem key={item.item_code} item={item} response={responses[item.item_code] || blankResponse(item)} quarter={profile.reference_quarter} onChange={response => setResponse(item.item_code, response)} />)}</div>{isScoredTemplate && <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-divider bg-brand-soft p-4"><div><p className="nmis-label">Section subtotal</p><p className="mt-1 text-sm font-black text-brand-foreground">{sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).points} / {sectionScore(scoredSections[step - (isScoredTemplate ? 2 : 1)].section_code).possible} points</p></div><p className="text-2xl font-black text-brand-blue">{score.percentage}% overall</p></div>}</SectionCard>}
 
     {step === remarksStep && <SectionCard title={remarksSection?.section_label || 'GENERAL REMARKS / RECOMMENDATION'} subtitle="Record the inspector's overall findings, risks, conditions, and recommended follow-up actions."><div className="space-y-4"><label className="block space-y-1.5"><span className="nmis-label">General remarks and recommendation</span><textarea rows={8} value={generalRemarks} onChange={event => setGeneralRemarks(event.target.value)} className="nmis-control min-h-40 resize-y" placeholder="Summarise the inspection findings, deficiencies, corrective actions, and any recommendation for ODCHC." /></label>{isScoredTemplate && <div className="grid gap-4 md:grid-cols-3"><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Current overall score</p><p className="mt-1 text-2xl font-black text-brand-blue">{score.percentage}%</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Included points</p><p className="mt-1 text-2xl font-black text-brand-foreground">{score.points} / {score.possible}</p></div><div className="rounded-2xl border border-brand-divider bg-brand-surface p-4"><p className="nmis-label">Calculated recommendation</p><p className="mt-1 text-sm font-black text-brand-foreground">{score.recommendation}</p></div></div>}</div></SectionCard>}
 
