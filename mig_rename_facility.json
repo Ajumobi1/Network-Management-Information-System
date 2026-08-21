@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "UPDATE public.inspection_facility_types SET name = 'Private hospital' WHERE code = 'private-hospital';"
+}
