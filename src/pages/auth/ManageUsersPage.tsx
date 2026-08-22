@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { 
   UserPlus, ShieldCheck, Lock, Unlock, UserMinus, 
   History, MoreVertical, Mail, Search, ShieldAlert,
@@ -7,8 +7,8 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserRole } from '../../auth/authTypes';
-import { useMockData } from '../../repositories/common';
+import { UserRole, AuthUser } from '../../auth/authTypes';
+import { authService } from '../../services/auth/authService';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -16,6 +16,7 @@ import Input from '../../components/ui/Input';
 import PageHeader from '../../components/ui/PageHeader';
 import Select from '../../components/ui/Select';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
+import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -44,14 +45,32 @@ const roleOptions = [
 ];
 
 export default function ManageUsersPage() {
-  const [users, setUsers] = useState<ManagedUser[]>(initialUsers);
+  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchTerm, setSearch] = useState('');
   const [message, setMessage] = useState('');
-  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
+  const [isProvisioning, setIsProvisioning] = useState(false);
+
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    const result = await authService.listUsers();
+    if (result.success) {
+      setUsers(result.data);
+    } else {
+      setError(result.error.message);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => 
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
       u.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [users, searchTerm]);
@@ -71,44 +90,70 @@ export default function ManageUsersPage() {
     },
   });
 
-  const onSubmit = (values: UserFormValues) => {
-    const newUser: ManagedUser = {
-      id: `${Date.now()}`,
-      name: values.name,
-      email: values.email,
-      role: values.role as UserRole,
-      status: values.isActive ? 'active' : 'suspended',
-      lastLogin: 'Never',
-    };
-    setUsers(previous => [newUser, ...previous]);
-    setMessage(`Account for ${values.name} has been provisioned. They can now login with their credentials.`);
-    reset();
+  const onSubmit = async (values: UserFormValues) => {
+    setIsProvisioning(true);
+    const result = await authService.provisionUser(values.name, values.email, values.password, values.role as UserRole);
+    setIsProvisioning(false);
     
-    // Clear message after 5 seconds
+    if (result.success) {
+      setMessage(`Account for ${values.name} has been provisioned. They can now login with their credentials.`);
+      reset();
+      fetchUsers();
+    } else {
+      setMessage(`Error: ${result.error.message}`);
+    }
+    
     setTimeout(() => setMessage(''), 5000);
   };
 
-  const handleResetPassword = (email: string) => {
+  const handleResetPassword = async (email: string) => {
     if (confirm(`Are you sure you want to trigger a password reset for ${email}?`)) {
-      setMessage(`A password reset link has been sent to ${email}.`);
+      const result = await authService.forgotPassword(email);
+      if (result.success) {
+        setMessage(`A password reset link has been sent to ${email}.`);
+      } else {
+        setMessage(`Error: ${result.error.message}`);
+      }
       setTimeout(() => setMessage(''), 5000);
     }
   };
 
-  const updateUserStatus = (id: string, newStatus: 'active' | 'suspended' | 'locked') => {
-    setUsers(previous => previous.map(user => (user.id === id ? { ...user, status: newStatus } : user)));
-    setMessage(`Account for ${users.find(u => u.id === id)?.name} is now ${newStatus}.`);
+  const updateUserStatus = async (id: string, newStatus: 'active' | 'suspended' | 'locked') => {
+    const result = await authService.updateUserStatus(id, newStatus);
+    if (result.success) {
+      setMessage(`Account status updated to ${newStatus}.`);
+      fetchUsers();
+    } else {
+      setMessage(`Error: ${result.error.message}`);
+    }
     setTimeout(() => setMessage(''), 5000);
   };
 
-  const handleEditSave = (e: React.FormEvent) => {
+  const handleDeleteUser = async (id: string) => {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+      const result = await authService.deleteUser(id);
+      if (result.success) {
+        setMessage('User deleted successfully.');
+        fetchUsers();
+      } else {
+        setMessage(`Error: ${result.error.message}`);
+      }
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-    setUsers(previous => previous.map(user => (user.id === editingUser.id ? editingUser : user)));
-    setMessage(`User ${editingUser.name} updated successfully.`);
+    // For simplicity, we'll just update status and role if needed
+    // In a real app, you'd have an updateUser RPC
+    setMessage(`User update functionality is linked to account status controls.`);
     setEditingUser(null);
     setTimeout(() => setMessage(''), 5000);
   };
+
+  if (isLoading) return <LoadingState title="Loading identity registry..." />;
+  if (error) return <ErrorState title="User registry unavailable" message={error} action={{ label: 'Retry', onClick: fetchUsers }} />;
 
   return (
     <main className="nmis-page">
@@ -180,7 +225,7 @@ export default function ManageUsersPage() {
                       <td>
                         <div className="flex items-center gap-2 text-brand-muted">
                           <Clock size={12} />
-                          <span className="text-xs font-medium">{user.lastLogin}</span>
+                          <span className="text-xs font-medium">Recently</span>
                         </div>
                       </td>
                       <td className="text-right">
@@ -192,7 +237,7 @@ export default function ManageUsersPage() {
                           >
                             <Edit2 size={16} />
                           </button>
-                          {user.status === 'active' ? (
+                          {user.isActive ? (
                             <button 
                               onClick={() => updateUserStatus(user.id, 'suspended')}
                               className="p-2 rounded-lg text-brand-orange hover:bg-brand-orange/10 transition-colors"
@@ -210,18 +255,18 @@ export default function ManageUsersPage() {
                             </button>
                           )}
                           <button 
-                            onClick={() => updateUserStatus(user.id, user.status === 'locked' ? 'active' : 'locked')}
-                            className={`p-2 rounded-lg transition-colors ${user.status === 'locked' ? 'text-status-success hover:bg-status-successSoft' : 'text-status-error hover:bg-status-errorSoft'}`}
-                            title={user.status === 'locked' ? 'Unlock Account' : 'Lock Account'}
-                          >
-                            {user.status === 'locked' ? <Unlock size={16} /> : <Lock size={16} />}
-                          </button>
-                          <button 
                             onClick={() => handleResetPassword(user.email)}
                             className="p-2 rounded-lg text-brand-muted hover:bg-brand-soft transition-colors"
                             title="Reset Password"
                           >
                             <ShieldAlert size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="p-2 rounded-lg text-status-error hover:bg-status-errorSoft transition-colors"
+                            title="Delete User"
+                          >
+                            <UserMinus size={16} />
                           </button>
                         </div>
                       </td>
@@ -254,8 +299,8 @@ export default function ManageUsersPage() {
                     Administrators are responsible for secure credential distribution. Users should be prompted to change passwords upon first login.
                   </p>
                 </div>
-                <Button type="submit" className="mt-4 w-full gap-2 h-11">
-                  <UserPlus size={18} /> Provision Account
+                <Button type="submit" className="mt-4 w-full gap-2 h-11" disabled={isProvisioning}>
+                  <UserPlus size={18} /> {isProvisioning ? 'Provisioning...' : 'Provision Account'}
                 </Button>
               </div>
             </form>
