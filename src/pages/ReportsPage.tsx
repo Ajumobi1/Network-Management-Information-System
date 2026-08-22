@@ -52,7 +52,7 @@ export default function ReportsPage() {
       description: 'Comprehensive financial report covering Claims, Capitation, and Fee-for-Service disbursements for management review.',
       icon: <PieChart size={20} />,
       type: 'Financial',
-      action: () => reportsService.generateProviderReport() // Reusing service for now
+      action: () => reportsService.generateFinancialSummaryReport()
     },
     {
       id: 'enrolment-demographics',
@@ -61,7 +61,7 @@ export default function ReportsPage() {
       description: 'Detailed analysis of beneficiary enrolment across LGAs, age groups, and program types (AMCHIS/ORANGHIS).',
       icon: <Users size={20} />,
       type: 'Demographics',
-      action: () => reportsService.generateProviderReport() // Reusing service for now
+      action: () => reportsService.generateEnrolmentReport()
     },
   ];
 

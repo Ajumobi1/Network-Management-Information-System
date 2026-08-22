@@ -1,5 +1,6 @@
 import { getProviderDirectory } from '../../repositories/providers/providersRepository';
 import { getInspections } from '../../repositories/inspections/inspectionsRepository';
+import { fetchEnrollees } from '../../repositories/enrolment/enrolmentRepository';
 
 export async function generateProviderReport() {
   try {
@@ -65,13 +66,48 @@ export async function generateFinancialSummaryReport() {
     // Mocking financial summary for now as there's no direct financial repo yet
     const headers = ['Period', 'Total Capitation', 'Total Claims', 'Net Payable', 'Status'];
     const rows = [
-      ['2026-08', '₦750,000', '₦1,200,000', '₦1,950,000', 'Paid'],
-      ['2026-07', '₦745,000', '₦1,150,000', '₦1,895,000', 'Paid'],
-      ['2026-06', '₦740,000', '₦1,100,000', '₦1,840,000', 'Paid'],
+      ['2026-08', '750000', '1200000', '1950000', 'Paid'],
+      ['2026-07', '745000', '1150000', '1895000', 'Paid'],
+      ['2026-06', '740000', '1100000', '1840000', 'Paid'],
     ];
     return exportToCsv('financial-summary-report', headers, rows);
   } catch (error) {
     throw new Error('Unable to generate financial summary report.');
+  }
+}
+
+export async function generateEnrolmentReport() {
+  try {
+    const enrollees = await fetchEnrollees({ pageSize: 10000 }); // Limit to 10k for performance
+    const headers = [
+      'Policy Number', 
+      'First Name', 
+      'Last Name', 
+      'Gender', 
+      'Category', 
+      'Sector', 
+      'LGA', 
+      'Provider Name', 
+      'Provider Code', 
+      'Period'
+    ];
+    const rows = enrollees.map(e => [
+      e.policyNumber,
+      e.firstName,
+      e.lastName,
+      e.gender,
+      e.category,
+      e.sector,
+      e.lga,
+      e.providerName,
+      e.providerCode,
+      e.period
+    ]);
+
+    return exportToCsv('population-demographics-report', headers, rows);
+  } catch (error) {
+    console.error('Failed to generate enrolment report:', error);
+    throw new Error('Unable to generate population demographics report.');
   }
 }
 
