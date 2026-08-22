@@ -109,7 +109,7 @@ export default function ManageUsersPage() {
   };
 
   const handleResetPassword = async (email: string) => {
-    if (confirm(`Are you sure you want to trigger a password reset for ${email}?`)) {
+    if (confirm(`TRIGGER PASSWORD RESET: This will send a secure link to ${email} allowing them to choose a new password.\n\nDo you want to proceed?`)) {
       const result = await authService.forgotPassword(email);
       if (result.success) {
         setMessage(`A password reset link has been sent to ${email}.`);
@@ -121,18 +121,26 @@ export default function ManageUsersPage() {
   };
 
   const updateUserStatus = async (id: string, newStatus: 'active' | 'suspended' | 'locked') => {
-    const result = await authService.updateUserStatus(id, newStatus);
-    if (result.success) {
-      setMessage(`Account status updated to ${newStatus}.`);
-      fetchUsers();
-    } else {
-      setMessage(`Error: ${result.error.message}`);
+    let actionLabel = newStatus === 'suspended' ? 'SUSPEND' : newStatus === 'locked' ? 'LOCK' : 'ACTIVATE';
+    let explanation = '';
+    if (newStatus === 'suspended') explanation = 'Suspension prevents the user from logging in temporarily. Their data remains intact, but access is revoked.';
+    if (newStatus === 'locked') explanation = 'Locking an account is a security measure that blocks all access immediately. Usually used for suspected breaches.';
+    if (newStatus === 'active') explanation = 'This will restore full system access to the user account.';
+
+    if (confirm(`${actionLabel} ACCOUNT: ${explanation}\n\nDo you want to proceed?`)) {
+      const result = await authService.updateUserStatus(id, newStatus);
+      if (result.success) {
+        setMessage(`Account status updated to ${newStatus}.`);
+        fetchUsers();
+      } else {
+        setMessage(`Error: ${result.error.message}`);
+      }
+      setTimeout(() => setMessage(''), 5000);
     }
-    setTimeout(() => setMessage(''), 5000);
   };
 
   const handleDeleteUser = async (id: string) => {
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+    if (confirm('DELETE ACCOUNT: This will PERMANENTLY remove the user from the NMIS system. This action is irreversible and all authentication credentials will be destroyed.\n\nDo you want to proceed?')) {
       const result = await authService.deleteUser(id);
       if (result.success) {
         setMessage('User deleted successfully.');
@@ -239,37 +247,46 @@ export default function ManageUsersPage() {
                           >
                             <Edit2 size={16} />
                           </button>
-                          {user.status === 'active' || user.isActive ? (
-                            <button 
-                              onClick={() => updateUserStatus(user.id, 'suspended')}
-                              className="p-2 rounded-lg text-brand-orange hover:bg-brand-orange/10 transition-colors"
-                              title="Suspend Account"
-                            >
-                              <UserMinus size={16} />
-                            </button>
+                          
+                          {user.role !== 'super-admin' ? (
+                            <>
+                              {user.status === 'active' || user.isActive ? (
+                                <button 
+                                  onClick={() => updateUserStatus(user.id, 'suspended')}
+                                  className="p-2 rounded-lg text-brand-orange hover:bg-brand-orange/10 transition-colors"
+                                  title="Suspend Account"
+                                >
+                                  <UserMinus size={16} />
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => updateUserStatus(user.id, 'active')}
+                                  className="p-2 rounded-lg text-status-success hover:bg-status-successSoft transition-colors"
+                                  title="Activate Account"
+                                >
+                                  <UserCheck size={16} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => updateUserStatus(user.id, user.status === 'locked' ? 'active' : 'locked')}
+                                className={`p-2 rounded-lg transition-colors ${user.status === 'locked' ? 'text-status-success hover:bg-status-successSoft' : 'text-status-error hover:bg-status-errorSoft'}`}
+                                title={user.status === 'locked' ? 'Unlock Account' : 'Lock Account'}
+                              >
+                                {user.status === 'locked' ? <Unlock size={16} /> : <Lock size={16} />}
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="p-2 rounded-lg text-status-error hover:bg-status-errorSoft transition-colors"
+                                title="Delete User"
+                              >
+                                <UserMinus size={16} />
+                              </button>
+                            </>
                           ) : (
-                            <button 
-                              onClick={() => updateUserStatus(user.id, 'active')}
-                              className="p-2 rounded-lg text-status-success hover:bg-status-successSoft transition-colors"
-                              title="Activate Account"
-                            >
-                              <UserCheck size={16} />
-                            </button>
+                            <span className="text-[10px] font-bold text-brand-subtle uppercase italic px-2 py-1 bg-brand-soft rounded-md border border-brand-border">
+                              System Protected
+                            </span>
                           )}
-                          <button 
-                            onClick={() => updateUserStatus(user.id, user.status === 'locked' ? 'active' : 'locked')}
-                            className={`p-2 rounded-lg transition-colors ${user.status === 'locked' ? 'text-status-success hover:bg-status-successSoft' : 'text-status-error hover:bg-status-errorSoft'}`}
-                            title={user.status === 'locked' ? 'Unlock Account' : 'Lock Account'}
-                          >
-                            {user.status === 'locked' ? <Unlock size={16} /> : <Lock size={16} />}
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteUser(user.id)}
-                            className="p-2 rounded-lg text-status-error hover:bg-status-errorSoft transition-colors"
-                            title="Delete User"
-                          >
-                            <UserMinus size={16} />
-                          </button>
                         </div>
                       </td>
                     </tr>
