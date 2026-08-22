@@ -40,10 +40,12 @@ export default function ContractsPage() {
         eyebrow="Provider Network"
         title="Contract Portfolio Management"
         subtitle="Execute, review, and manage healthcare service level agreements (SLAs) and provider capitation contracts."
-        actions={[
-          { label: 'Create New Contract', icon: <Plus size={16} />, onClick: () => setShowCreateModal(true) },
-          { label: 'Export Portfolio', variant: 'secondary', onClick: () => alert('Generating contract portfolio CSV...') }
-        ]}
+        actions={
+          <>
+            <Button onClick={() => setShowCreateModal(true)}><Plus size={16} /> Create New Contract</Button>
+            <Button variant="secondary" onClick={() => alert('Generating contract portfolio CSV...')}>Export Portfolio</Button>
+          </>
+        }
       />
 
       {/* Professional KPI Dashboard */}
