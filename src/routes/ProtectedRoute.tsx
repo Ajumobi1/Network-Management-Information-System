@@ -11,52 +11,31 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
   const location = useLocation();
-  const { session, loading, signOut } = useAuth();
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [liveStatus, setLiveStatus] = useState<'active' | 'suspended' | 'locked' | 'deleted' | 'pending' | null>(null);
+  const { session, loading, isLocked, isSuspended } = useAuth();
 
-  // Security Heartbeat: Verify user status against database on every navigation
-  useEffect(() => {
-    if (session?.user?.id) {
-      const verifyStatus = async () => {
-        setIsVerifying(true);
-        const status = await authService.checkUserStatus(session.user.id);
-        setLiveStatus(status);
-        
-        // Instant Enforcement for Locked or Deleted accounts
-        if (status === 'locked' || status === 'deleted') {
-          await signOut();
-        }
-        setIsVerifying(false);
-      };
-      
-      verifyStatus();
-    }
-  }, [location.pathname, session?.user?.id, signOut]);
-
-  if (loading || isVerifying) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-background">
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-brand-navy border-t-transparent mx-auto"></div>
-          <p className="text-brand-muted font-medium">Verifying security credentials...</p>
+          <p className="text-brand-muted font-medium">Loading NMIS Security Gateway...</p>
         </div>
       </div>
     );
   }
 
-  if (!session || liveStatus === 'locked' || liveStatus === 'deleted') {
+  // Instant Enforcement for Locked or Deleted accounts
+  if (!session || isLocked) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Handle Suspended Status (Live or Session)
-  const currentStatus = liveStatus || session.user?.status;
-  if (currentStatus === 'suspended' && location.pathname !== '/suspended') {
+  // Handle Suspended Status
+  if (isSuspended && location.pathname !== '/suspended') {
     return <Navigate to="/suspended" replace />;
   }
 
   // Prevent suspended users from accessing regular pages even if they bypass navigation
-  if (currentStatus === 'suspended' && location.pathname === '/suspended') {
+  if (isSuspended && location.pathname === '/suspended') {
     return <>{children}</>;
   }
 
