@@ -153,7 +153,7 @@ export default function ManageUsersPage() {
   };
 
   if (isLoading) return <LoadingState title="Loading identity registry..." />;
-  if (error) return <ErrorState title="User registry unavailable" message={error} action={{ label: 'Retry', onClick: fetchUsers }} />;
+  if (error) return <ErrorState title="User registry unavailable" description={error} action={{ label: 'Retry', onClick: fetchUsers }} />;
 
   return (
     <main className="nmis-page">
@@ -213,13 +213,13 @@ export default function ManageUsersPage() {
                         <div className="flex items-center gap-2">
                           {user.role === 'super-admin' ? <ShieldCheck size={14} className="text-brand-orange" /> : <Users size={14} className="text-brand-blue" />}
                           <span className="text-xs font-black uppercase tracking-widest text-brand-secondary">
-                            {user.role.replace('-', ' ')}
+                            {user.role?.replace('-', ' ') || 'No Role'}
                           </span>
                         </div>
                       </td>
                       <td>
                         <Badge variant={user.status === 'active' ? 'success' : user.status === 'suspended' ? 'warning' : 'error'}>
-                          {user.status}
+                          {user.status || (user.isActive ? 'active' : 'inactive')}
                         </Badge>
                       </td>
                       <td>
@@ -237,7 +237,7 @@ export default function ManageUsersPage() {
                           >
                             <Edit2 size={16} />
                           </button>
-                          {user.isActive ? (
+                          {user.status === 'active' || user.isActive ? (
                             <button 
                               onClick={() => updateUserStatus(user.id, 'suspended')}
                               className="p-2 rounded-lg text-brand-orange hover:bg-brand-orange/10 transition-colors"
@@ -255,11 +255,11 @@ export default function ManageUsersPage() {
                             </button>
                           )}
                           <button 
-                            onClick={() => handleResetPassword(user.email)}
-                            className="p-2 rounded-lg text-brand-muted hover:bg-brand-soft transition-colors"
-                            title="Reset Password"
+                            onClick={() => updateUserStatus(user.id, user.status === 'locked' ? 'active' : 'locked')}
+                            className={`p-2 rounded-lg transition-colors ${user.status === 'locked' ? 'text-status-success hover:bg-status-successSoft' : 'text-status-error hover:bg-status-errorSoft'}`}
+                            title={user.status === 'locked' ? 'Unlock Account' : 'Lock Account'}
                           >
-                            <ShieldAlert size={16} />
+                            {user.status === 'locked' ? <Unlock size={16} /> : <Lock size={16} />}
                           </button>
                           <button 
                             onClick={() => handleDeleteUser(user.id)}
@@ -366,7 +366,7 @@ export default function ManageUsersPage() {
               <Select 
                 label="Role" 
                 options={roleOptions} 
-                value={editingUser.role} 
+                value={editingUser.role || ''} 
                 onChange={e => setEditingUser({ ...editingUser, role: e.target.value as UserRole })} 
               />
               

@@ -9,6 +9,7 @@ export type AuthUser = {
   role: UserRole | null;
   avatarUrl?: string;
   isActive?: boolean;
+  status?: 'active' | 'suspended' | 'locked' | 'pending';
 };
 
 export type AuthSession = {

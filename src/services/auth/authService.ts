@@ -105,18 +105,15 @@ export const authService = {
       email: u.email,
       name: u.full_name || u.email,
       role: u.role as UserRole,
-      isActive: u.status === 'active'
+      isActive: u.status === 'active',
+      status: u.status as any
     }));
 
     return { success: true, data: users };
   },
 
   async provisionUser(name: string, email: string, password: string, role: UserRole): Promise<AuthResult<null>> {
-    // Note: Creating a user with a password from the frontend without logging them in 
-    // requires a backend RPC or the Admin Auth API. Since we don't have a backend,
-    // we use signUp which works but might log the admin out if not careful.
-    // For now, we'll use a secondary supabase client to avoid session conflicts.
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: {
@@ -127,11 +124,12 @@ export const authService = {
 
     if (error) return mapAuthError(error.message);
 
-    // Set the role via RPC after signup
-    await supabase.rpc('nmis_admin_update_user_role', {
-      p_user_id: (await supabase.auth.getUser()).data.user?.id, // This is tricky on client side
-      p_role: role
-    });
+    if (data.user) {
+      await supabase.rpc('nmis_admin_update_user_role', {
+        p_user_id: data.user.id,
+        p_role: role
+      });
+    }
 
     return { success: true, data: null };
   },
