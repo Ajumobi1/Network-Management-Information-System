@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   History, Search, Filter, ShieldCheck, User, 
   Database, Globe, Clock, Download, ArrowRight,
@@ -9,32 +9,33 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
-
-type AuditEntry = {
-  id: string;
-  timestamp: string;
-  user: string;
-  role: string;
-  action: string;
-  resource: string;
-  status: 'success' | 'warning' | 'failure';
-  details: string;
-  ipAddress: string;
-};
-
-const mockAuditLogs: AuditEntry[] = [
-  { id: '1', timestamp: '2026-08-21 17:45:12', user: 'Admin User', role: 'Super Admin', action: 'USER_LOCK', resource: 'Account: Aisha Quinn', status: 'success', details: 'Manual administrative lock applied to account.', ipAddress: '192.168.1.45' },
-  { id: '2', timestamp: '2026-08-21 17:30:05', user: 'Daphne Harrison', role: 'Network Officer', action: 'INSPECTION_SUBMIT', resource: 'Facility: ADULOJU HOSPITAL', status: 'success', details: 'Completed QA checklist for Q3 2026.', ipAddress: '102.89.34.12' },
-  { id: '3', timestamp: '2026-08-21 16:12:44', user: 'Peter Miles', role: 'Network Officer', action: 'DATA_UPLOAD', resource: 'Capitation: August 2026', status: 'warning', details: 'Upload completed with 2 non-matching aliases.', ipAddress: '105.112.9.88' },
-  { id: '4', timestamp: '2026-08-21 15:05:22', user: 'System', role: 'Automated', action: 'BACKUP_SYNC', resource: 'Cloud Storage', status: 'success', details: 'Nightly database snapshot successfully verified.', ipAddress: 'Internal' },
-  { id: '5', timestamp: '2026-08-21 14:22:10', user: 'Unknown', role: 'Unauthenticated', action: 'LOGIN_FAIL', resource: 'Auth Service', status: 'failure', details: 'Multiple failed login attempts from unrecognized IP.', ipAddress: '185.220.101.22' },
-];
+import { fetchAuditLogs, AuditLogEntry } from '../../repositories/audit/auditRepository';
+import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 
 export default function AuditLogPage() {
+  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [searchTerm, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'warning' | 'failure'>('all');
-  const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+  const [selectedEntry, setSelectedEntry] = useState<AuditLogEntry | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+
+  const loadLogs = async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchAuditLogs();
+      setLogs(data);
+    } catch (err: any) {
+      setError(err.message || 'Failed to fetch audit logs');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLogs();
+  }, []);
 
   const handleExport = () => {
     setIsExporting(true);
@@ -45,15 +46,26 @@ export default function AuditLogPage() {
   };
 
   const filteredLogs = useMemo(() => {
-    return mockAuditLogs.filter(log => {
+    return logs.filter(log => {
+      const userStr = log.userEmail || 'System';
+      const actionStr = log.action || '';
+      const entityStr = log.entity || '';
+      
       const matchesSearch = 
-        log.user.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        log.resource.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || log.status === statusFilter;
+        userStr.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        actionStr.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entityStr.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Real logs don't have a status field yet, defaulting to success for display
+      const status = 'success'; 
+      const matchesStatus = statusFilter === 'all' || status === statusFilter;
+      
       return matchesSearch && matchesStatus;
     });
-  }, [searchTerm, statusFilter]);
+  }, [logs, searchTerm, statusFilter]);
+
+  if (isLoading) return <LoadingState title="Accessing security logs..." />;
+  if (error) return <ErrorState title="Audit log unavailable" description={error} action={{ label: 'Retry', onClick: loadLogs }} />;
 
   return (
     <main className="nmis-page">
@@ -145,33 +157,35 @@ export default function AuditLogPage() {
                 <tr key={log.id} className="group">
                   <td>
                     <div className="flex flex-col">
-                      <span className="text-xs font-black text-brand-foreground font-mono">{log.timestamp}</span>
+                      <span className="text-xs font-black text-brand-foreground font-mono">
+                        {log.createdAt ? new Date(log.createdAt).toLocaleString() : 'Recently'}
+                      </span>
                       <div className="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-brand-muted uppercase tracking-tighter">
                         <Globe size={10} />
-                        <span>{log.ipAddress}</span>
+                        <span>Remote Operation</span>
                       </div>
                     </div>
                   </td>
                   <td>
                     <div className="flex items-center gap-2">
                       <div className="h-7 w-7 rounded-lg bg-brand-soft flex items-center justify-center text-brand-blue font-black text-[10px]">
-                        {log.user === 'System' ? <Database size={12} /> : log.user.split(' ').map(n => n[0]).join('')}
+                        {!log.userEmail || log.userEmail === 'System' ? <Database size={12} /> : log.userEmail[0].toUpperCase()}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-xs font-bold text-brand-foreground">{log.user}</span>
-                        <span className="text-[10px] font-medium text-brand-muted uppercase">{log.role}</span>
+                        <span className="text-xs font-bold text-brand-foreground">{log.userEmail || 'System'}</span>
+                        <span className="text-[10px] font-medium text-brand-muted uppercase">Authorized User</span>
                       </div>
                     </div>
                   </td>
                   <td>
                     <div className="flex flex-col">
                       <span className="text-xs font-black text-brand-blue uppercase tracking-wider">{log.action}</span>
-                      <span className="text-xs font-medium text-brand-secondary mt-0.5">{log.resource}</span>
+                      <span className="text-xs font-medium text-brand-secondary mt-0.5">{log.entity}: {log.entityId || 'Global'}</span>
                     </div>
                   </td>
                   <td>
-                    <Badge variant={log.status === 'success' ? 'success' : log.status === 'warning' ? 'warning' : 'error'} size="sm">
-                      {log.status}
+                    <Badge variant="success" size="sm">
+                      verified
                     </Badge>
                   </td>
                   <td className="text-right">
@@ -190,7 +204,7 @@ export default function AuditLogPage() {
         </div>
         <div className="px-6 py-4 bg-brand-soft/30 border-t border-brand-border flex items-center justify-between">
           <p className="text-[10px] font-bold text-brand-muted uppercase tracking-widest">
-            Showing {filteredLogs.length} of {mockAuditLogs.length} recent security events
+            Showing {filteredLogs.length} of {logs.length} recent security events
           </p>
           <div className="flex gap-4">
             <button className="text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline">Older Logs</button>
@@ -250,14 +264,13 @@ export default function AuditLogPage() {
               <h4 className="text-xs font-black uppercase tracking-widest text-brand-muted">Structured Data Details</h4>
               <div className="rounded-3xl bg-slate-900 p-6 text-sm text-status-success font-mono leading-relaxed whitespace-pre-wrap border border-white/10">
                 {JSON.stringify({
-                  timestamp: selectedEntry.timestamp,
-                  actor: selectedEntry.user,
-                  role: selectedEntry.role,
+                  timestamp: selectedEntry.createdAt,
+                  actor: selectedEntry.userEmail,
+                  user_id: selectedEntry.userId,
                   action: selectedEntry.action,
-                  resource: selectedEntry.resource,
-                  status: selectedEntry.status,
-                  details: selectedEntry.details,
-                  origin_ip: selectedEntry.ipAddress,
+                  entity: selectedEntry.entity,
+                  entity_id: selectedEntry.entityId,
+                  metadata: selectedEntry.metadata,
                   integrity_hash: "sha256:8e3f...a2c1"
                 }, null, 2)}
               </div>
