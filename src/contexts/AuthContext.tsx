@@ -33,7 +33,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
     const unsubscribe = authService.subscribe(nextSession => {
-      if (active) setSession(nextSession);
+      if (active) {
+        if (nextSession?.user?.status === 'locked') {
+          authService.signOut();
+          setSession(null);
+        } else {
+          setSession(nextSession);
+        }
+      }
     });
 
     return () => {

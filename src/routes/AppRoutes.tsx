@@ -3,6 +3,7 @@ import AppLayout from '../components/AppLayout';
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
+import SuspendedPage from '../pages/auth/SuspendedPage';
 import AcceptInvitationPage from '../pages/auth/AcceptInvitationPage';
 import OrganizationSetupPage from '../pages/auth/OrganizationSetupPage';
 import InviteProviderPage from '../pages/auth/InviteProviderPage';
@@ -43,6 +44,7 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/suspended" element={<SuspendedPage />} />
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       <Route
         element={

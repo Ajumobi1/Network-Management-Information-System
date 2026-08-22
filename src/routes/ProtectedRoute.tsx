@@ -27,6 +27,16 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Handle Suspended Status
+  if (session.user?.status === 'suspended' && location.pathname !== '/suspended') {
+    return <Navigate to="/suspended" replace />;
+  }
+
+  // Prevent suspended users from accessing regular pages even if they bypass navigation
+  if (session.user?.status === 'suspended' && location.pathname === '/suspended') {
+    return <>{children}</>;
+  }
+
   const userRole = session.user?.role as UserRole;
   if (allowedRoles && !allowedRoles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />;

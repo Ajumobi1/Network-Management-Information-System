@@ -37,6 +37,7 @@ function mapSession(session: Session | null): AuthSession | null {
     email,
     role: controlledRole(session),
     avatarUrl,
+    status: session.user.app_metadata?.nmis_status as any,
   };
 
   return {
