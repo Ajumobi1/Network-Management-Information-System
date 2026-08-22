@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   const location = useLocation();
   const { session, loading, signOut } = useAuth();
   const [isVerifying, setIsVerifying] = useState(false);
-  const [liveStatus, setLiveStatus] = useState<'active' | 'suspended' | 'locked' | 'deleted' | null>(null);
+  const [liveStatus, setLiveStatus] = useState<'active' | 'suspended' | 'locked' | 'deleted' | 'pending' | null>(null);
 
   // Security Heartbeat: Verify user status against database on every navigation
   useEffect(() => {
