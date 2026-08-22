@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { 
   History, Search, Filter, ShieldCheck, User, 
   Database, Globe, Clock, Download, ArrowRight,
-  Eye, AlertCircle, CheckCircle2, ShieldAlert
+  Eye, AlertCircle, CheckCircle2, ShieldAlert, X
 } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import Card from '../../components/ui/Card';
@@ -33,6 +33,16 @@ const mockAuditLogs: AuditEntry[] = [
 export default function AuditLogPage() {
   const [searchTerm, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'success' | 'warning' | 'failure'>('all');
+  const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = () => {
+    setIsExporting(true);
+    setTimeout(() => {
+      setIsExporting(false);
+      alert('Secure audit archive generated. The encrypted package is ready for download.');
+    }, 2000);
+  };
 
   const filteredLogs = useMemo(() => {
     return mockAuditLogs.filter(log => {
@@ -52,7 +62,9 @@ export default function AuditLogPage() {
         title="System Audit Logs"
         subtitle="Immutable record of all administrative actions, data modifications, and security events across the NMIS platform."
         actions={
-          <Button variant="secondary" onClick={() => alert('Preparing secure audit export...')}><Download size={16} /> Download Full Archive</Button>
+          <Button variant="secondary" onClick={handleExport} disabled={isExporting}>
+            {isExporting ? 'Generating...' : <><Download size={16} /> Download Full Archive</>}
+          </Button>
         }
       />
 
@@ -163,7 +175,10 @@ export default function AuditLogPage() {
                     </Badge>
                   </td>
                   <td className="text-right">
-                    <button className="inline-flex items-center gap-2 text-xs font-black text-brand-muted hover:text-brand-blue transition-colors group-hover:translate-x-[-4px] duration-200">
+                    <button 
+                      onClick={() => setSelectedEntry(log)}
+                      className="inline-flex items-center gap-2 text-xs font-black text-brand-muted hover:text-brand-blue transition-colors group-hover:translate-x-[-4px] duration-200"
+                    >
                       <span>View Payload</span>
                       <Eye size={14} />
                     </button>
@@ -200,6 +215,60 @@ export default function AuditLogPage() {
           <ShieldCheck size={200} />
         </div>
       </div>
+
+      {/* View Payload Modal */}
+      {selectedEntry && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-brand-divider pb-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-brand-blue/10 p-2 text-brand-blue">
+                  <Eye size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-brand-foreground">Audit Event Payload</h2>
+                  <p className="text-xs text-brand-muted uppercase tracking-widest font-bold">Event ID: {selectedEntry.id}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedEntry(null)} className="text-brand-muted hover:text-brand-foreground">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="rounded-2xl bg-brand-soft/50 p-4 border border-brand-border">
+                <p className="text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1">Action</p>
+                <p className="text-sm font-black text-brand-secondary">{selectedEntry.action}</p>
+              </div>
+              <div className="rounded-2xl bg-brand-soft/50 p-4 border border-brand-border">
+                <p className="text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1">Resource</p>
+                <p className="text-sm font-black text-brand-secondary">{selectedEntry.resource}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <h4 className="text-xs font-black uppercase tracking-widest text-brand-muted">Structured Data Details</h4>
+              <div className="rounded-3xl bg-slate-900 p-6 text-sm text-status-success font-mono leading-relaxed whitespace-pre-wrap border border-white/10">
+                {JSON.stringify({
+                  timestamp: selectedEntry.timestamp,
+                  actor: selectedEntry.user,
+                  role: selectedEntry.role,
+                  action: selectedEntry.action,
+                  resource: selectedEntry.resource,
+                  status: selectedEntry.status,
+                  details: selectedEntry.details,
+                  origin_ip: selectedEntry.ipAddress,
+                  integrity_hash: "sha256:8e3f...a2c1"
+                }, null, 2)}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-6 border-t border-brand-divider">
+              <Button variant="secondary" onClick={() => setSelectedEntry(null)}>Close Inspector</Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </main>
   );
 }

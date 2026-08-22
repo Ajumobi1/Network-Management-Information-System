@@ -64,22 +64,22 @@ export default function SettingsPage() {
       title: 'Notification Preferences',
       description: 'Configure how and when you receive system alerts.',
       icon: Bell,
-      link: '#',
-      disabled: true
+      link: '/settings/notifications',
+      disabled: false
     },
     {
       title: 'Security & Password',
       description: 'Update your credentials and enable two-factor authentication.',
       icon: Lock,
-      link: '#',
-      disabled: true
+      link: '/settings/security',
+      disabled: false
     },
     {
       title: 'Regional & Localization',
       description: 'Timezone, currency display, and language settings.',
       icon: Globe,
-      link: '#',
-      disabled: true
+      link: '/settings/regional',
+      disabled: false
     }
   ];
 
@@ -216,7 +216,10 @@ export default function SettingsPage() {
                   {section.disabled ? (
                     <span className="text-[10px] font-black uppercase tracking-widest text-brand-subtle bg-brand-soft px-2 py-1 rounded-md">Coming Soon</span>
                   ) : (
-                    <ChevronRight size={16} className="text-brand-subtle" />
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-status-success bg-status-successSoft px-2 py-1 rounded-md">ACTIVE</span>
+                      <ChevronRight size={16} className="text-brand-subtle" />
+                    </div>
                   )}
                 </Card>
               ))}

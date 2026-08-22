@@ -237,20 +237,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
             </nav>
           </div>
           
-          {/* User Profile Footer */}
-          {!collapsed && (
-            <div className="mt-auto rounded-panel border border-white/10 bg-white/5 p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-blue text-[0.6875rem] font-bold text-white">
-                  {session?.user?.name?.split(' ').map(n => n[0]).join('') || 'AU'}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-white">{session?.user?.name || 'Authorized User'}</p>
-                  <p className="truncate text-[0.625rem] text-white/40">{session?.user?.email || 'user@odchc.gov.ng'}</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* User Profile Footer Removed per User Request */}
         </div>
       </aside>
     </>

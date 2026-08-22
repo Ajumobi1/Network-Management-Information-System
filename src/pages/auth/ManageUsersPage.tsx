@@ -20,6 +20,7 @@ import { SectionHeader } from '../../components/ui/LayoutComponents';
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.enum(['network-officer', 'super-admin']),
   isActive: z.boolean(),
 });
@@ -35,12 +36,7 @@ type ManagedUser = {
   lastLogin: string;
 };
 
-const initialUsers: ManagedUser[] = [
-  { id: '1', name: 'Daphne Harrison', email: 'daphne@nmis.org', role: 'network-officer', status: 'active', lastLogin: '2026-08-20 14:30' },
-  { id: '2', name: 'Peter Miles', email: 'peter@nmis.org', role: 'network-officer', status: 'active', lastLogin: '2026-08-21 09:15' },
-  { id: '3', name: 'Aisha Quinn', email: 'aisha@nmis.org', role: 'network-officer', status: 'suspended', lastLogin: '2026-08-15 11:00' },
-  { id: '4', name: 'Admin User', email: 'admin@nmis.org', role: 'super-admin', status: 'active', lastLogin: '2026-08-21 16:45' },
-];
+const initialUsers: ManagedUser[] = [];
 
 const roleOptions = [
   { label: 'Network Officer', value: 'network-officer' },
@@ -85,11 +81,18 @@ export default function ManageUsersPage() {
       lastLogin: 'Never',
     };
     setUsers(previous => [newUser, ...previous]);
-    setMessage(`${values.name} was added successfully. Invitation workflow can be completed via email.`);
+    setMessage(`Account for ${values.name} has been provisioned. They can now login with their credentials.`);
     reset();
     
     // Clear message after 5 seconds
     setTimeout(() => setMessage(''), 5000);
+  };
+
+  const handleResetPassword = (email: string) => {
+    if (confirm(`Are you sure you want to trigger a password reset for ${email}?`)) {
+      setMessage(`A password reset link has been sent to ${email}.`);
+      setTimeout(() => setMessage(''), 5000);
+    }
   };
 
   const updateUserStatus = (id: string, newStatus: 'active' | 'suspended' | 'locked') => {
@@ -213,6 +216,13 @@ export default function ManageUsersPage() {
                           >
                             {user.status === 'locked' ? <Unlock size={16} /> : <Lock size={16} />}
                           </button>
+                          <button 
+                            onClick={() => handleResetPassword(user.email)}
+                            className="p-2 rounded-lg text-brand-muted hover:bg-brand-soft transition-colors"
+                            title="Reset Password"
+                          >
+                            <ShieldAlert size={16} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -226,25 +236,26 @@ export default function ManageUsersPage() {
         <div className="space-y-6">
           {/* Add User Form */}
           <Card>
-            <SectionHeader title="Provision Account" subtitle="Invite new officer to the platform" />
+            <SectionHeader title="Provision Account" subtitle="Register new officer credentials" />
             <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <Input label="Full Name" placeholder="Enter full name" error={errors.name?.message} {...register('name')} />
               <Input label="Email address" type="email" placeholder="user@example.com" error={errors.email?.message} {...register('email')} />
+              <Input label="Initial Password" type="password" placeholder="••••••••" error={errors.password?.message} {...register('password')} />
               <Select label="Role" options={roleOptions} error={errors.role?.message} {...register('role')} />
               
               <div className="pt-4 border-t border-brand-divider">
                 <div className="flex items-center gap-3 mb-4">
                   <input type="checkbox" {...register('isActive')} className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue" />
-                  <span className="text-sm text-slate-700">Activate user</span>
+                  <span className="text-sm text-slate-700">Activate user immediately</span>
                 </div>
                 <div className="flex items-start gap-3 p-3 rounded-xl bg-brand-soft/50 text-brand-secondary">
                   <ShieldAlert size={16} className="mt-0.5 shrink-0" />
                   <p className="text-[11px] leading-relaxed">
-                    A secure invite email will be sent to the new user. Provider invitations are generated through the provider workflow.
+                    Administrators are responsible for secure credential distribution. Users should be prompted to change passwords upon first login.
                   </p>
                 </div>
                 <Button type="submit" className="mt-4 w-full gap-2 h-11">
-                  <UserPlus size={18} /> Create user invitation
+                  <UserPlus size={18} /> Provision Account
                 </Button>
               </div>
             </form>
