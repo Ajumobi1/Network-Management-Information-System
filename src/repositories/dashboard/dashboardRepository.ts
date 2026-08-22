@@ -31,10 +31,15 @@ export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
   if (!useMockData) {
     const intelligence = await fetchDashboardIntelligence();
     return {
-      title: 'Executive Overview',
-      subtitle: 'Real-time network intelligence',
+      greeting: 'Executive Overview',
+      userName: 'Administrator',
+      organization: 'ODCHC NMIS',
+      dateLabel: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
       todayFocus: `${intelligence.provider.active} providers are currently active in the network. Total population stands at ${intelligence.population.total.toLocaleString()} enrollees.`,
-      lastUpdated: new Date().toISOString(),
+      quickActions: [
+        { label: 'Register Provider', icon: 'UserPlus', variant: 'primary' },
+        { label: 'Export Report', icon: 'Download', variant: 'secondary' }
+      ],
     };
   }
   const summary = await dashboardMocks.getExecutiveSummary();
@@ -192,7 +197,12 @@ export async function fetchProviderCategories(): Promise<DistributionPoint[]> {
 export async function fetchMonthlyGrowth(): Promise<GrowthPoint[]> {
   if (!useMockData) {
     const intelligence = await fetchDashboardIntelligence();
-    return intelligence.population.monthlyTrend.map(t => ({ period: t.name, value: t.value }));
+    return intelligence.population.monthlyTrend.map(t => ({ 
+      period: t.name, 
+      providers: intelligence.provider.total,
+      inspections: 0,
+      capitation: t.value 
+    }));
   }
   return dashboardMocks.getMonthlyGrowth();
 }
@@ -235,10 +245,10 @@ export async function fetchDashboardActivities(): Promise<ActivityItem[]> {
     const logs = await fetchAuditLogs();
     return logs.map(log => ({
       id: log.id || '',
-      user: log.userEmail || 'System',
-      action: log.action,
       timestamp: log.createdAt || '',
-      type: 'security'
+      title: log.action,
+      description: `${log.userEmail || 'System'} performed ${log.action} on ${log.entity}`,
+      badge: 'Security'
     }));
   }
   return dashboardMocks.getDashboardActivities();
@@ -250,7 +260,7 @@ export async function fetchUpcomingActivities(): Promise<UpcomingActivity[]> {
 }
 
 export async function fetchDashboardNotifications(): Promise<NotificationSummary> {
-  if (!useMockData) return { total: 0, unread: 0, recent: [] };
+  if (!useMockData) return { unread: 0, alerts: 0, urgent: 0, items: [] };
   return dashboardMocks.getDashboardNotifications();
 }
 
