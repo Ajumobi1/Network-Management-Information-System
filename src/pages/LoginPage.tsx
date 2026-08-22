@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AtSymbolIcon, CheckCircleIcon, EyeIcon, GlobeAltIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { AtSymbolIcon, CheckCircleIcon, EyeIcon, EyeSlashIcon, GlobeAltIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-6 sm:px-6 sm:py-10">
@@ -94,16 +96,20 @@ function LoginPage() {
                   <span className="text-sm font-medium text-slate-700">Password</span>
                   <div className="mt-2 flex items-center gap-3 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm focus-within:border-[#0D184C] focus-within:ring-2 focus-within:ring-[#0D184C]/20">
                     <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm">
-                      <EyeIcon className="h-5 w-5" />
+                      <ShieldCheckIcon className="h-5 w-5" />
                     </span>
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       className="w-full bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
                       placeholder="Enter your password"
                     />
-                    <button type="button" className="text-slate-400 transition hover:text-slate-700">
-                      <span className="sr-only">Show password</span>
-                      <EyeIcon className="h-5 w-5" />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-slate-400 transition hover:text-slate-700"
+                    >
+                      <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                      {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                     </button>
                   </div>
                 </label>
