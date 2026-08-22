@@ -54,7 +54,19 @@ export default function CommunicationPage() {
   });
 
   const { data: communications = [], isLoading } = useCommunications(filters);
-  const { data: providers = [] } = useProviderDirectory({ search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all' });
+  const { data: providers = [] } = useProviderDirectory({ 
+    search: '', 
+    status: 'all', 
+    contractStatus: 'all', 
+    credentialStatus: 'all',
+    inspectionStatus: 'all',
+    capitationStatus: 'all',
+    lga: 'all',
+    category: 'all',
+    subcategory: 'all',
+    ownership: 'all',
+    service: 'all'
+  });
   const createMutation = useCreateCommunication();
   const completeMutation = useCompleteFollowUp();
 
