@@ -43,11 +43,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Security Heartbeat: Periodically verify session validity against database
+    const heartbeat = setInterval(async () => {
+      if (active && session?.user?.id) {
+        const status = await authService.checkUserStatus(session.user.id);
+        if (status === 'locked' || status === 'deleted') {
+          await authService.signOut();
+          setSession(null);
+        }
+      }
+    }, 30000); // Check every 30 seconds
+
     return () => {
       active = false;
       unsubscribe();
+      clearInterval(heartbeat);
     };
-  }, []);
+  }, [session?.user?.id]);
 
   const signIn = useCallback(async (email: string, password: string, remember: boolean) => {
     setError(null);

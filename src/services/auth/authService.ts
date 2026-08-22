@@ -156,5 +156,24 @@ export const authService = {
     });
     if (error) return mapAuthError(error.message);
     return { success: true, data: null };
+  },
+  
+  async checkUserStatus(userId: string): Promise<'active' | 'suspended' | 'locked' | 'pending' | 'deleted'> {
+    try {
+      const { data, error } = await supabase.rpc('nmis_check_user_status', {
+        p_user_id: userId
+      });
+      
+      if (error) {
+        // If RPC fails because user doesn't exist, they are likely deleted
+        if (error.message.includes('not found') || error.code === 'P0002') return 'deleted';
+        return 'active'; // Default to active on transient errors
+      }
+      
+      if (!data) return 'deleted';
+      return data as any;
+    } catch {
+      return 'active';
+    }
   }
 };
