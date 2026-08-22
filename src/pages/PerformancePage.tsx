@@ -64,9 +64,9 @@ export default function PerformancePage() {
         eyebrow="Quality Assurance"
         title="Provider Performance Intelligence"
         subtitle="Monitor network-wide quality benchmarks, clinical compliance scores, and management intervention triggers."
-        actions={[
-          { label: 'Export Performance Register', icon: <Download size={16} />, onClick: () => alert('Generating performance register CSV...') }
-        ]}
+        actions={
+          <Button onClick={() => alert('Generating performance register CSV...')}><Download size={16} /> Export Performance Register</Button>
+        }
       />
 
       {/* Navigation Tabs */}
