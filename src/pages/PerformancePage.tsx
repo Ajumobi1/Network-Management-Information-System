@@ -245,7 +245,7 @@ export default function PerformancePage() {
                 <option value="Good">Good (80-89%)</option>
                 <option value="Satisfactory">Satisfactory (70-79%)</option>
                 <option value="Needs Improvement">Needs Improvement (60-69%)</option>
-                <option value="Critical">Critical (<60%)</option>
+                <option value="Critical">Critical (&lt;60%)</option>
               </select>
               <label className="flex items-center gap-3 px-4 py-2 rounded-xl bg-brand-soft border border-brand-divider cursor-pointer group">
                 <input
