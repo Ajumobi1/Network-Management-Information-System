@@ -2,10 +2,12 @@ import { useState, useMemo } from 'react';
 import { 
   MessageSquare, Phone, Mail, Users, Calendar, Clock, Search, 
   Filter, AlertCircle, CheckCircle2, Megaphone, Send, 
-  FileText, ArrowRight, UserPlus, ShieldCheck, BellRing
+  FileText, ArrowRight, UserPlus, ShieldCheck, BellRing, Plus, X
 } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
-import { useCommunications, useCompleteFollowUp } from '../hooks/communication/communicationHooks';
+import { useCommunications, useCompleteFollowUp, useCreateCommunication } from '../hooks/communication/communicationHooks';
+import { useProviders } from '../hooks/provider/providerHooks';
+import { CommunicationType, CommunicationChannel, CommunicationPriority, ProviderCommunication } from '../types/communication/communicationTypes';
 import { CommunicationFilters } from '../types/communication/communicationTypes';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -32,6 +34,8 @@ const priorityColors: Record<string, string> = {
 
 export default function CommunicationPage() {
   const [activeTab, setActiveTab] = useState<'register' | 'announcements' | 'broadcast'>('register');
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [selectedComm, setSelectedComm] = useState<ProviderCommunication | null>(null);
   const [filters, setFilters] = useState<CommunicationFilters>({
     search: '',
     type: 'all',
@@ -39,8 +43,43 @@ export default function CommunicationPage() {
     priority: 'all',
   });
 
+  const [form, setForm] = useState({
+    providerId: '',
+    type: 'General' as CommunicationType,
+    subject: '',
+    message: '',
+    channel: 'Email' as CommunicationChannel,
+    priority: 'Medium' as CommunicationPriority,
+    followUpDate: '',
+  });
+
   const { data: communications = [], isLoading } = useCommunications(filters);
+  const { data: providers = [] } = useProviders();
+  const createMutation = useCreateCommunication();
   const completeMutation = useCompleteFollowUp();
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.providerId) {
+      alert('Please select a provider');
+      return;
+    }
+    try {
+      await createMutation.mutateAsync(form);
+      setIsNewModalOpen(false);
+      setForm({
+        providerId: '',
+        type: 'General',
+        subject: '',
+        message: '',
+        channel: 'Email',
+        priority: 'Medium',
+        followUpDate: '',
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to log communication');
+    }
+  };
 
   const handleCompleteFollowUp = async (id: string) => {
     try {
@@ -66,7 +105,7 @@ export default function CommunicationPage() {
         subtitle="Manage official provider communications, broadcast system-wide announcements, and monitor engagement across the ODCHC network."
         actions={
           <>
-            <Button onClick={() => alert('Opening dispatch composer...')}><Send size={16} /> New Communication</Button>
+            <Button onClick={() => setIsNewModalOpen(true)}><Send size={16} /> New Communication</Button>
             <Button variant="secondary" onClick={() => alert('Preparing communication audit export...')}>Export Logs</Button>
           </>
         }
@@ -257,7 +296,7 @@ export default function CommunicationPage() {
                                 <CheckCircle2 size={18} />
                               </button>
                             )}
-                            <Button variant="secondary" size="sm" className="h-8">Details</Button>
+                            <Button variant="secondary" size="sm" className="h-8" onClick={() => setSelectedComm(c)}>Details</Button>
                           </div>
                         </td>
                       </tr>
@@ -265,6 +304,183 @@ export default function CommunicationPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* New Communication Modal */}
+      {isNewModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-xl shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-brand-divider pb-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-brand-blue/10 p-2 text-brand-blue">
+                  <Plus size={20} />
+                </div>
+                <h2 className="text-xl font-black text-brand-foreground">Log New Communication</h2>
+              </div>
+              <button onClick={() => setIsNewModalOpen(false)} className="text-brand-muted hover:text-brand-foreground">
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="nmis-label">Select Provider / Facility</label>
+                <select 
+                  className="nmis-control"
+                  required
+                  value={form.providerId}
+                  onChange={e => setForm({ ...form, providerId: e.target.value })}
+                >
+                  <option value="">Select a provider...</option>
+                  {providers.map(p => (
+                    <option key={p.id} value={p.id}>{p.providerName} ({p.providerCode})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="nmis-label">Type</label>
+                  <select 
+                    className="nmis-control"
+                    value={form.type}
+                    onChange={e => setForm({ ...form, type: e.target.value as CommunicationType })}
+                  >
+                    <option value="General">General</option>
+                    <option value="Credentialing">Credentialing</option>
+                    <option value="Inspection">Inspection</option>
+                    <option value="Complaint">Complaint</option>
+                    <option value="Financial">Financial</option>
+                    <option value="Contract">Contract</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="nmis-label">Channel</label>
+                  <select 
+                    className="nmis-control"
+                    value={form.channel}
+                    onChange={e => setForm({ ...form, channel: e.target.value as CommunicationChannel })}
+                  >
+                    <option value="Phone">Phone</option>
+                    <option value="Email">Email</option>
+                    <option value="Meeting">Meeting</option>
+                    <option value="Letter">Letter</option>
+                    <option value="SMS">SMS</option>
+                    <option value="Portal">Portal</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="nmis-label">Subject</label>
+                <input 
+                  type="text" 
+                  className="nmis-control" 
+                  required
+                  placeholder="e.g., Q3 Inspection Follow-up"
+                  value={form.subject}
+                  onChange={e => setForm({ ...form, subject: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="nmis-label">Message / Summary</label>
+                <textarea 
+                  className="nmis-control h-32" 
+                  required
+                  placeholder="Provide a detailed summary of the communication..."
+                  value={form.message}
+                  onChange={e => setForm({ ...form, message: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="nmis-label">Priority</label>
+                  <select 
+                    className="nmis-control"
+                    value={form.priority}
+                    onChange={e => setForm({ ...form, priority: e.target.value as CommunicationPriority })}
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="nmis-label">Follow-up Date (Optional)</label>
+                  <input 
+                    type="date" 
+                    className="nmis-control"
+                    value={form.followUpDate}
+                    onChange={e => setForm({ ...form, followUpDate: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-6 border-t border-brand-divider">
+                <Button variant="secondary" onClick={() => setIsNewModalOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? 'Logging...' : 'Save Communication'}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedComm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-2xl shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-brand-divider pb-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-brand-blue/10 text-brand-blue">
+                  {channelIcons[selectedComm.channel]}
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-brand-foreground">{selectedComm.subject}</h3>
+                  <p className="text-xs text-brand-muted uppercase tracking-widest font-bold">{selectedComm.channel} Correspondence • {selectedComm.providerName}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedComm(null)} className="text-brand-muted hover:text-brand-foreground">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              <div className="rounded-2xl bg-brand-soft/50 p-4 border border-brand-border">
+                <p className="text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1">Type</p>
+                <p className="text-sm font-black text-brand-secondary">{selectedComm.type}</p>
+              </div>
+              <div className="rounded-2xl bg-brand-soft/50 p-4 border border-brand-border">
+                <p className="text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1">Status</p>
+                <p className="text-sm font-black text-brand-secondary">{selectedComm.status}</p>
+              </div>
+              <div className="rounded-2xl bg-brand-soft/50 p-4 border border-brand-border">
+                <p className="text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1">Priority</p>
+                <p className="text-sm font-black text-brand-secondary">{selectedComm.priority}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <h4 className="text-xs font-black uppercase tracking-widest text-brand-muted">Message Content</h4>
+              <div className="rounded-3xl bg-brand-soft/30 p-6 text-sm text-brand-secondary leading-relaxed whitespace-pre-wrap border border-brand-border">
+                {selectedComm.message}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-6 border-t border-brand-divider text-[10px] text-brand-muted font-black uppercase tracking-widest">
+              <div className="flex gap-6">
+                <span>Logged: {new Date(selectedComm.communicationDate).toLocaleString()}</span>
+                <span>By: {selectedComm.assignedOfficer || 'System'}</span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={() => setSelectedComm(null)}>Close</Button>
             </div>
           </Card>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Activity, Bell, Building2, ChevronDown, ClipboardCheck, ClipboardList, FileChartColumn, FileText, Grid, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, UploadCloud, Users, X } from 'lucide-react';
+import { Activity, Bell, Building2, ChevronDown, ClipboardCheck, ClipboardList, FileChartColumn, FileText, Grid, History, PanelLeftClose, PanelLeftOpen, Settings, ShieldCheck, UploadCloud, Users, X } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { UserRole } from '../../auth/authTypes';
 
