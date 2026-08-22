@@ -64,6 +64,7 @@ export default function InspectionsPage() {
   const { data: providers = [] } = useProviderDirectory({
     search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all',
     capitationStatus: 'all', lga: 'all', category: 'all', subcategory: 'all', ownership: 'all', service: 'all',
+    pageSize: -1
   });
   const saveInspectionMutation = useSaveInspection();
   const inspections = useMemo(() => {

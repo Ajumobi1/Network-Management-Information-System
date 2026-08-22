@@ -65,7 +65,8 @@ export default function CommunicationPage() {
     category: 'all',
     subcategory: 'all',
     ownership: 'all',
-    service: 'all'
+    service: 'all',
+    pageSize: -1
   });
   const createMutation = useCreateCommunication();
   const completeMutation = useCompleteFollowUp();

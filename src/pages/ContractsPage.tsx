@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import { useContracts, useContractSummary, useCreateContract } from '../hooks/contracts/contractsHooks';
+import { useProviderDirectory } from '../hooks/providers/providersHooks';
 import { ProviderCategory, ProviderOwnership } from '../constants/providerNetwork';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import Card from '../components/ui/Card';
@@ -22,6 +23,11 @@ export default function ContractsPage() {
 
   const { data: contracts = [], isLoading, isError, refetch } = useContracts();
   const { data: summary } = useContractSummary();
+  const { data: providers = [] } = useProviderDirectory({
+    search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all',
+    capitationStatus: 'all', lga: 'all', category: 'all', subcategory: 'all', ownership: 'all', service: 'all',
+    pageSize: -1
+  });
   const createContractMutation = useCreateContract();
 
   const [newContract, setNewContract] = useState({
@@ -219,19 +225,28 @@ export default function ContractsPage() {
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-brand-muted">Select Provider</label>
-                  <select 
+                    <select 
                     className="nmis-control"
                     value={newContract.providerId}
                     onChange={(e) => {
-                      const selected = e.target.value;
-                      const name = e.target.options[e.target.selectedIndex].text.split(' (')[0];
-                      const code = e.target.options[e.target.selectedIndex].text.split('(')[1]?.replace(')', '') || 'NMIS-FAC';
-                      setNewContract(prev => ({ ...prev, providerId: selected, providerName: name, providerCode: code }));
+                      const selectedId = e.target.value;
+                      const provider = providers.find(p => p.id === selectedId);
+                      if (provider) {
+                        setNewContract(prev => ({ 
+                          ...prev, 
+                          providerId: provider.id, 
+                          providerName: provider.providerName, 
+                          providerCode: provider.providerCode 
+                        }));
+                      }
                     }}
                   >
                     <option value="">Search accredited providers...</option>
-                    <option value="f7ed9f8e-c0c6-4758-a064-6cbe652655db">ADULOJU MEMORIAL HOSPITAL (PRO-001)</option>
-                    <option value="615744">MAO HOSPITAL LIMITED (PRO-042)</option>
+                    {providers.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.providerName} ({p.providerCode})
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-2">
