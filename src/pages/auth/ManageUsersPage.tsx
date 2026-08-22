@@ -128,12 +128,17 @@ export default function ManageUsersPage() {
     if (newStatus === 'active') explanation = 'This will restore full system access to the user account.';
 
     if (confirm(`${actionLabel} ACCOUNT: ${explanation}\n\nDo you want to proceed?`)) {
+      // Optimistic update
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, status: newStatus, isActive: newStatus === 'active' } : u));
+      
       const result = await authService.updateUserStatus(id, newStatus);
       if (result.success) {
         setMessage(`Account status updated to ${newStatus}.`);
-        fetchUsers();
+        // Fetch again to ensure sync
+        setTimeout(fetchUsers, 1000);
       } else {
         setMessage(`Error: ${result.error.message}`);
+        fetchUsers(); // Rollback
       }
       setTimeout(() => setMessage(''), 5000);
     }
@@ -141,12 +146,16 @@ export default function ManageUsersPage() {
 
   const handleDeleteUser = async (id: string) => {
     if (confirm('DELETE ACCOUNT: This will PERMANENTLY remove the user from the NMIS system. This action is irreversible and all authentication credentials will be destroyed.\n\nDo you want to proceed?')) {
+      // Optimistic delete
+      setUsers(prev => prev.filter(u => u.id !== id));
+      
       const result = await authService.deleteUser(id);
       if (result.success) {
         setMessage('User deleted successfully.');
-        fetchUsers();
+        setTimeout(fetchUsers, 1000);
       } else {
         setMessage(`Error: ${result.error.message}`);
+        fetchUsers(); // Rollback
       }
       setTimeout(() => setMessage(''), 5000);
     }
@@ -228,7 +237,11 @@ export default function ManageUsersPage() {
                         </div>
                       </td>
                       <td>
-                        <Badge variant={user.status === 'active' ? 'success' : user.status === 'suspended' ? 'warning' : 'error'}>
+                        <Badge variant={
+                          user.status === 'active' ? 'success' : 
+                          user.status === 'suspended' ? 'warning' : 
+                          user.status === 'locked' ? 'error' : 'error'
+                        }>
                           {user.status || (user.isActive ? 'active' : 'inactive')}
                         </Badge>
                       </td>
