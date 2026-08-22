@@ -54,3 +54,32 @@ export async function getContractSummary(): Promise<ContractSummary> {
     expiredCount: contracts.filter(c => c.status === 'Expired').length,
   };
 }
+
+export async function createContract(contract: Omit<ProviderContract, 'id'>): Promise<ProviderContract> {
+  if (useMockData) {
+    console.log('Mock: Creating contract', contract);
+    return {
+      id: Math.random().toString(36).substr(2, 9),
+      ...contract,
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('provider_contracts')
+    .insert([{
+      provider_id: contract.providerId,
+      contract_type: contract.contractType,
+      start_date: contract.startDate,
+      end_date: contract.endDate,
+      status: contract.status,
+      metadata: {
+        provider_name: contract.providerName,
+        provider_code: contract.providerCode,
+      }
+    }])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data as ProviderContract;
+}

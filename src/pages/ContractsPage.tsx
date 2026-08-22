@@ -5,7 +5,7 @@ import {
   ArrowRight, History, MoreVertical, X, Check
 } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
-import { useContracts, useContractSummary } from '../hooks/contracts/contractsHooks';
+import { useContracts, useContractSummary, useCreateContract } from '../hooks/contracts/contractsHooks';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -21,6 +21,17 @@ export default function ContractsPage() {
 
   const { data: contracts = [], isLoading, isError, refetch } = useContracts();
   const { data: summary } = useContractSummary();
+  const createContractMutation = useCreateContract();
+
+  const [newContract, setNewContract] = useState({
+    providerId: '',
+    providerName: '',
+    providerCode: '',
+    contractType: 'Capitation (Primary Care)',
+    startDate: new Date().toISOString().slice(0, 10),
+    endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().slice(0, 10),
+    status: 'Active' as const
+  });
 
   const filteredContracts = useMemo(() => {
     return contracts.filter(c => {
@@ -228,14 +239,24 @@ export default function ContractsPage() {
                   <label className="text-xs font-black uppercase tracking-widest text-brand-muted">Effective Date</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-subtle" size={16} />
-                    <input type="date" className="nmis-control pl-10" />
+                    <input 
+                      type="date" 
+                      className="nmis-control pl-10" 
+                      value={newContract.startDate}
+                      onChange={(e) => setNewContract(prev => ({ ...prev, startDate: e.target.value }))}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-brand-muted">Expiry Date</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-subtle" size={16} />
-                    <input type="date" className="nmis-control pl-10" />
+                    <input 
+                      type="date" 
+                      className="nmis-control pl-10" 
+                      value={newContract.endDate}
+                      onChange={(e) => setNewContract(prev => ({ ...prev, endDate: e.target.value }))}
+                    />
                   </div>
                 </div>
               </div>
@@ -254,8 +275,30 @@ export default function ContractsPage() {
 
               <div className="flex justify-end gap-3 pt-4 border-t border-brand-divider">
                 <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-                <Button className="gap-2" onClick={() => { alert('Contract provisioned successfully.'); setShowCreateModal(false); }}>
-                  <Check size={18} /> Execute Agreement
+                <Button 
+                  className="gap-2" 
+                  disabled={createContractMutation.isPending}
+                  onClick={async () => { 
+                    try {
+                      await createContractMutation.mutateAsync({
+                        providerId: newContract.providerId || 'PRO-001',
+                        providerName: newContract.providerName || 'ADULOJU MEMORIAL HOSPITAL',
+                        providerCode: newContract.providerCode || 'NMIS-FAC-001',
+                        category: 'hospital',
+                        ownership: 'Private',
+                        contractType: newContract.contractType,
+                        startDate: newContract.startDate,
+                        endDate: newContract.endDate,
+                        status: newContract.status
+                      });
+                      alert('Contract provisioned successfully.'); 
+                      setShowCreateModal(false); 
+                    } catch (err) {
+                      alert('Failed to provision contract.');
+                    }
+                  }}
+                >
+                  {createContractMutation.isPending ? 'Executing...' : <><Check size={18} /> Execute Agreement</>}
                 </Button>
               </div>
             </div>

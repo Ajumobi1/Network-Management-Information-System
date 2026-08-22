@@ -31,8 +31,8 @@ export default function SettingsPage() {
     { name: 'Inspection Templates', description: 'Configure facility-type-specific eligibility gates, checklist items, and scoring methods.', link: '/settings/inspection-templates', adminOnly: true },
     { name: 'User Management', description: 'Create and manage administrative accounts, control access levels, and suspend accounts.', link: '/admin/users', adminOnly: true },
     { name: 'Audit Viewer', description: 'Inspect system-wide activity logs, data modifications, and security events.', link: '/admin/audit', adminOnly: true },
-    { name: 'System Config', description: 'Manage global application settings, constants, and branding parameters.', link: '#', adminOnly: true },
-    { name: 'Data Management', description: 'Advanced tools for manual data correction, archiving, and maintenance.', link: '#', adminOnly: false },
+    { name: 'System Config', description: 'Manage global application settings, constants, and branding parameters.', link: '/admin/config', adminOnly: true },
+    { name: 'Data Management', description: 'Advanced tools for manual data correction, archiving, and maintenance.', link: '/admin/data', adminOnly: true },
   ];
 
   const { data: capitationSettings, isLoading: isLoadingCapitation, isError: isCapitationError } = useCapitationSettings();
