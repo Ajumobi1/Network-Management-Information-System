@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import { useCommunications, useCompleteFollowUp, useCreateCommunication } from '../hooks/communication/communicationHooks';
-import { useProviders } from '../hooks/provider/providerHooks';
+import { useProviderDirectory } from '../hooks/providers/providersHooks';
 import { CommunicationType, CommunicationChannel, CommunicationPriority, ProviderCommunication } from '../types/communication/communicationTypes';
 import { CommunicationFilters } from '../types/communication/communicationTypes';
 import Button from '../components/ui/Button';
@@ -54,7 +54,7 @@ export default function CommunicationPage() {
   });
 
   const { data: communications = [], isLoading } = useCommunications(filters);
-  const { data: providers = [] } = useProviders();
+  const { data: providers = [] } = useProviderDirectory({ search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all' });
   const createMutation = useCreateCommunication();
   const completeMutation = useCompleteFollowUp();
 
@@ -335,7 +335,7 @@ export default function CommunicationPage() {
                   onChange={e => setForm({ ...form, providerId: e.target.value })}
                 >
                   <option value="">Select a provider...</option>
-                  {providers.map(p => (
+                  {providers.map((p: any) => (
                     <option key={p.id} value={p.id}>{p.providerName} ({p.providerCode})</option>
                   ))}
                 </select>
