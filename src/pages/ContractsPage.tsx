@@ -34,6 +34,11 @@ export default function ContractsPage() {
   if (isLoading) return <LoadingState title="Synchronizing contract registry..." />;
   if (isError) return <ErrorState title="Contract data unavailable" action={{ label: 'Retry Connection', onClick: () => refetch() }} />;
 
+  const handleCreateClick = () => {
+    console.log('Create contract clicked');
+    setShowCreateModal(true);
+  };
+
   return (
     <main className="nmis-page">
       <PageHeader
@@ -41,10 +46,15 @@ export default function ContractsPage() {
         title="Contract Portfolio Management"
         subtitle="Execute, review, and manage healthcare service level agreements (SLAs) and provider capitation contracts."
         actions={
-          <>
-            <Button onClick={() => setShowCreateModal(true)}><Plus size={16} /> Create New Contract</Button>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleCreateClick}
+              className="inline-flex items-center justify-center rounded-control transition-all duration-200 active:scale-[0.98] gap-2 bg-brand-blue text-white hover:bg-brand-hover shadow-soft px-4 py-2 text-sm font-bold"
+            >
+              <Plus size={16} /> Create New Contract
+            </button>
             <Button variant="secondary" onClick={() => alert('Generating contract portfolio CSV...')}>Export Portfolio</Button>
-          </>
+          </div>
         }
       />
 
