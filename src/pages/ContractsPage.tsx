@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import { useContracts, useContractSummary, useCreateContract } from '../hooks/contracts/contractsHooks';
+import { ProviderCategory, ProviderOwnership } from '../constants/providerNetwork';
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -284,8 +285,8 @@ export default function ContractsPage() {
                         providerId: newContract.providerId || 'PRO-001',
                         providerName: newContract.providerName || 'ADULOJU MEMORIAL HOSPITAL',
                         providerCode: newContract.providerCode || 'NMIS-FAC-001',
-                        category: 'hospital',
-                        ownership: 'Private',
+                        category: ProviderCategory.Hospital,
+                        ownership: ProviderOwnership.Private,
                         contractType: newContract.contractType,
                         startDate: newContract.startDate,
                         endDate: newContract.endDate,
