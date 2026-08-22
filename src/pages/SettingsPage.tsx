@@ -136,9 +136,9 @@ export default function SettingsPage() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               {adminSections.map((section, idx) => (
-                <Card 
+                <div 
                   key={idx} 
-                  className="nmis-card-interactive group"
+                  className="nmis-card nmis-card-interactive group cursor-pointer p-5"
                   onClick={() => navigate(section.link)}
                 >
                   <div className="flex items-start gap-4">
@@ -155,7 +155,7 @@ export default function SettingsPage() {
                       </p>
                     </div>
                   </div>
-                </Card>
+                </div>
               ))}
             </div>
           </section>

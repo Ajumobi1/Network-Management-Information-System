@@ -46,8 +46,8 @@ export async function getContracts(): Promise<ProviderContract[]> {
     providerId: c.provider_id,
     providerName: c.metadata?.provider_name || 'Provider Facility',
     providerCode: c.metadata?.provider_code || 'NMIS-FAC',
-    category: 'hospital', // Default for fallback
-    ownership: 'Private', // Default for fallback
+    category: 'hospital' as any, // Default for fallback
+    ownership: 'Private' as any, // Default for fallback
     contractType: c.contract_type,
     startDate: c.start_date,
     endDate: c.end_date,
