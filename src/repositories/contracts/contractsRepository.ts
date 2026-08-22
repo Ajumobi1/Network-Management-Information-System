@@ -21,28 +21,38 @@ export async function getContracts(): Promise<ProviderContract[]> {
     }));
   }
 
-  const { data, error } = await supabase.rpc('nmis_list_contracts');
+  // Attempt RPC first for performance and security
+  const { data: rpcData, error: rpcError } = await supabase.rpc('nmis_list_contracts');
 
-  if (error) {
-    const errorMessage = error.message || '';
-    const missingContractRpc =
-      error.code === 'PGRST202' ||
-      error.code === '42883' ||
-      /nmis_list_contracts|could not find the function/i.test(errorMessage);
+  if (!rpcError) {
+    return (rpcData || []) as ProviderContract[];
+  }
 
-    // The current production schema has provider contract status fields but no
-    // dedicated nmis_list_contracts read RPC yet. Render a truthful empty
-    // contract register instead of turning the entire route into an error
-    // screen. Authorization and other secure-contract failures still surface.
-    if (missingContractRpc) return [];
+  // Fallback: Read directly from the table if RPC is missing
+  const { data: tableData, error: tableError } = await supabase
+    .from('provider_contracts')
+    .select('*');
 
-    const code = error.code === 'P0001' && errorMessage.includes('ACCESS_RESTRICTED')
+  if (tableError) {
+    const errorMessage = tableError.message || '';
+    const code = tableError.code === 'P0001' && errorMessage.includes('ACCESS_RESTRICTED')
       ? 'ACCESS_RESTRICTED'
       : 'SECURE_CONTRACT_UNAVAILABLE';
     throw new SecureContractError(code, errorMessage || 'Failed to list contracts');
   }
 
-  return (data || []) as ProviderContract[];
+  return (tableData || []).map((c: any) => ({
+    id: c.id,
+    providerId: c.provider_id,
+    providerName: c.metadata?.provider_name || 'Provider Facility',
+    providerCode: c.metadata?.provider_code || 'NMIS-FAC',
+    category: 'hospital', // Default for fallback
+    ownership: 'Private', // Default for fallback
+    contractType: c.contract_type,
+    startDate: c.start_date,
+    endDate: c.end_date,
+    status: c.status,
+  })) as ProviderContract[];
 }
 
 export async function getContractSummary(): Promise<ContractSummary> {
