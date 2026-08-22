@@ -180,7 +180,7 @@ export default function AuditLogPage() {
                   <td>
                     <div className="flex flex-col">
                       <span className="text-xs font-black text-brand-blue uppercase tracking-wider">{log.action}</span>
-                      <span className="text-xs font-medium text-brand-secondary mt-0.5">{log.entity}: {log.entityId || 'Global'}</span>
+                      <span className="text-xs font-medium text-brand-secondary mt-0.5">{log.entity}</span>
                     </div>
                   </td>
                   <td>
@@ -256,7 +256,7 @@ export default function AuditLogPage() {
               </div>
               <div className="rounded-2xl bg-brand-soft/50 p-4 border border-brand-border">
                 <p className="text-[10px] font-bold text-brand-muted uppercase tracking-wider mb-1">Resource</p>
-                <p className="text-sm font-black text-brand-secondary">{selectedEntry.resource}</p>
+                <p className="text-sm font-black text-brand-secondary">{selectedEntry.entity}</p>
               </div>
             </div>
 

@@ -26,11 +26,11 @@ export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
   
   try {
     const logs = await fetchTable('audit_logs', {
-      sort: { column: 'created_at', ascending: false },
+      orderBy: { column: 'created_at', ascending: false },
       limit: 100
     });
 
-    return logs.map(log => ({
+    return (logs as any[]).map(log => ({
       id: log.id,
       userId: log.user_id,
       userEmail: log.user_email,
