@@ -82,11 +82,47 @@ export default function AppRoutes() {
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/communication" element={<CommunicationPage />} />
         <Route path="/complaints" element={<ComplaintsPage />} />
-        <Route path="/admin/users" element={<ManageUsersPage />} />
-        <Route path="/admin/audit" element={<AuditLogPage />} />
-        <Route path="/admin/config" element={<SystemConfigPage />} />
-        <Route path="/admin/data" element={<DataManagementPage />} />
-        <Route path="/admin/invite-provider" element={<InviteProviderPage />} />
+        {/* Administrative Routes (Super Admin Only) */}
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <ManageUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <AuditLogPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/config"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <SystemConfigPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/data"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <DataManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/invite-provider"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <InviteProviderPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

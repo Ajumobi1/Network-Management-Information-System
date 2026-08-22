@@ -59,12 +59,12 @@ export default function ContractsPage() {
         subtitle="Execute, review, and manage healthcare service level agreements (SLAs) and provider capitation contracts."
         actions={
           <div className="flex gap-2">
-            <button 
+            <Button 
               onClick={handleCreateClick}
-              className="inline-flex items-center justify-center rounded-control transition-all duration-200 active:scale-[0.98] gap-2 bg-brand-blue text-white hover:bg-brand-hover shadow-soft px-4 py-2 text-sm font-bold"
+              className="gap-2"
             >
               <Plus size={16} /> Create New Contract
-            </button>
+            </Button>
             <Button variant="secondary" onClick={() => alert('Generating contract portfolio CSV...')}>Export Portfolio</Button>
           </div>
         }
@@ -219,10 +219,19 @@ export default function ContractsPage() {
               <div className="grid gap-6 sm:grid-cols-2">
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-brand-muted">Select Provider</label>
-                  <select className="nmis-control">
-                    <option>Search accredited providers...</option>
-                    <option>ADULOJU MEMORIAL HOSPITAL (PRO-001)</option>
-                    <option>MAO HOSPITAL LIMITED (PRO-042)</option>
+                  <select 
+                    className="nmis-control"
+                    value={newContract.providerId}
+                    onChange={(e) => {
+                      const selected = e.target.value;
+                      const name = e.target.options[e.target.selectedIndex].text.split(' (')[0];
+                      const code = e.target.options[e.target.selectedIndex].text.split('(')[1]?.replace(')', '') || 'NMIS-FAC';
+                      setNewContract(prev => ({ ...prev, providerId: selected, providerName: name, providerCode: code }));
+                    }}
+                  >
+                    <option value="">Search accredited providers...</option>
+                    <option value="f7ed9f8e-c0c6-4758-a064-6cbe652655db">ADULOJU MEMORIAL HOSPITAL (PRO-001)</option>
+                    <option value="615744">MAO HOSPITAL LIMITED (PRO-042)</option>
                   </select>
                 </div>
                 <div className="space-y-2">

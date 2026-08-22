@@ -108,7 +108,7 @@ export default function InspectionsPage() {
   };
 
   const handleOpenInspection = (item: any) => {
-    if (item.status === 'draft') {
+    if (item.status === 'draft' || item.status === 'submitted') {
       navigate(`/inspections/new?draftId=${encodeURIComponent(item.id)}&facilityType=${encodeURIComponent(facilityTypeCodeFromInspectionType(item.type))}`);
       return;
     }
