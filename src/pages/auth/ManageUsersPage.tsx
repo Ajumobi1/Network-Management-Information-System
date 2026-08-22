@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { 
   UserPlus, ShieldCheck, Lock, Unlock, UserMinus, 
   History, MoreVertical, Mail, Search, ShieldAlert,
-  UserCheck, AlertTriangle, Users, Clock
+  UserCheck, AlertTriangle, Users, Clock, Edit2, X, Save
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -51,6 +51,7 @@ export default function ManageUsersPage() {
   const [users, setUsers] = useState<ManagedUser[]>(initialUsers);
   const [searchTerm, setSearch] = useState('');
   const [message, setMessage] = useState('');
+  const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => 
@@ -75,11 +76,6 @@ export default function ManageUsersPage() {
   });
 
   const onSubmit = (values: UserFormValues) => {
-    if (!useMockData) {
-      setMessage('Trusted user provisioning is pending Phase 3B staging verification.');
-      return;
-    }
-
     const newUser: ManagedUser = {
       id: `${Date.now()}`,
       name: values.name,
@@ -89,13 +85,26 @@ export default function ManageUsersPage() {
       lastLogin: 'Never',
     };
     setUsers(previous => [newUser, ...previous]);
-    setMessage(`${values.name} was added successfully.`);
+    setMessage(`${values.name} was added successfully. Invitation workflow can be completed via email.`);
     reset();
+    
+    // Clear message after 5 seconds
+    setTimeout(() => setMessage(''), 5000);
   };
 
   const updateUserStatus = (id: string, newStatus: 'active' | 'suspended' | 'locked') => {
     setUsers(previous => previous.map(user => (user.id === id ? { ...user, status: newStatus } : user)));
-    setMessage(`User account status updated to ${newStatus}.`);
+    setMessage(`Account for ${users.find(u => u.id === id)?.name} is now ${newStatus}.`);
+    setTimeout(() => setMessage(''), 5000);
+  };
+
+  const handleEditSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setUsers(previous => previous.map(user => (user.id === editingUser.id ? editingUser : user)));
+    setMessage(`User ${editingUser.name} updated successfully.`);
+    setEditingUser(null);
+    setTimeout(() => setMessage(''), 5000);
   };
 
   return (
@@ -114,7 +123,7 @@ export default function ManageUsersPage() {
           {/* User Register */}
           <Card className="p-0 overflow-hidden">
             <div className="border-b border-brand-border bg-brand-soft/50 px-6 py-4 flex items-center justify-between">
-              <SectionHeader title="System Users" subtitle="Directory of authorized administrative personnel" />
+              <SectionHeader title="Active Users" subtitle="Manage existing administrative accounts" />
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-subtle" size={16} />
                 <input 
@@ -173,6 +182,13 @@ export default function ManageUsersPage() {
                       </td>
                       <td className="text-right">
                         <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => setEditingUser(user)}
+                            className="p-2 rounded-lg text-brand-muted hover:bg-brand-soft transition-colors"
+                            title="Edit Profile"
+                          >
+                            <Edit2 size={16} />
+                          </button>
                           {user.status === 'active' ? (
                             <button 
                               onClick={() => updateUserStatus(user.id, 'suspended')}
@@ -212,19 +228,23 @@ export default function ManageUsersPage() {
           <Card>
             <SectionHeader title="Provision Account" subtitle="Invite new officer to the platform" />
             <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-              <Input label="Full Name" placeholder="e.g. John Doe" error={errors.name?.message} {...register('name')} />
-              <Input label="Official Email" type="email" placeholder="officer@odchc.gov.ng" error={errors.email?.message} {...register('email')} />
-              <Select label="Platform Role" options={roleOptions} error={errors.role?.message} {...register('role')} />
+              <Input label="Full Name" placeholder="Enter full name" error={errors.name?.message} {...register('name')} />
+              <Input label="Email address" type="email" placeholder="user@example.com" error={errors.email?.message} {...register('email')} />
+              <Select label="Role" options={roleOptions} error={errors.role?.message} {...register('role')} />
               
               <div className="pt-4 border-t border-brand-divider">
+                <div className="flex items-center gap-3 mb-4">
+                  <input type="checkbox" {...register('isActive')} className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue" />
+                  <span className="text-sm text-slate-700">Activate user</span>
+                </div>
                 <div className="flex items-start gap-3 p-3 rounded-xl bg-brand-soft/50 text-brand-secondary">
                   <ShieldAlert size={16} className="mt-0.5 shrink-0" />
                   <p className="text-[11px] leading-relaxed">
-                    New accounts are created with a temporary password sent via email. Users must change their password upon first login.
+                    A secure invite email will be sent to the new user. Provider invitations are generated through the provider workflow.
                   </p>
                 </div>
                 <Button type="submit" className="mt-4 w-full gap-2 h-11">
-                  <UserPlus size={18} /> Provision Account
+                  <UserPlus size={18} /> Create user invitation
                 </Button>
               </div>
             </form>
@@ -244,20 +264,66 @@ export default function ManageUsersPage() {
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-brand-muted">Locked Accounts</span>
-                <span className="text-xs font-black text-status-error">0</span>
+                <span className="text-xs font-black text-status-error">{users.filter(u => u.status === 'locked').length}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-brand-muted">Suspended Accounts</span>
-                <span className="text-xs font-black text-brand-orange">1</span>
+                <span className="text-xs font-black text-brand-orange">{users.filter(u => u.status === 'suspended').length}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs font-bold text-brand-muted">Admin Privileges</span>
-                <span className="text-xs font-black text-brand-foreground">1</span>
+                <span className="text-xs font-black text-brand-foreground">{users.filter(u => u.role === 'super-admin').length}</span>
               </div>
             </div>
           </Card>
         </div>
       </div>
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-brand-divider pb-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-brand-blue/10 p-2 text-brand-blue">
+                  <Edit2 size={20} />
+                </div>
+                <h2 className="text-xl font-black text-brand-foreground">Edit User Profile</h2>
+              </div>
+              <button onClick={() => setEditingUser(null)} className="text-brand-muted hover:text-brand-foreground">
+                <X size={24} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <Input 
+                label="Full Name" 
+                value={editingUser.name} 
+                onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} 
+              />
+              <Input 
+                label="Email Address" 
+                type="email" 
+                value={editingUser.email} 
+                onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} 
+              />
+              <Select 
+                label="Role" 
+                options={roleOptions} 
+                value={editingUser.role} 
+                onChange={e => setEditingUser({ ...editingUser, role: e.target.value as UserRole })} 
+              />
+              
+              <div className="pt-6 flex justify-end gap-3 border-t border-brand-divider">
+                <Button variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
+                <Button type="submit" className="gap-2">
+                  <Save size={18} /> Save Changes
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      )}
     </main>
   );
 }

@@ -94,4 +94,32 @@ export const authService = {
     if (error) return mapAuthError(error.message);
     return { success: true, data: null };
   },
+
+  // Administration & User Management
+  async inviteUser(name: string, email: string, role: UserRole): Promise<AuthResult<null>> {
+    const { error } = await supabase.rpc('nmis_admin_invite_user', {
+      p_name: name,
+      p_email: email.trim().toLowerCase(),
+      p_role: role
+    });
+    if (error) return mapAuthError(error.message);
+    return { success: true, data: null };
+  },
+
+  async updateUserStatus(userId: string, status: 'active' | 'suspended' | 'locked'): Promise<AuthResult<null>> {
+    const { error } = await supabase.rpc('nmis_admin_update_user_status', {
+      p_user_id: userId,
+      p_status: status
+    });
+    if (error) return mapAuthError(error.message);
+    return { success: true, data: null };
+  },
+
+  async deleteUser(userId: string): Promise<AuthResult<null>> {
+    const { error } = await supabase.rpc('nmis_admin_delete_user', {
+      p_user_id: userId
+    });
+    if (error) return mapAuthError(error.message);
+    return { success: true, data: null };
+  }
 };

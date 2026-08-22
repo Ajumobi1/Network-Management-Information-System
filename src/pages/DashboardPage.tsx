@@ -56,8 +56,8 @@ export default function DashboardPage() {
   const { data: intelligence } = useFinancialIntelligence({ period: '2026-08' });
   const { data: notifications = [] } = useNotifications();
 
-  const activeProviders = (providers as any).activeCount ?? providers.filter(p => p.status === 'active').length;
-  const pendingInspections = inspections.filter(i => i.status === 'scheduled').length;
+  const activeProviders = (providers as any).activeCount ?? providers.filter(p => p.status.toLowerCase() === 'active').length;
+  const pendingInspections = inspections.filter(i => i.status.toLowerCase() === 'scheduled').length;
   const pendingApprovals = notifications.length;
   const totalExpenditure = intelligence?.totalExpenditure || 0;
 
@@ -67,7 +67,7 @@ export default function DashboardPage() {
     return `₦${value.toLocaleString()}`;
   };
 
-  const scheduledInspections = useMemo(() => inspections.filter(i => i.status === 'scheduled'), [inspections]);
+  const scheduledInspections = useMemo(() => inspections.filter(i => i.status.toLowerCase() === 'scheduled'), [inspections]);
 
   return (
     <main className="nmis-page">
