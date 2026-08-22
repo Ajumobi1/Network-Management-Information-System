@@ -125,9 +125,15 @@ export const authService = {
     if (error) return mapAuthError(error.message);
 
     if (data.user) {
+      // 1. Set the role
       await supabase.rpc('nmis_admin_update_user_role', {
         p_user_id: data.user.id,
         p_role: role
+      });
+      
+      // 2. Auto-confirm the user to bypass email verification
+      await supabase.rpc('nmis_admin_confirm_user', {
+        p_user_id: data.user.id
       });
     }
 

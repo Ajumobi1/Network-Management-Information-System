@@ -2,7 +2,8 @@ import { useMemo, useState, useEffect } from 'react';
 import { 
   UserPlus, ShieldCheck, Lock, Unlock, UserMinus, 
   History, MoreVertical, Mail, Search, ShieldAlert,
-  UserCheck, AlertTriangle, Users, Clock, Edit2, X, Save
+  UserCheck, AlertTriangle, Users, Clock, Edit2, X, Save,
+  Eye, EyeOff
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -52,6 +53,7 @@ export default function ManageUsersPage() {
   const [message, setMessage] = useState('');
   const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
   const [isProvisioning, setIsProvisioning] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -285,7 +287,22 @@ export default function ManageUsersPage() {
             <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
               <Input label="Full Name" placeholder="Enter full name" error={errors.name?.message} {...register('name')} />
               <Input label="Email address" type="email" placeholder="user@example.com" error={errors.email?.message} {...register('email')} />
-              <Input label="Initial Password" type="password" placeholder="••••••••" error={errors.password?.message} {...register('password')} />
+              <div className="relative">
+                <Input 
+                  label="Initial Password" 
+                  type={showPassword ? 'text' : 'password'} 
+                  placeholder="••••••••" 
+                  error={errors.password?.message} 
+                  {...register('password')} 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-[38px] text-brand-subtle hover:text-brand-secondary transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               <Select label="Role" options={roleOptions} error={errors.role?.message} {...register('role')} />
               
               <div className="pt-4 border-t border-brand-divider">
