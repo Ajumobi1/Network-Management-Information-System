@@ -19,7 +19,7 @@ interface ExportEnrolmentDialogProps {
 type ExportScope = 'current' | 'all' | 'by-lga' | 'by-district' | 'by-provider' | 'by-period';
 
 async function fetchAllMatchingEnrollees(filters: EnrolmentFilters): Promise<Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>>> {
-  const pageSize = 5000;
+  const pageSize = 50000;
   const allRecords: Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>> = [];
   let page = 1;
 
