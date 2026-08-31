@@ -19,18 +19,26 @@ interface ExportEnrolmentDialogProps {
 type ExportScope = 'current' | 'all' | 'by-lga' | 'by-district' | 'by-provider' | 'by-period';
 
 async function fetchAllMatchingEnrollees(filters: EnrolmentFilters): Promise<Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>>> {
-  const pageSize = 50000;
-  const allRecords: Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>> = [];
-  let page = 1;
+  const pageSize = 5000;
+  const firstPage = await enrolmentService.fetchEnrollees({ ...filters, page: 1, pageSize });
+  if (firstPage.length === 0) return [];
 
-  while (true) {
-    const pageRecords = await enrolmentService.fetchEnrollees({ ...filters, page, pageSize });
-    allRecords.push(...pageRecords);
-    if (pageRecords.length < pageSize) break;
-    page += 1;
+  const totalCount = firstPage[0]?.totalCount ?? firstPage.length;
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const pages = [firstPage];
+
+  // Supabase may cap each RPC response at 5,000 rows, so use total_count
+  // to determine how many pages remain instead of relying on page length.
+  for (let startPage = 2; startPage <= totalPages; startPage += 5) {
+    const pageBatch = await Promise.all(
+      Array.from({ length: Math.min(5, totalPages - startPage + 1) }, (_, index) =>
+        enrolmentService.fetchEnrollees({ ...filters, page: startPage + index, pageSize }),
+      ),
+    );
+    pages.push(...pageBatch);
   }
 
-  return allRecords;
+  return pages.flat();
 }
 
 export default function ExportEnrolmentDialog({ onClose, currentFilters, options }: ExportEnrolmentDialogProps) {
