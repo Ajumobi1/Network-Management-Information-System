@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Download, FileText, Search, X, Phone, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/ui/Button';
@@ -43,10 +43,14 @@ export default function EnrolmentRegisterPage() {
   const optionsPeriods = filterOptions?.periods ?? [];
   const defaultPeriod = optionsPeriods[0] || livePeriod();
   const [period, setPeriod] = useState<string>('');
+  const periodInitializedFromOptions = useRef(false);
 
   useEffect(() => {
-    setPeriod(current => current || defaultPeriod);
-  }, [defaultPeriod]);
+    if (optionsPeriods.length > 0 && !periodInitializedFromOptions.current) {
+      setPeriod(optionsPeriods[0]);
+      periodInitializedFromOptions.current = true;
+    }
+  }, [optionsPeriods]);
 
   const filterOptionsLoading = filterOptionsQuery.isLoading;
 
