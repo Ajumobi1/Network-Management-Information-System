@@ -18,12 +18,27 @@ interface ExportEnrolmentDialogProps {
 
 type ExportScope = 'current' | 'all' | 'by-lga' | 'by-district' | 'by-provider' | 'by-period';
 
+async function fetchAllMatchingEnrollees(filters: EnrolmentFilters): Promise<Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>>> {
+  const pageSize = 5000;
+  const allRecords: Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>> = [];
+  let page = 1;
+
+  while (true) {
+    const pageRecords = await enrolmentService.fetchEnrollees({ ...filters, page, pageSize });
+    allRecords.push(...pageRecords);
+    if (pageRecords.length < pageSize) break;
+    page += 1;
+  }
+
+  return allRecords;
+}
+
 export default function ExportEnrolmentDialog({ onClose, currentFilters, options }: ExportEnrolmentDialogProps) {
   const [scope, setScope] = useState<ExportScope>('current');
   const [selectedLga, setSelectedLga] = useState('all');
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [selectedProvider, setSelectedProvider] = useState('all');
-  const [selectedPeriod, setSelectedPeriod] = useState('all');
+  const [selectedPeriod, setSelectedPeriod] = useState(currentFilters.period && currentFilters.period !== 'all' ? currentFilters.period : options.periods[0] || 'all');
   const [isExporting, setIsExporting] = useState(false);
 
   const csvCell = (value: unknown) => { 
@@ -49,12 +64,8 @@ export default function ExportEnrolmentDialog({ onClose, currentFilters, options
       }
       // 'all' scope leaves exportFilters empty
 
-      // Fetch all matching records (up to the secure contract limit of 50,000)
-      const records = await enrolmentService.fetchEnrollees({
-        ...exportFilters,
-        page: 1,
-        pageSize: 50000,
-      });
+      // Fetch every matching page. The secure RPC returns at most 5,000 rows per page.
+      const records = await fetchAllMatchingEnrollees(exportFilters);
 
       if (records.length === 0) {
         alert('No records found for the selected export scope.');
@@ -192,7 +203,7 @@ export default function ExportEnrolmentDialog({ onClose, currentFilters, options
             )}
             {scope === 'all' && (
               <p className="text-xs text-brand-muted italic">
-                This will export the entire enrolment database (up to 50,000 records).
+                This will export the entire enrolment database.
               </p>
             )}
           </div>
