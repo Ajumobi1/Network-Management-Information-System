@@ -75,6 +75,9 @@ export default function AuditLogPage() {
       return matchesSearch && matchesStatus;
     });
   }, [logs, searchTerm, statusFilter]);
+  const eventsLast24Hours = logs.filter(log => log.createdAt && Date.now() - new Date(log.createdAt).getTime() <= 24 * 60 * 60 * 1000).length;
+  const failedAuthCount = logs.filter(log => /fail|denied|unauthori[sz]ed/i.test(`${log.action} ${JSON.stringify(log.metadata ?? {})}`)).length;
+  const dataChangeCount = logs.filter(log => /create|update|delete|import|export|change|modify/i.test(log.action)).length;
 
   if (isLoading) return <LoadingState title="Accessing security logs..." />;
   if (error) return <ErrorState title="Audit log unavailable" description={error} action={{ label: 'Retry', onClick: loadLogs }} />;
@@ -103,15 +106,15 @@ export default function AuditLogPage() {
         </Card>
         <Card>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted mb-2">Events (24h)</p>
-          <p className="text-xl font-black text-brand-foreground">1,284</p>
+          <p className="text-xl font-black text-brand-foreground">{eventsLast24Hours.toLocaleString()}</p>
         </Card>
         <Card>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted mb-2">Failed Auth</p>
-          <p className="text-xl font-black text-status-error">12</p>
+          <p className="text-xl font-black text-status-error">{failedAuthCount.toLocaleString()}</p>
         </Card>
         <Card>
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted mb-2">Data Changes</p>
-          <p className="text-xl font-black text-brand-orange">86</p>
+          <p className="text-xl font-black text-brand-orange">{dataChangeCount.toLocaleString()}</p>
         </Card>
       </div>
 
@@ -165,7 +168,17 @@ export default function AuditLogPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredLogs.map(log => (
+              {filteredLogs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center">
+                    <div className="flex flex-col items-center gap-2 text-brand-muted">
+                      <History size={28} className="text-brand-subtle" />
+                      <p className="font-semibold">No audit events have been recorded.</p>
+                      <p className="text-xs">The secure audit contract is available, but the audit store currently contains no events matching these filters.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredLogs.map(log => (
                 <tr key={log.id} className="group">
                   <td>
                     <div className="flex flex-col">
@@ -219,8 +232,8 @@ export default function AuditLogPage() {
             Showing {filteredLogs.length} of {logs.length} recent security events
           </p>
           <div className="flex gap-4">
-            <button className="text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline">Older Logs</button>
-            <button className="text-[10px] font-black text-brand-blue uppercase tracking-widest hover:underline">Real-time Stream</button>
+            <button type="button" disabled className="cursor-not-allowed text-[10px] font-black uppercase tracking-widest text-brand-subtle">Older Logs</button>
+            <button type="button" disabled className="cursor-not-allowed text-[10px] font-black uppercase tracking-widest text-brand-subtle">Real-time Stream</button>
           </div>
         </div>
       </Card>
