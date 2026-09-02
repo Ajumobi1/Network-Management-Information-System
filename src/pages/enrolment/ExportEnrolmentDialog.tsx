@@ -20,37 +20,50 @@ type ExportScope = 'current' | 'all' | 'by-lga' | 'by-district' | 'by-provider' 
 
 async function fetchAllMatchingEnrollees(filters: EnrolmentFilters): Promise<Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>>> {
   const pageSize = 5000;
-  const firstPage = await enrolmentService.fetchEnrollees({ ...filters, page: 1, pageSize });
+  const fetchPageWithRetry = async (page: number) => {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        return await enrolmentService.fetchEnrollees({
+          ...filters,
+          page,
+          pageSize,
+          sortField: 'policyNumber',
+          sortDirection: 'asc',
+        });
+      } catch (error) {
+        lastError = error;
+        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
+    }
+    throw lastError ?? new Error(`Export page ${page} could not be loaded.`);
+  };
+
+  const firstPage = await fetchPageWithRetry(1);
   if (firstPage.length === 0) return [];
 
   const totalCount = firstPage[0]?.totalCount ?? firstPage.length;
   const records = [...firstPage];
+  const recordIds = new Set(firstPage.map(record => record.id));
 
   // Supabase may cap each RPC response at 5,000 rows, so use total_count
   // to determine how many pages remain instead of relying on page length.
   const totalPages = Math.ceil(totalCount / pageSize);
   for (let page = 2; page <= totalPages; page += 1) {
-    let pageRecords: Awaited<ReturnType<typeof enrolmentService.fetchEnrollees>> = [];
-    let lastError: unknown;
-    for (let attempt = 1; attempt <= 3; attempt += 1) {
-      try {
-        pageRecords = await enrolmentService.fetchEnrollees({ ...filters, page, pageSize });
-        break;
-      } catch (error) {
-        lastError = error;
-        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 750));
-      }
+    const pageRecords = await fetchPageWithRetry(page);
+    if (pageRecords.length === 0) throw new Error(`Export page ${page} returned no records.`);
+    const duplicateCount = pageRecords.filter(record => recordIds.has(record.id)).length;
+    if (duplicateCount > 0) {
+      throw new Error(`Export page ${page} repeated ${duplicateCount} record(s). Please retry after the register refreshes.`);
     }
-    if (pageRecords.length === 0) {
-      throw lastError ?? new Error(`Export page ${page} returned no records.`);
-    }
+    pageRecords.forEach(record => recordIds.add(record.id));
     records.push(...pageRecords);
   }
 
-  if (records.length < totalCount) {
+  if (records.length !== totalCount) {
     throw new Error(`Export incomplete: received ${records.length} of ${totalCount} records.`);
   }
-  return records.slice(0, totalCount);
+  return records;
 }
 
 export default function ExportEnrolmentDialog({ onClose, currentFilters, options }: ExportEnrolmentDialogProps) {
@@ -120,7 +133,7 @@ export default function ExportEnrolmentDialog({ onClose, currentFilters, options
       onClose();
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export records. Please try again.');
+      alert(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsExporting(false);
     }
