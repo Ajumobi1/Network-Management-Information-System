@@ -21,6 +21,7 @@ function liveCalendarFilters() {
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { session } = useAuth();
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
   const userRole = (session?.user?.role as UserRole) || 'network-officer';
   const isAdmin = userRole === 'super-admin';
 
@@ -240,7 +241,7 @@ export default function SettingsPage() {
                   <p className="text-[10px] text-white/50 uppercase tracking-widest font-black">Portal Version</p>
                   <p className="text-lg font-black mt-1">v2.4.0-authoritative</p>
                 </div>
-                <Button variant="secondary" className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white gap-2">
+                <Button variant="secondary" onClick={() => setShowReleaseNotes(true)} className="w-full bg-white/10 border-white/20 text-white hover:bg-white/20 hover:text-white gap-2">
                   <HardDrive size={16} /> View Release Notes
                 </Button>
               </div>
@@ -266,6 +267,33 @@ export default function SettingsPage() {
           </Card>
         </div>
       </div>
+      {showReleaseNotes ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand-navy/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="release-notes-title">
+          <Card className="w-full max-w-2xl shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-brand-divider pb-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-brand-blue">Portal release</p>
+                <h2 id="release-notes-title" className="mt-1 text-2xl font-black text-brand-foreground">v2.4.0-authoritative</h2>
+                <p className="mt-1 text-sm text-brand-muted">Production release notes</p>
+              </div>
+              <button type="button" onClick={() => setShowReleaseNotes(false)} className="rounded-lg px-3 py-2 text-sm font-bold text-brand-muted hover:bg-brand-soft hover:text-brand-foreground">Close</button>
+            </div>
+            <div className="mt-5 space-y-4 text-sm text-brand-secondary">
+              <p>This release strengthens operational reliability and protects sensitive records through named secure database contracts.</p>
+              <ul className="list-disc space-y-2 pl-5">
+                <li>Enrolment CSV export now retrieves every matching record with pagination validation and retry handling.</li>
+                <li>Reporting periods are ordered newest-first so the register selects the latest available month.</li>
+                <li>Security audit logs and administrator snapshot manifests use protected, role-checked contracts.</li>
+                <li>July Phone Backfill has been permanently removed from the portal.</li>
+                <li>Live data and duplicate-check failures are surfaced instead of being represented as empty or safe results.</li>
+              </ul>
+            </div>
+            <div className="mt-6 flex justify-end border-t border-brand-divider pt-4">
+              <Button variant="secondary" onClick={() => setShowReleaseNotes(false)}>Done</Button>
+            </div>
+          </Card>
+        </div>
+      ) : null}
     </main>
   );
 }
