@@ -23,6 +23,7 @@ export default function AuditLogPage() {
 
   const loadLogs = async () => {
     setIsLoading(true);
+    setError('');
     try {
       const data = await fetchAuditLogs();
       setLogs(data);
@@ -39,10 +40,21 @@ export default function AuditLogPage() {
 
   const handleExport = () => {
     setIsExporting(true);
-    setTimeout(() => {
+    try {
+      const escapeCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+      const csv = [
+        ['Timestamp', 'Actor email', 'Action', 'Entity', 'Entity ID', 'Metadata'].map(escapeCsv).join(','),
+        ...logs.map(log => [log.createdAt, log.userEmail, log.action, log.entity, log.entityId, JSON.stringify(log.metadata ?? {})].map(escapeCsv).join(',')),
+      ].join('\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `nmis-security-audit-log-${new Date().toISOString().slice(0, 10)}.csv`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } finally {
       setIsExporting(false);
-      alert('Secure audit archive generated. The encrypted package is ready for download.');
-    }, 2000);
+    }
   };
 
   const filteredLogs = useMemo(() => {

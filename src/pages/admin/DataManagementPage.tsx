@@ -8,9 +8,11 @@ import PageHeader from '../../components/ui/PageHeader';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { SectionHeader } from '../../components/ui/LayoutComponents';
+import { invokeSecureRpc } from '../../repositories/contracts/secureRpcRepository';
 
 export default function DataManagementPage() {
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isSnapshotting, setIsSnapshotting] = useState(false);
 
   const handleSync = () => {
     setIsSyncing(true);
@@ -18,6 +20,24 @@ export default function DataManagementPage() {
       setIsSyncing(false);
       alert('Data integrity synchronization complete.');
     }, 2000);
+  };
+
+  const handleSnapshot = async () => {
+    setIsSnapshotting(true);
+    try {
+      const manifest = await invokeSecureRpc<Record<string, unknown>>('nmis_admin_snapshot_manifest');
+      const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `nmis-snapshot-manifest-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Manual snapshot could not be generated.');
+    } finally {
+      setIsSnapshotting(false);
+    }
   };
 
   return (
@@ -107,10 +127,10 @@ export default function DataManagementPage() {
               <div className="flex-1">
                 <h3 className="font-black text-brand-foreground uppercase tracking-tight">Manual Snapshot</h3>
                 <p className="mt-1 text-sm text-brand-muted leading-relaxed">
-                  Create an immediate full-system backup including all provider records, financial data, and user accounts.
+                  Download a secure snapshot manifest with protected-record counts and timestamp. Full database backup is maintained by Supabase backup and PITR infrastructure.
                 </p>
-                <Button className="mt-4 gap-2 bg-brand-orange hover:bg-brand-orange/90 border-none">
-                  <Download size={16} /> Download Snapshot
+                <Button onClick={handleSnapshot} disabled={isSnapshotting} className="mt-4 gap-2 bg-brand-orange hover:bg-brand-orange/90 border-none">
+                  <Download size={16} /> {isSnapshotting ? 'Preparing Snapshot...' : 'Download Snapshot'}
                 </Button>
               </div>
             </div>
