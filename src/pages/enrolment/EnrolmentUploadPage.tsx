@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { 
   AlertCircle, 
@@ -31,7 +31,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { financialDataService, isSummaryRow } from '../../services/financial-data/financialDataService';
 import { findProviderMatchCandidates } from '../../services/providers/providersService';
 import { enrolmentService } from '../../services/enrolment/enrolmentService';
-import { useCreateEnrolmentImportBatch, useBackfillJulyPhones } from '../../hooks/enrolment';
+import { useCreateEnrolmentImportBatch } from '../../hooks/enrolment';
 import { EnrolleeRecord, EnrolmentColumnMapping, EnrolmentField, EnrolmentValidationError } from '../../types/enrolment/enrolmentTypes';
 import { ImportBatch, ProviderMatch } from '../../types/financial-data';
 import { useMockData } from '../../repositories/common';
@@ -85,8 +85,6 @@ const stepLabels: Record<UploadStep, string> = {
 };
 
 export default function EnrolmentUploadPage() {
-  const [searchParams] = useSearchParams();
-  const isBackfillMode = searchParams.get('mode') === 'backfill-phone';
   const [step, setStep] = useState<UploadStep>('upload');
   const [queue, setQueue] = useState<FileQueueItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
@@ -106,7 +104,6 @@ export default function EnrolmentUploadPage() {
   const providerSearchTimers = useRef<Record<number, number>>({});
   const { session } = useAuth();
   const createBatch = useCreateEnrolmentImportBatch();
-  const backfillMutation = useBackfillJulyPhones();
   const workbookRef = useRef<XLSX.WorkBook | null>(null);
 
   const activeItem = useMemo(() => queue.find(item => item.id === activeFileId), [queue, activeFileId]);
@@ -663,16 +660,7 @@ export default function EnrolmentUploadPage() {
     setIsAnalyzing(true);
     try {
       const period = `${activeItem.data.reportingYear}-${activeItem.data.reportingMonth.padStart(2, '0')}`;
-      
-      if (isBackfillMode) {
-        const batch = activeItem.data.normalizedRecords
-          .filter(r => r.recordStatus === 'valid' && r.phoneNumber)
-          .map(r => ({ policy_number: r.policyNumber, phone_number: r.phoneNumber! }));
-        
-        const updatedCount = await backfillMutation.mutateAsync(batch);
-        setCommitMessage(`Successfully backfilled ${updatedCount} phone numbers for July 2026 population.`);
-      } else {
-        await createBatch.mutateAsync({
+      await createBatch.mutateAsync({
         batch: {
           fileName: activeItem.file.name,
           dataType: 'enrolment',
@@ -692,8 +680,7 @@ export default function EnrolmentUploadPage() {
           }
         },
           records: activeItem.data.normalizedRecords.filter(r => r.recordStatus === 'valid')
-        });
-      }
+      });
       
       updateQueueItem(activeItem.id, { status: 'imported' });
       
@@ -738,12 +725,10 @@ export default function EnrolmentUploadPage() {
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-blue">Population &amp; Enrolment</p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">
-            {isBackfillMode ? 'July Phone Number Backfill' : 'Historical Bulk Import'}
+            Historical Bulk Import
           </h1>
           <p className="mt-1 max-w-3xl text-sm text-slate-500">
-            {isBackfillMode 
-              ? 'Upload the original July workbook to recover missing phone numbers. Existing records will be updated safely without creating duplicates.'
-              : 'Upload multiple capitation workbooks. The AI engine automatically detects periods, extracts facility context, and matches against the Provider Master Register.'}
+            {'Upload multiple capitation workbooks. The AI engine automatically detects periods, extracts facility context, and matches against the Provider Master Register.'}
           </p>
         </div>
         <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl bg-slate-100 p-1 no-scrollbar sm:w-auto">

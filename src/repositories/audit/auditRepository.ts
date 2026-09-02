@@ -41,7 +41,6 @@ export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
       createdAt: log.created_at
     }));
   } catch (error) {
-    console.error('Failed to fetch audit logs:', error);
-    return [];
+    throw error instanceof Error ? error : new Error('Audit logs could not be loaded.');
   }
 }

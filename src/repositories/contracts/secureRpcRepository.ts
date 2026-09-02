@@ -20,7 +20,7 @@ function mapRpcError(contract: string, error: RpcError): SecureContractError {
   }
 
   if (code === '42883' || code === 'PGRST202' || normalized.includes('does not exist') || normalized.includes('could not find the function')) {
-    return secureContractUnavailable(contract);
+    return secureContractUnavailable(contract, `Secure contract '${contract}' is unavailable. Verify that the deployed database function exists and matches the application contract.`);
   }
 
   if (code === 'P0001' && message) {

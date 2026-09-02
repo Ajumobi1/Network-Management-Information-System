@@ -95,10 +95,7 @@ export const providerPerformanceRepository = {
         p_search: filters.search.trim() || null,
       });
 
-      if (error) {
-        console.warn('Performance RPC failed, using mock fallback:', error.message);
-        return generateMockPerformanceData();
-      }
+      if (error) throw new Error(`Provider performance contract failed: ${error.message}`);
 
       return (data || []).map((r: DbPerformanceRecord) => ({
         providerId: r.provider_id,
@@ -121,8 +118,7 @@ export const providerPerformanceRepository = {
         updatedAt: r.updated_at,
       }));
     } catch (err) {
-      console.warn('Performance fetch error, using mock fallback');
-      return generateMockPerformanceData();
+      throw err instanceof Error ? err : new Error('Provider performance contract failed.');
     }
   },
 
@@ -162,14 +158,7 @@ export const providerPerformanceRepository = {
         credentialingComplianceRate,
       };
     } catch (err) {
-      return {
-        totalEvaluated: 0,
-        averageScore: 0,
-        ratingDistribution: { 'Excellent': 0, 'Good': 0, 'Satisfactory': 0, 'Needs Improvement': 0, 'Critical': 0 },
-        attentionCount: 0,
-        inspectionComplianceRate: 0,
-        credentialingComplianceRate: 0,
-      };
+      throw err instanceof Error ? err : new Error('Provider performance summary failed.');
     }
   }
 };

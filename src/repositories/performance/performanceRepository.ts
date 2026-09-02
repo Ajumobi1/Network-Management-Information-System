@@ -39,8 +39,7 @@ export async function getPerformanceStats(): Promise<PerformanceStats> {
         totalMonitored: providers.length
       };
     } catch (error) {
-      console.error('Failed to fetch performance stats:', error);
-      return { averageScore: 0, aboveTargetCount: 0, underperformingCount: 0, totalMonitored: 0 };
+      throw error instanceof Error ? error : new Error('Performance statistics could not be loaded.');
     }
   }
 
@@ -76,8 +75,7 @@ export async function getProviderRankings(): Promise<ProviderPerformance[]> {
         trend: 'stable' as const
       })).sort((a, b) => b.score - a.score);
     } catch (error) {
-      console.error('Failed to fetch provider rankings:', error);
-      return [];
+      throw error instanceof Error ? error : new Error('Provider rankings could not be loaded.');
     }
   }
 

@@ -175,7 +175,9 @@ export async function fetchEnrolmentFilterOptions(): Promise<EnrolmentFilterOpti
 
   const raw = await invokeSecureRpc<Partial<EnrolmentFilterOptions>>('nmis_get_enrolment_filter_options');
   return {
-    periods: Array.isArray(raw.periods) ? raw.periods.filter((value): value is string => typeof value === 'string') : [],
+    periods: Array.isArray(raw.periods)
+      ? raw.periods.filter((value): value is string => typeof value === 'string').sort((a, b) => b.localeCompare(a))
+      : [],
     states: Array.isArray(raw.states) ? raw.states.filter((value): value is string => typeof value === 'string') : [],
     lgas: Array.isArray(raw.lgas) ? raw.lgas.filter((value): value is string => typeof value === 'string') : [],
     districts: Array.isArray(raw.districts) ? raw.districts.filter((value): value is string => typeof value === 'string') : [],
@@ -246,7 +248,7 @@ export async function checkDuplicateEnrolmentBatch(period: string, providerNames
       });
       return { isDuplicate: !!result, batches: result ? [result] : [] };
     } catch (error) {
-      return { isDuplicate: false, batches: [] };
+      throw error;
     }
   }
   const normalized = new Set(providerNames.map(name => name.trim().toLowerCase()).filter(Boolean));
@@ -303,12 +305,6 @@ export async function createEnrolmentImportBatch(
   return created;
 }
 
-export async function backfillJulyPhones(batch: Array<{ policy_number: string; phone_number: string }>): Promise<number> {
-  if (useMockData) return 0;
-  return await invokeSecureRpc<number>('nmis_backfill_july_phones_by_policy', {
-    p_batch: batch,
-  });
-}
 
 function analyticsFromDashboardIntelligence(intelligence: Dashboard2Intelligence): EnrolmentAnalytics {
   const population = intelligence.population;
