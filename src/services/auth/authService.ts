@@ -49,6 +49,9 @@ function mapSession(session: Session | null): AuthSession | null {
 
 function mapAuthError(message: string): AuthResult<never> {
   const normalized = message.toLowerCase();
+  if (normalized.includes('email not confirmed') || normalized.includes('email_not_confirmed')) {
+    return { success: false, error: { code: AuthErrorCode.EMAIL_NOT_CONFIRMED, message: 'This account has not been confirmed. Open the latest confirmation email, then sign in with the exact email address used to create the account.' } };
+  }
   if (normalized.includes('invalid login') || normalized.includes('invalid credentials')) {
     return { success: false, error: { code: AuthErrorCode.INVALID_CREDENTIALS, message: 'Email or password is incorrect.' } };
   }
@@ -127,15 +130,17 @@ export const authService = {
 
     if (data.user) {
       // 1. Set the role
-      await supabase.rpc('nmis_admin_update_user_role', {
+      const { error: roleError } = await supabase.rpc('nmis_admin_update_user_role', {
         p_user_id: data.user.id,
         p_role: role
       });
-      
+      if (roleError) return mapAuthError(roleError.message);
+
       // 2. Auto-confirm the user to bypass email verification
-      await supabase.rpc('nmis_admin_confirm_user', {
+      const { error: confirmationError } = await supabase.rpc('nmis_admin_confirm_user', {
         p_user_id: data.user.id
       });
+      if (confirmationError) return mapAuthError(confirmationError.message);
     }
 
     return { success: true, data: null };
