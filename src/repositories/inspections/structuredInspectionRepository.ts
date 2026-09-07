@@ -1,6 +1,7 @@
 import { supabase } from '../../lib/supabase/supabaseClient';
 import { SecureContractError } from '../../lib/security/secureContracts';
 import { useMockData } from '../common';
+import { loadOfflineInspectionPack } from '../../lib/offline/inspectionOfflineStore';
 
 export type InspectionTemplateItem = {
   section_code: string;
@@ -116,7 +117,11 @@ export async function getInspectionTemplate(code = 'pharmacy-accreditation'): Pr
     };
   }
   const { data, error } = await supabase.rpc('nmis_get_inspection_template', { p_template_code: code });
-  if (error) throw secureError(error, 'Failed to load the inspection template');
+  if (error) {
+    const cached = await loadOfflineInspectionPack().catch(() => null);
+    if (cached?.templates[code]) return cached.templates[code];
+    throw secureError(error, 'Failed to load the inspection template');
+  }
   return data as InspectionTemplate;
 }
 
@@ -131,7 +136,11 @@ export async function getInspectionTemplateOptions(): Promise<InspectionTemplate
     ];
   }
   const { data, error } = await supabase.rpc('nmis_list_inspection_template_options');
-  if (error) throw secureError(error, 'Failed to load inspection facility types');
+  if (error) {
+    const cached = await loadOfflineInspectionPack().catch(() => null);
+    if (cached?.templateOptions) return cached.templateOptions;
+    throw secureError(error, 'Failed to load inspection facility types');
+  }
   return (data || []) as InspectionTemplateOption[];
 }
 

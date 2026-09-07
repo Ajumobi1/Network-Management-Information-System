@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, CheckCircle2, ChevronRight, Download, Filter, Plus, Search, User, X, ClipboardCheck, AlertCircle, FilePenLine, Map as MapIcon, List } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronRight, Download, Filter, Plus, Search, User, X, ClipboardCheck, AlertCircle, FilePenLine, Map as MapIcon, List, CloudDownload, Wifi, WifiOff, RefreshCw } from 'lucide-react';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -21,6 +21,8 @@ import { Inspection, InspectionFilters } from '../types/inspections/inspectionsT
 import { LoadingState, ErrorState } from '../components/ui/FeedbackStates';
 import { SectionHeader } from '../components/ui/LayoutComponents';
 import ActiveFilterChips from '../components/ui/ActiveFilterChips';
+import { getInspectionTemplate, getInspectionTemplateOptions } from '../repositories/inspections/structuredInspectionRepository';
+import { loadOfflineInspectionPack, offlinePackAgeLabel, saveOfflineInspectionPack } from '../lib/offline/inspectionOfflineStore';
 
 export function facilityTypeCodeFromInspectionType(type: string, providerCategory?: string | null, providerOwnership?: string | null, explicitFacilityTypeCode?: string | null) {
   if (explicitFacilityTypeCode) return explicitFacilityTypeCode;
@@ -53,6 +55,10 @@ export default function InspectionsPage() {
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [focusedLocation, setFocusedLocation] = useState<{ name: string; query: string } | null>(null);
+  const [isOnline, setIsOnline] = useState(() => typeof navigator === 'undefined' || navigator.onLine);
+  const [offlinePackSavedAt, setOfflinePackSavedAt] = useState<string | null>(null);
+  const [preparingOffline, setPreparingOffline] = useState(false);
+  const [offlineMessage, setOfflineMessage] = useState('');
 
   useEffect(() => {
     const channel = subscribeToTable('inspections', () => {
@@ -61,11 +67,48 @@ export default function InspectionsPage() {
     return () => { unsubscribe(channel); };
   }, [queryClient]);
 
+  useEffect(() => {
+    const updateOnlineState = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateOnlineState);
+    window.addEventListener('offline', updateOnlineState);
+    loadOfflineInspectionPack().then(pack => setOfflinePackSavedAt(pack?.savedAt || null)).catch(() => undefined);
+    return () => {
+      window.removeEventListener('online', updateOnlineState);
+      window.removeEventListener('offline', updateOnlineState);
+    };
+  }, []);
+
   const { data: providers = [] } = useProviderDirectory({
     search: '', status: 'all', contractStatus: 'all', credentialStatus: 'all', inspectionStatus: 'all',
     capitationStatus: 'all', lga: 'all', category: 'all', subcategory: 'all', ownership: 'all', service: 'all',
     pageSize: -1
   });
+  const prepareOfflineInspection = async () => {
+    if (!isOnline) {
+      setOfflineMessage('Connect to the internet before preparing an offline inspection pack.');
+      return;
+    }
+    setPreparingOffline(true);
+    setOfflineMessage('Downloading inspection schedules, provider directory, and checklists…');
+    try {
+      const templateOptions = await getInspectionTemplateOptions();
+      const configuredOptions = templateOptions.filter(option => option.configured && option.template?.code);
+      const templateEntries = await Promise.all(configuredOptions.map(async option => [option.template!.code, await getInspectionTemplate(option.template!.code)] as const));
+      const pack = await saveOfflineInspectionPack({
+        inspections: allInspections as any,
+        providers: providers as any,
+        templateOptions,
+        templates: Object.fromEntries(templateEntries),
+      });
+      setOfflinePackSavedAt(pack.savedAt);
+      setOfflineMessage(`Offline pack ready: ${pack.inspections.length.toLocaleString()} inspections, ${pack.providers.length.toLocaleString()} providers, and ${templateEntries.length} checklists.`);
+    } catch (error) {
+      setOfflineMessage(error instanceof Error ? error.message : 'Unable to prepare offline inspection data.');
+    } finally {
+      setPreparingOffline(false);
+    }
+  };
+
   const saveInspectionMutation = useSaveInspection();
   const inspections = useMemo(() => {
     return allInspections.filter(item => {
@@ -171,6 +214,21 @@ export default function InspectionsPage() {
           </div>
         </section>
 
+        <section className={`rounded-panel border p-4 shadow-sm ${isOnline ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              {isOnline ? <Wifi className="mt-0.5 text-emerald-700" size={20} /> : <WifiOff className="mt-0.5 text-amber-700" size={20} />}
+              <div>
+                <p className="text-sm font-black text-slate-900">{isOnline ? 'Connected for field preparation' : 'Offline mode active'}</p>
+                <p className="mt-1 text-xs leading-5 text-slate-600">{offlinePackSavedAt ? `Last offline pack prepared ${offlinePackAgeLabel(offlinePackSavedAt)}.` : 'Prepare an offline pack before leaving the network area.'} {offlineMessage}</p>
+              </div>
+            </div>
+            <Button variant="secondary" onClick={prepareOfflineInspection} disabled={!isOnline || preparingOffline} className="shrink-0 border-slate-300 bg-white">
+              {preparingOffline ? <RefreshCw size={16} className="animate-spin" /> : <CloudDownload size={16} />}
+              {preparingOffline ? 'Preparing…' : 'Prepare Offline Inspection'}
+            </Button>
+          </div>
+        </section>
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <KpiCard title="Due this week" value={summary.scheduled.toString()} subtitle="Scheduled field work" tone="primary" icon={<Calendar size={20} />} className="border-[#cfe0ee] bg-gradient-to-br from-white via-white to-[#eef6fb]" />
           <KpiCard title="Drafts" value={summary.drafts.toString()} subtitle="Saved inspections to resume" tone="warning" icon={<FilePenLine size={20} />} className="border-[#f4d3ae] bg-gradient-to-br from-white via-white to-[#fff8ef]" />

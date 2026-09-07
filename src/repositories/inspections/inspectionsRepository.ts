@@ -4,6 +4,7 @@ import { useMockData } from '../common';
 import { apiMocks } from '../../mocks';
 import { InspectionsRow } from '../../lib/supabase/database.types';
 import { InspectionChecklistItem } from '../../types/inspections/inspectionsTypes';
+import { loadOfflineInspectionPack, saveOfflineInspectionPack } from '../../lib/offline/inspectionOfflineStore';
 
 export interface InspectionRecord {
   id: string;
@@ -54,13 +55,18 @@ export async function getInspections(providerId?: string): Promise<InspectionRec
   });
 
   if (error) {
+    const cached = await loadOfflineInspectionPack().catch(() => null);
+    if (cached) return providerId ? cached.inspections.filter(item => item.provider_id === providerId) : cached.inspections;
     const code = error.code === 'P0001' && error.message.includes('ACCESS_RESTRICTED')
       ? 'ACCESS_RESTRICTED'
       : 'SECURE_CONTRACT_UNAVAILABLE';
     throw new SecureContractError(code, error.message || 'Failed to list inspections');
   }
 
-  return (data || []) as InspectionRecord[];
+  const records = (data || []) as InspectionRecord[];
+  const cached = await loadOfflineInspectionPack().catch(() => null);
+  if (cached) await saveOfflineInspectionPack({ ...cached, inspections: records }).catch(() => undefined);
+  return records;
 }
 
 export async function saveInspection(payload: Partial<InspectionRecord>): Promise<{ success: boolean; inspection_id: string }> {

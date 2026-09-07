@@ -11,6 +11,8 @@ import { ProviderCategory, ProviderLifecycleStatus, ProviderOwnership } from '..
 import { useInspectionTemplate, useInspectionTemplateOptions, useSaveStructuredInspection } from '../../hooks/inspections/structuredInspectionHooks';
 import { getStructuredInspection, InspectionTemplateItem, StructuredInspectionPayload } from '../../repositories/inspections/structuredInspectionRepository';
 import { providerDocumentsRepository } from '../../repositories/providers/providerDocumentsRepository';
+import { loadOfflineInspectionDraft, removeOfflineInspectionDraft, saveOfflineInspectionDraft } from '../../lib/offline/inspectionOfflineStore';
+import { saveStructuredInspection } from '../../repositories/inspections/structuredInspectionRepository';
 import { buildInspectionReportPdf, downloadPdf, inspectionReportFileName, pdfBytesToBlob, reportStoragePath } from '../../features/inspections/inspectionReportPdf';
 
 type FacilityProfileState = {
@@ -869,6 +871,35 @@ export default function NewInspectionPage() {
   const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({
  mode, step: stepLabels[step].toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
 
+  useEffect(() => {
+    if (!template || !draftLoaded || !providerId || typeof navigator === 'undefined' || navigator.onLine) return;
+    void saveOfflineInspectionDraft({
+      key: draftKey,
+      savedAt: new Date().toISOString(),
+      status: 'pending-sync',
+      inspectionId,
+      payload: buildPayload('draft'),
+    }).catch(() => undefined);
+  }, [draftKey, draftLoaded, inspectionId, providerId, template, step, profile, extraProfile, eligibility, generalRemarks, responses, team]);
+  useEffect(() => {
+    if (!template || !draftLoaded || typeof window === 'undefined') return;
+    const syncQueuedDraft = async () => {
+      if (!navigator.onLine) return;
+      const queued = await loadOfflineInspectionDraft(draftKey).catch(() => null);
+      if (!queued) return;
+      try {
+        const result = await saveStructuredInspection(queued.inspectionId, queued.payload as StructuredInspectionPayload);
+        await removeOfflineInspectionDraft(draftKey);
+        setInspectionId(result.inspection_id);
+        setSaveMessage('Offline draft synchronized successfully.');
+      } catch {
+        setSaveMessage('Offline draft is still queued and will retry when the connection is stable.');
+      }
+    };
+    void syncQueuedDraft();
+    window.addEventListener('online', syncQueuedDraft);
+    return () => window.removeEventListener('online', syncQueuedDraft);
+  }, [draftKey, draftLoaded, template]);
   const saveDraft = async () => {
     if (!providerId) { setSaveMessage('Select a provider before saving the draft.'); return; }
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before saving.'); return; }
@@ -877,7 +908,14 @@ export default function NewInspectionPage() {
       setInspectionId(result.inspection_id);
       setSaveMessage(`Draft saved - ${result.overall_score}% preview score. You can start a new accreditation or resume this draft from the Drafts list.`);
       navigate('/inspections');
-    } catch (error) { setSaveMessage(error instanceof Error ? error.message : 'Unable to save draft.'); }
+    } catch (error) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await saveOfflineInspectionDraft({ key: draftKey, savedAt: new Date().toISOString(), status: 'pending-sync', inspectionId, payload: buildPayload('draft') });
+        setSaveMessage('Draft saved securely on this device. It will synchronize automatically when the network returns.');
+        return;
+      }
+      setSaveMessage(error instanceof Error ? error.message : 'Unable to save draft.');
+    }
   };
 
   const submitInspection = async () => {
