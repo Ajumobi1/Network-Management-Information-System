@@ -13,6 +13,10 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'android-chrome-192x192.png', 'android-chrome-512x512.png'],
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Increase limit to 5MB
+        navigateFallback: '/index.html',
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       },
       manifest: {
         name: 'ODCHC NMIS',
