@@ -78,7 +78,7 @@ export type StructuredInspectionPayload = {
   mode: 'draft' | 'submit';
   step: string;
   template_code: string;
-  provider_id: string;
+  provider_id: string | null;
   inspection_type: string;
   scheduled_date: string;
   inspector_name: string;
