@@ -911,7 +911,8 @@ export default function NewInspectionPage() {
     return () => window.removeEventListener('online', syncQueuedDraft);
   }, [draftKey, draftLoaded, template]);
   const saveDraft = async () => {
-    if (!providerId && (!manualFacility || !profile.facility_name.trim())) { setSaveMessage('Select a listed facility or enter the new facility name before saving the draft.'); return; }
+    const hasFacilityIdentity = Boolean(providerId.trim() || profile.facility_name.trim());
+    if (!hasFacilityIdentity) { setSaveMessage('Select a listed facility or enter the new facility name before saving the draft.'); return; }
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before saving.'); return; }
     try {
       const result = await saveMutation.mutateAsync({ inspectionId, payload: buildPayload('draft') });
@@ -929,7 +930,8 @@ export default function NewInspectionPage() {
   };
 
   const submitInspection = async () => {
-    if (!providerId && (!manualFacility || !profile.facility_name.trim())) { setSaveMessage('Select a listed facility or enter the new facility name before submission.'); return; }
+    const hasFacilityIdentity = Boolean(providerId.trim() || profile.facility_name.trim());
+    if (!hasFacilityIdentity) { setSaveMessage('Select a listed facility or enter the new facility name before submission.'); return; }
     if (!template) { setSaveMessage('The inspection template is still loading. Please retry submission.'); return; }
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before submission.'); return; }
     const blockers: string[] = [];
