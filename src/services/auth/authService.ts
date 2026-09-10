@@ -49,6 +49,9 @@ function mapSession(session: Session | null): AuthSession | null {
 
 function mapAuthError(message: string): AuthResult<never> {
   const normalized = message.toLowerCase();
+  if (normalized.includes('rate limit') || normalized.includes('too many requests') || normalized.includes('too many attempts') || normalized.includes('429')) {
+    return { success: false, error: { code: AuthErrorCode.RATE_LIMITED, message: 'Too many authentication attempts were detected. Wait a few minutes before trying again.' } };
+  }
   if (normalized.includes('email not confirmed') || normalized.includes('email_not_confirmed')) {
     return { success: false, error: { code: AuthErrorCode.EMAIL_NOT_CONFIRMED, message: 'This account has not been confirmed. Open the latest confirmation email, then sign in with the exact email address used to create the account.' } };
   }

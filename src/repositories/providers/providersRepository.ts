@@ -16,6 +16,7 @@ import {
 } from '../../mocks/providersMocks';
 import { ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile } from '../../types/providers/providerTypes';
 import type { ProvidersRow } from '../../lib/supabase/database.types';
+import { loadOfflineInspectionPack } from '../../lib/offline/inspectionOfflineStore';
 
 export type ProviderRegistrationCommand = Omit<ProviderDirectoryItem, 'id' | 'providerCode' | 'status' | 'contractStatus' | 'credentialStatus' | 'inspectionStatus' | 'capitationStatus' | 'inspectionRating' | 'lastInspectionDate'> & {
   address?: string | null;
@@ -213,16 +214,36 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
     return items;
   }
 
-  const [result, countResult, summaryResult] = await Promise.all([
-    invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
-      ...listRpcFilters,
-      p_offset: offset,
-      p_page_size: pageSize,
-      p_sort: 'provider_name',
-    }),
-    invokeSecureRpc<number>('nmis_count_provider_directory', rpcFilters),
-    invokeSecureRpc<any[]>('nmis_provider_directory_summary', rpcFilters)
-  ]);
+  let result: ProviderDirectoryRpcResult;
+  let countResult: number;
+  let summaryResult: any[];
+  try {
+    [result, countResult, summaryResult] = await Promise.all([
+      invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
+        ...listRpcFilters,
+        p_offset: offset,
+        p_page_size: pageSize,
+        p_sort: 'provider_name',
+      }),
+      invokeSecureRpc<number>('nmis_count_provider_directory', rpcFilters),
+      invokeSecureRpc<any[]>('nmis_provider_directory_summary', rpcFilters)
+    ]);
+  } catch (error) {
+    const cached = await loadOfflineInspectionPack().catch(() => null);
+    if (!cached) throw error;
+    const search = String(filters.search || '').trim().toLowerCase();
+    const filtered = cached.providers.filter(provider => {
+      if (search && ![provider.providerName, provider.providerCode, provider.lga].some(value => String(value || '').toLowerCase().includes(search))) return false;
+      if (filters.category !== 'all' && filters.category && provider.category !== filters.category) return false;
+      if (filters.ownership !== 'all' && filters.ownership && provider.ownership !== filters.ownership) return false;
+      if (filters.status !== 'all' && filters.status && provider.status !== filters.status) return false;
+      return true;
+    });
+    const pageItems = isAll ? filtered : filtered.slice(offset, offset + pageSize);
+    const offlineItems = pageItems as ProviderDirectoryItem[] & { totalCount?: number };
+    offlineItems.totalCount = filtered.length;
+    return offlineItems;
+  }
 
   let rawRows = directoryRows(result);
   const totalCount = typeof countResult === 'number' ? countResult : rawRows.length;
