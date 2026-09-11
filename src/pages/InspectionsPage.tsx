@@ -208,7 +208,7 @@ export default function InspectionsPage() {
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
               <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={handleExport} disabled={!inspections.length}><Download size={16} /> Export Schedule</Button>
-              <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => navigate('/inspections/new')}><Plus size={16} /> New Accreditation Inspection</Button>
+              <Button variant="secondary" className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white" onClick={() => navigate('/inspections/new?workflow=accreditation')}><Plus size={16} /> New Facility Accreditation</Button>
               <Button className="bg-[#f7931e] text-white shadow-lg shadow-orange-950/20 hover:bg-[#ff9f2f]" onClick={() => setIsScheduleModalOpen(true)}><Plus size={16} /> Schedule Inspection</Button>
             </div>
           </div>
