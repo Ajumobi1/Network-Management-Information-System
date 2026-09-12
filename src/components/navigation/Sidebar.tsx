@@ -48,8 +48,8 @@ const sections: Section[] = [
     label: 'Quality & Compliance', 
     icon: ShieldCheck, 
     children: [
-      { label: 'Inspections', path: '/inspections', icon: ClipboardCheck },
-      { label: 'Accreditation', path: '/inspections/new?workflow=accreditation', icon: ClipboardList },
+      { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, end: true },
+      { label: 'Accreditation', path: '/inspections/accreditation', icon: ClipboardList, end: true },
       { label: 'Complaints', path: '/complaints', icon: Bell },
     ] 
   },

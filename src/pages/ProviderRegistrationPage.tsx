@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import PageHeader from '../components/ui/PageHeader';
-import { useUpdateProvider } from '../features/providers/hooks';
+import { useRegisterProvider } from '../features/providers/hooks';
 import { isSecureContractError } from '../lib/security/secureContracts';
 import { ProviderCategory, PROVIDER_CATEGORY_LABELS, PROVIDER_SERVICES } from '../constants/providerNetwork';
 
@@ -15,7 +15,7 @@ const lgas = ['Akoko North East', 'Akoko North West', 'Akoko South East', 'Akoko
 
 export default function ProviderRegistrationPage() {
   const navigate = useNavigate();
-  const updateProviderMutation = useUpdateProvider();
+  const registerProviderMutation = useRegisterProvider();
 
   const [form, setForm] = useState({
     providerName: '',
@@ -45,21 +45,15 @@ export default function ProviderRegistrationPage() {
       return;
     }
 
-    // Since direct create uses trusted workflow / server-side admin function, simulate success with secure notice
-    updateProviderMutation.mutate(
-      { id: 'new', payload: { ...form, providerName: form.providerName.toUpperCase(), subcategory: null } as any },
+    registerProviderMutation.mutate(
+      { ...form, providerName: form.providerName.toUpperCase(), state: 'Ondo', subcategory: null } as any,
       {
         onSuccess: () => {
           setSuccess('Provider successfully registered and added to the alphabetical master register.');
           setTimeout(() => navigate('/providers'), 1500);
         },
         onError: (err: unknown) => {
-          if (isSecureContractError(err)) {
-            setError(err.message);
-          } else {
-            setSuccess('Provider successfully registered to local staging register.');
-            setTimeout(() => navigate('/providers'), 1500);
-          }
+          setError(isSecureContractError(err) ? err.message : (err instanceof Error ? err.message : 'Provider registration failed. No provider was created.'));
         },
       }
     );
