@@ -197,7 +197,7 @@ export default function ProviderRegistrationWizard() {
         <Button variant="secondary" disabled={activeStep === 0 || registerProvider.isPending} onClick={() => setActiveStep(step => Math.max(step - 1, 0))}>Previous</Button>
         {activeStep === steps.length - 1 ? (
           <Button disabled={!formComplete || registerProvider.isPending} onClick={handleRegister}>
-            {registerProvider.isPending ? 'Submitting trusted registration...' : 'Complete Registration'}
+            {registerProvider.isPending ? 'Registering facility...' : 'Register Facility Manually'}
           </Button>
         ) : (
           <Button disabled={registerProvider.isPending} onClick={() => setActiveStep(step => Math.min(step + 1, steps.length - 1))}>Next</Button>

@@ -585,28 +585,40 @@ export default function NewInspectionPage() {
   }, [facilityTypeCode]);
   const [providerSearch, setProviderSearch] = useState('');
   const [manualFacility, setManualFacility] = useState(false);
+  // Load the complete registered directory here and apply the facility-type match
+  // locally. This avoids hiding valid providers when legacy records use labels such
+  // as "Pharmacy" while the canonical filter uses "PHARMACY".
   const providerQuery = useProviderDirectory({
     search: providerSearch,
-    status: ProviderLifecycleStatus.Active,
+    status: 'all',
     contractStatus: 'all',
     credentialStatus: 'all',
     inspectionStatus: 'all',
     capitationStatus: 'all',
     lga: 'all',
-    category: providerCategory || 'all',
+    category: 'all',
     subcategory: 'all',
-    ownership: providerOwnership as 'all' | ProviderOwnership,
+    ownership: 'all',
     service: 'all',
     page: 1,
     pageSize: -1
   });
   const scopedProviders = useMemo(() => {
-    const category = providerCategory ? String(providerCategory).trim().toLowerCase() : null;
+    const category = providerCategory ? String(providerCategory).trim().toLowerCase().replace(/[_\s-]+/g, '') : null;
     const ownership = providerOwnership !== 'all' ? String(providerOwnership).trim().toLowerCase() : null;
+    const categoryAliases: Record<string, string[]> = {
+      pharmacy: ['pharmacy'],
+      hospital: ['hospital', 'clinic', 'primaryhealthcentre', 'primaryhealthcenter'],
+      opticalcentre: ['opticalcentre', 'opticalcenter', 'optical'],
+      dentalcentre: ['dentalcentre', 'dentalcenter', 'dental'],
+      diagnosticcentre: ['diagnosticcentre', 'diagnosticcenter', 'diagnostic', 'laboratory'],
+    };
     return (providerQuery.data || []).filter(provider => {
-      const providerCategoryValue = String(provider.category || '').trim().toLowerCase();
+      const providerCategoryValue = String(provider.category || '').trim().toLowerCase().replace(/[_\s-]+/g, '');
       const providerOwnershipValue = String(provider.ownership || '').trim().toLowerCase();
-      return (!category || providerCategoryValue === category) && (!ownership || providerOwnershipValue === ownership);
+      const categoryMatches = !category || (categoryAliases[category] || [category]).some(alias => providerCategoryValue.includes(alias));
+      const ownershipMatches = !ownership || providerOwnershipValue === ownership;
+      return categoryMatches && ownershipMatches;
     });
   }, [providerQuery.data, providerCategory, providerOwnership]);
   const saveMutation = useSaveStructuredInspection();
@@ -919,7 +931,7 @@ export default function NewInspectionPage() {
     try {
       const result = await saveMutation.mutateAsync({ inspectionId, payload: buildPayload('draft') });
       setInspectionId(result.inspection_id);
-      setSaveMessage(`Draft saved - ${result.overall_score}% preview score. You can start a new accreditation or resume this draft from the Drafts list.`);
+      setSaveMessage(`Draft saved - ${result.overall_score}% preview score. You can resume this ${isAccreditation ? 'accreditation application' : 'inspection'} from the Drafts list.`);
       navigate('/inspections');
     } catch (error) {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -999,7 +1011,7 @@ export default function NewInspectionPage() {
 
     {isScoredTemplate && step === 0 && <SectionCard title="ELIGIBILITY CRITERIA" subtitle="Record each criterion as observed. Eligibility findings do not block scored sections or submission."><div className="space-y-4">{template.eligibility.map(item => { const current = eligibility[item.criterion_code] || { met: false, notes: '' }; return <div key={item.criterion_code} className="flex flex-col gap-3 rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:flex-row sm:items-center"><div className="flex flex-1 items-start gap-3"><ShieldCheck size={20} className={current.met ? 'text-status-success' : 'text-brand-muted'} /><div><p className="text-sm font-black text-brand-foreground">{item.criterion_label}{item.required ? ' *' : ''}</p><input value={current.notes} onChange={event => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, notes: event.target.value } }))} placeholder="Optional note or evidence reference" className="nmis-control mt-2" /></div></div><YesNoToggle value={current.met} onChange={met => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, met } }))} /></div>; })}</div><div className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${allEligibilityMet ? 'border-status-success/30 bg-status-successSoft text-status-success' : 'border-status-warning/30 bg-status-warningSoft text-status-warning'}`}>{allEligibilityMet ? 'All required criteria are MET.' : 'One or more criteria are not MET. You may continue; record the finding and supporting evidence for follow-up.'}</div></SectionCard>}
 
-    {step === (isScoredTemplate ? 1 : 0) && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5"><div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {scopedProviders.length.toLocaleString()} matching providers</p></div></div><label className="block space-y-1.5"><span className="nmis-label">{isAccreditation ? 'New facility details' : 'Registered provider / facility *'}</span><select className="nmis-control" value={manualFacility ? '__manual_facility__' : providerId} onChange={event => applyProvider(event.target.value)} required={!manualFacility} disabled={providerQuery.isLoading && !manualFacility}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider Directory unavailable' : `Select an authoritative ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option>{scopedProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}{isAccreditation && <option value="__manual_facility__">Enter new facility details</option>}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. You can enter the facility manually below.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}{manualFacility && <div className="mt-3 space-y-3 rounded-2xl border border-status-warning/30 bg-status-warningSoft p-4"><p className="text-xs font-black uppercase tracking-wide text-status-warning">New facility accreditation application</p><p className="text-xs text-brand-secondary">Enter the facility details. This is an application only and will not register a provider automatically.</p><Field label="Facility name" value={profile.facility_name} onChange={value => setProfile(previous => ({ ...previous, facility_name: value }))} required /><Field label="Address / location" value={profile.address} onChange={value => setProfile(previous => ({ ...previous, address: value }))} required /><div className="grid gap-3 sm:grid-cols-2"><Field label="Telephone" value={profile.telephone} onChange={value => setProfile(previous => ({ ...previous, telephone: value }))} /><Field label="Contact person" value={profile.contact_person} onChange={value => setProfile(previous => ({ ...previous, contact_person: value }))} /></div></div>}</label></div><div className="grid gap-4 md:grid-cols-2">{(() => {
+    {step === (isScoredTemplate ? 1 : 0) && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5"><div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {scopedProviders.length.toLocaleString()} registered providers matching this facility type</p></div></div>{isAccreditation ? <div className="rounded-2xl border border-brand-blue/20 bg-brand-soft p-4"><p className="text-xs font-black uppercase tracking-wide text-brand-blue">New facility accreditation application</p><p className="mt-1 text-sm text-brand-secondary">Enter the new facility details below. This application is separate from inspection and will not create a provider record automatically.</p><div className="mt-4 space-y-3"><Field label="Facility name" value={profile.facility_name} onChange={value => setProfile(previous => ({ ...previous, facility_name: value }))} required /><Field label="Address / location" value={profile.address} onChange={value => setProfile(previous => ({ ...previous, address: value }))} required /><div className="grid gap-3 sm:grid-cols-2"><Field label="Telephone" value={profile.telephone} onChange={value => setProfile(previous => ({ ...previous, telephone: value }))} /><Field label="Contact person" value={profile.contact_person} onChange={value => setProfile(previous => ({ ...previous, contact_person: value }))} /></div></div></div> : <label className="block space-y-1.5"><span className="nmis-label">Registered provider / facility *</span><select className="nmis-control" value={providerId} onChange={event => applyProvider(event.target.value)} required disabled={providerQuery.isLoading}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider directory unavailable' : `Select a registered ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option>{scopedProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. Try again before starting an inspection.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}</label>}</div><div className="grid gap-4 md:grid-cols-2">{(() => {
           const pairedTargetKeys = new Set((template.template.facility_profile_fields || []).filter(f => (f as any).pair_with).map(f => (f as any).pair_with));
           return (template.template.facility_profile_fields || []).map(field => {
             if ((field as any).hidden || pairedTargetKeys.has(field.key)) return null;
