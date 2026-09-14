@@ -10,6 +10,8 @@ type AuthContextState = {
   signOut: () => Promise<void>;
   forgotPassword: (email: string) => Promise<AuthError | null>;
   resetPassword: (password: string) => Promise<AuthError | null>;
+  isLocked: boolean;
+  isSuspended: boolean;
 };
 
 const AuthContext = createContext<AuthContextState | undefined>(undefined);
@@ -18,6 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isSuspended, setIsSuspended] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -33,18 +37,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
     const unsubscribe = authService.subscribe(nextSession => {
-      if (active) setSession(nextSession);
+      if (active) {
+        if (nextSession?.user?.status === 'locked') {
+          authService.signOut();
+          setSession(null);
+        } else {
+          setSession(nextSession);
+        }
+      }
     });
+
+    // Security Heartbeat: Periodically verify session validity against database
+    const heartbeat = setInterval(async () => {
+      if (active && session?.user?.id) {
+        const status = await authService.checkUserStatus(session.user.id);
+        
+        if (status === 'locked' || status === 'deleted') {
+          setIsLocked(true);
+          await authService.signOut();
+          setSession(null);
+        } else if (status === 'suspended') {
+          setIsSuspended(true);
+        } else {
+          setIsSuspended(false);
+        }
+      }
+    }, 5000); // Check every 5 seconds for high-standard security
 
     return () => {
       active = false;
       unsubscribe();
+      clearInterval(heartbeat);
     };
-  }, []);
+  }, [session?.user?.id]);
 
   const signIn = useCallback(async (email: string, password: string, remember: boolean) => {
     setError(null);
     setLoading(true);
+    setIsLocked(false);
+    setIsSuspended(false);
     const response = await authService.signIn(email, password, remember);
     setLoading(false);
 
@@ -54,12 +85,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     setSession(response.data);
+    
+    // Check status immediately after sign in
+    if (response.data?.user?.id) {
+      const status = await authService.checkUserStatus(response.data.user.id);
+      if (status === 'locked' || status === 'deleted') {
+        setIsLocked(true);
+        await authService.signOut();
+        setSession(null);
+        return false;
+      }
+      if (status === 'suspended') {
+        setIsSuspended(true);
+      }
+    }
+
     return true;
   }, []);
 
   const signOut = useCallback(async () => {
     await authService.signOut();
     setSession(null);
+    setIsLocked(false);
+    setIsSuspended(false);
   }, []);
 
   const forgotPassword = useCallback(async (email: string) => {
@@ -87,8 +135,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ session, loading, error, signIn, signOut, forgotPassword, resetPassword }),
-    [session, loading, error, signIn, signOut, forgotPassword, resetPassword],
+    () => ({ 
+      session, 
+      loading, 
+      error, 
+      signIn, 
+      signOut, 
+      forgotPassword, 
+      resetPassword,
+      isLocked,
+      isSuspended
+    }),
+    [session, loading, error, signIn, signOut, forgotPassword, resetPassword, isLocked, isSuspended],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

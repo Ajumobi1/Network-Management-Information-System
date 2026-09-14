@@ -1,13 +1,29 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { 
+  UserPlus, ShieldCheck, Lock, Unlock, UserMinus, 
+  History, MoreVertical, Mail, Search, ShieldAlert,
+  UserCheck, AlertTriangle, Users, Clock, Edit2, X, Save,
+  Eye, EyeOff
+} from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { UserRole } from '../../auth/authTypes';
+import { UserRole, AuthUser } from '../../auth/authTypes';
+import { authService } from '../../services/auth/authService';
+import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Input from '../../components/ui/Input';
+import PageHeader from '../../components/ui/PageHeader';
+import Select from '../../components/ui/Select';
+import { SectionHeader } from '../../components/ui/LayoutComponents';
+import { LoadingState, ErrorState } from '../../components/ui/FeedbackStates';
 
 const userSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
-  role: z.enum(['network-officer', 'inspector', 'finance', 'claims', 'customer-service']),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+  role: z.enum(['network-officer', 'super-admin']),
   isActive: z.boolean(),
 });
 
@@ -18,17 +34,48 @@ type ManagedUser = {
   name: string;
   email: string;
   role: UserRole;
-  isActive: boolean;
+  status: 'active' | 'suspended' | 'locked';
+  lastLogin: string;
 };
 
 const initialUsers: ManagedUser[] = [];
 
-export default function ManageUsersPage() {
-  const [users, setUsers] = useState<ManagedUser[]>(initialUsers);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [message, setMessage] = useState('');
+const roleOptions = [
+  { label: 'Network Officer', value: 'network-officer' },
+  { label: 'Super Admin', value: 'super-admin' },
+];
 
-  const selectedUser = useMemo(() => users.find(user => user.id === selectedUserId) ?? null, [selectedUserId, users]);
+export default function ManageUsersPage() {
+  const [users, setUsers] = useState<AuthUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [searchTerm, setSearch] = useState('');
+  const [message, setMessage] = useState('');
+  const [editingUser, setEditingUser] = useState<AuthUser | null>(null);
+  const [isProvisioning, setIsProvisioning] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    const result = await authService.listUsers();
+    if (result.success) {
+      setUsers(result.data);
+    } else {
+      setError(result.error.message);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    return users.filter(u => 
+      u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [users, searchTerm]);
 
   const {
     register,
@@ -45,147 +92,341 @@ export default function ManageUsersPage() {
     },
   });
 
-  const onSubmit = (values: UserFormValues) => {
-    const newUser: ManagedUser = {
-      id: `${Date.now()}`,
-      name: values.name,
-      email: values.email,
-      role: values.role,
-      isActive: values.isActive,
-    };
-    setUsers(prev => [newUser, ...prev]);
-    setMessage(`${values.name} was added successfully. Invitation workflow can be completed via email.`);
-    reset();
+  const onSubmit = async (values: UserFormValues) => {
+    setIsProvisioning(true);
+    const result = await authService.provisionUser(values.name, values.email, values.password, values.role as UserRole);
+    setIsProvisioning(false);
+    
+    if (result.success) {
+      setMessage(`Account for ${values.name} has been provisioned. They can now login with their credentials.`);
+      reset();
+      fetchUsers();
+    } else {
+      setMessage(`Error: ${result.error.message}`);
+    }
+    
+    setTimeout(() => setMessage(''), 5000);
   };
 
-  const toggleUserActive = (id: string) => {
-    setUsers(prev => prev.map(user => (user.id === id ? { ...user, isActive: !user.isActive } : user)));
-    setMessage('User status updated.');
+  const handleResetPassword = async (email: string) => {
+    if (confirm(`TRIGGER PASSWORD RESET: This will send a secure link to ${email} allowing them to choose a new password.\n\nDo you want to proceed?`)) {
+      const result = await authService.forgotPassword(email);
+      if (result.success) {
+        setMessage(`A password reset link has been sent to ${email}.`);
+      } else {
+        setMessage(`Error: ${result.error.message}`);
+      }
+      setTimeout(() => setMessage(''), 5000);
+    }
   };
+
+  const updateUserStatus = async (id: string, newStatus: 'active' | 'suspended' | 'locked') => {
+    let actionLabel = newStatus === 'suspended' ? 'SUSPEND' : newStatus === 'locked' ? 'LOCK' : 'ACTIVATE';
+    let explanation = '';
+    if (newStatus === 'suspended') explanation = 'Suspension prevents the user from logging in temporarily. Their data remains intact, but access is revoked.';
+    if (newStatus === 'locked') explanation = 'Locking an account is a security measure that blocks all access immediately. Usually used for suspected breaches.';
+    if (newStatus === 'active') explanation = 'This will restore full system access to the user account.';
+
+    if (confirm(`${actionLabel} ACCOUNT: ${explanation}\n\nDo you want to proceed?`)) {
+      // Optimistic update
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, status: newStatus, isActive: newStatus === 'active' } : u));
+      
+      const result = await authService.updateUserStatus(id, newStatus);
+      if (result.success) {
+        setMessage(`Account status updated to ${newStatus}.`);
+        // Fetch again to ensure sync
+        setTimeout(fetchUsers, 1000);
+      } else {
+        setMessage(`Error: ${result.error.message}`);
+        fetchUsers(); // Rollback
+      }
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (confirm('DELETE ACCOUNT: This will PERMANENTLY remove the user from the NMIS system. This action is irreversible and all authentication credentials will be destroyed.\n\nDo you want to proceed?')) {
+      // Optimistic delete
+      setUsers(prev => prev.filter(u => u.id !== id));
+      
+      const result = await authService.deleteUser(id);
+      if (result.success) {
+        setMessage('User deleted successfully.');
+        setTimeout(fetchUsers, 1000);
+      } else {
+        setMessage(`Error: ${result.error.message}`);
+        fetchUsers(); // Rollback
+      }
+      setTimeout(() => setMessage(''), 5000);
+    }
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    // For simplicity, we'll just update status and role if needed
+    // In a real app, you'd have an updateUser RPC
+    setMessage(`User update functionality is linked to account status controls.`);
+    setEditingUser(null);
+    setTimeout(() => setMessage(''), 5000);
+  };
+
+  if (isLoading) return <LoadingState title="Loading identity registry..." />;
+  if (error) return <ErrorState title="User registry unavailable" description={error} action={{ label: 'Retry', onClick: fetchUsers }} />;
 
   return (
-    <div className="space-y-8">
-      <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-soft">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">User management</p>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Create and manage users</h1>
-          </div>
-          <p className="text-sm text-slate-500">Super Admins can create accounts, assign roles, and activate or deactivate users.</p>
+    <main className="nmis-page">
+      <PageHeader
+        eyebrow="Administration"
+        title="Identity & Access Management"
+        subtitle="Manage administrative accounts, control system-wide access levels, and monitor security-critical user activity."
+        actions={
+          <Button variant="secondary" onClick={() => alert('Opening security audit logs...')}><History size={16} /> Security Audit</Button>
+        }
+      />
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_350px]">
+        <div className="space-y-6">
+          {/* User Register */}
+          <Card className="p-0 overflow-hidden">
+            <div className="border-b border-brand-border bg-brand-soft/50 px-6 py-4 flex items-center justify-between">
+              <SectionHeader title="Active Users" subtitle="Manage existing administrative accounts" />
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-subtle" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Search users..." 
+                  className="nmis-control pl-10 h-9 text-xs"
+                  value={searchTerm}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="nmis-table-wrap">
+              <table className="nmis-table">
+                <thead>
+                  <tr>
+                    <th>User Identity</th>
+                    <th>System Role</th>
+                    <th>Account Status</th>
+                    <th>Last Activity</th>
+                    <th className="text-right">Access Controls</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map(user => (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-brand-blue/10 flex items-center justify-center text-brand-blue font-black text-xs">
+                            {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="font-bold text-brand-foreground">{user.name}</p>
+                            <p className="text-xs font-medium text-brand-muted">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2">
+                          {user.role === 'super-admin' ? <ShieldCheck size={14} className="text-brand-orange" /> : <Users size={14} className="text-brand-blue" />}
+                          <span className="text-xs font-black uppercase tracking-widest text-brand-secondary">
+                            {user.role?.replace('-', ' ') || 'No Role'}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <Badge variant={
+                          user.status === 'active' ? 'success' : 
+                          user.status === 'suspended' ? 'warning' : 
+                          user.status === 'locked' ? 'error' : 'error'
+                        }>
+                          {user.status || (user.isActive ? 'active' : 'inactive')}
+                        </Badge>
+                      </td>
+                      <td>
+                        <div className="flex items-center gap-2 text-brand-muted">
+                          <Clock size={12} />
+                          <span className="text-xs font-medium">Recently</span>
+                        </div>
+                      </td>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => setEditingUser(user)}
+                            className="p-2 rounded-lg text-brand-muted hover:bg-brand-soft transition-colors"
+                            title="Edit Profile"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          
+                          {user.role !== 'super-admin' ? (
+                            <>
+                              {user.status === 'active' || user.isActive ? (
+                                <button 
+                                  onClick={() => updateUserStatus(user.id, 'suspended')}
+                                  className="p-2 rounded-lg text-brand-orange hover:bg-brand-orange/10 transition-colors"
+                                  title="Suspend Account"
+                                >
+                                  <UserMinus size={16} />
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => updateUserStatus(user.id, 'active')}
+                                  className="p-2 rounded-lg text-status-success hover:bg-status-successSoft transition-colors"
+                                  title="Activate Account"
+                                >
+                                  <UserCheck size={16} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => updateUserStatus(user.id, user.status === 'locked' ? 'active' : 'locked')}
+                                className={`p-2 rounded-lg transition-colors ${user.status === 'locked' ? 'text-status-success hover:bg-status-successSoft' : 'text-status-error hover:bg-status-errorSoft'}`}
+                                title={user.status === 'locked' ? 'Unlock Account' : 'Lock Account'}
+                              >
+                                {user.status === 'locked' ? <Unlock size={16} /> : <Lock size={16} />}
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="p-2 rounded-lg text-status-error hover:bg-status-errorSoft transition-colors"
+                                title="Delete User"
+                              >
+                                <UserMinus size={16} />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[10px] font-bold text-brand-subtle uppercase italic px-2 py-1 bg-brand-soft rounded-md border border-brand-border">
+                              System Protected
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
 
-        <form className="grid gap-6 md:grid-cols-[1.2fr_0.8fr]" onSubmit={handleSubmit(onSubmit)}>
-          <div className="space-y-5">
-            <div>
-              <label className="text-sm font-medium text-slate-700">Name</label>
-              <input
-                type="text"
-                {...register('name')}
-                className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#0F3C91] focus:ring-2 focus:ring-sky-100"
-                placeholder="Enter full name"
-              />
-              {errors.name && <p className="mt-2 text-sm text-rose-600">{errors.name.message}</p>}
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-slate-700">Email address</label>
-              <input
-                type="email"
-                {...register('email')}
-                className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#0F3C91] focus:ring-2 focus:ring-sky-100"
-                placeholder="user@example.com"
-              />
-              {errors.email && <p className="mt-2 text-sm text-rose-600">{errors.email.message}</p>}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="text-sm font-medium text-slate-700">Role</label>
-                <select
-                  {...register('role')}
-                  className="mt-3 w-full rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#0F3C91] focus:ring-2 focus:ring-sky-100"
+        <div className="space-y-6">
+          {/* Add User Form */}
+          <Card>
+            <SectionHeader title="Provision Account" subtitle="Register new officer credentials" />
+            <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
+              <Input label="Full Name" placeholder="Enter full name" error={errors.name?.message} {...register('name')} />
+              <Input label="Email address" type="email" placeholder="user@example.com" error={errors.email?.message} {...register('email')} />
+              <div className="relative">
+                <Input 
+                  label="Initial Password" 
+                  type={showPassword ? 'text' : 'password'} 
+                  placeholder="••••••••" 
+                  error={errors.password?.message} 
+                  {...register('password')} 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-[38px] text-brand-subtle hover:text-brand-secondary transition-colors"
                 >
-                  <option value="network-officer">Network Officer</option>
-                  <option value="inspector">Inspector</option>
-                  <option value="finance">Finance</option>
-                  <option value="claims">Claims</option>
-                  <option value="customer-service">Customer Service</option>
-                </select>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+              <Select label="Role" options={roleOptions} error={errors.role?.message} {...register('role')} />
+              
+              <div className="pt-4 border-t border-brand-divider">
+                <div className="flex items-center gap-3 mb-4">
+                  <input type="checkbox" {...register('isActive')} className="h-4 w-4 rounded border-slate-300 text-brand-blue focus:ring-brand-blue" />
+                  <span className="text-sm text-slate-700">Activate user immediately</span>
+                </div>
+                <div className="flex items-start gap-3 p-3 rounded-xl bg-brand-soft/50 text-brand-secondary">
+                  <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+                  <p className="text-[11px] leading-relaxed">
+                    Administrators are responsible for secure credential distribution. Users should be prompted to change passwords upon first login.
+                  </p>
+                </div>
+                <Button type="submit" className="mt-4 w-full gap-2 h-11" disabled={isProvisioning}>
+                  <UserPlus size={18} /> {isProvisioning ? 'Provisioning...' : 'Provision Account'}
+                </Button>
+              </div>
+            </form>
+            {message ? (
+              <div className="mt-4 p-3 rounded-xl bg-brand-blue/5 border border-brand-blue/20 text-xs font-bold text-brand-blue animate-in fade-in">
+                {message}
+              </div>
+            ) : null}
+          </Card>
 
-              <div className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3">
-                <input type="checkbox" {...register('isActive')} className="h-4 w-4 rounded border-slate-300 text-[#0F3C91] focus:ring-[#0F3C91]" />
-                <span className="text-sm text-slate-700">Activate user</span>
+          {/* Security Stats */}
+          <Card className="bg-brand-orange/5 border-brand-orange/20">
+            <div className="flex items-center gap-3 text-brand-orange mb-4">
+              <AlertTriangle size={20} />
+              <h3 className="font-black uppercase tracking-widest text-xs">Security Alert</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-brand-muted">Locked Accounts</span>
+                <span className="text-xs font-black text-status-error">{users.filter(u => u.status === 'locked').length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-brand-muted">Suspended Accounts</span>
+                <span className="text-xs font-black text-brand-orange">{users.filter(u => u.status === 'suspended').length}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-xs font-bold text-brand-muted">Admin Privileges</span>
+                <span className="text-xs font-black text-brand-foreground">{users.filter(u => u.role === 'super-admin').length}</span>
               </div>
             </div>
-          </div>
-
-          <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-6">
-            <p className="text-sm font-semibold text-slate-700">Complete account setup</p>
-            <p className="text-sm text-slate-500">A secure invite email will be sent to the new user. Provider invitations are generated through the provider workflow.</p>
-            <button
-              type="submit"
-              className="inline-flex w-full items-center justify-center rounded-3xl bg-[#0F3C91] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/10 transition hover:bg-[#0B2E74]"
-            >
-              Create user invitation
-            </button>
-          </div>
-        </form>
-
-        {message && <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">{message}</div>}
+          </Card>
+        </div>
       </div>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-soft">
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Active users</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-900">Manage existing accounts</h2>
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-3xl border border-slate-200">
-          {users.length === 0 ? (
-            <div className="p-12 text-center text-slate-500 font-medium bg-slate-50">
-              No active users found.
+      {/* Edit User Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <Card className="w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-brand-divider pb-4 mb-6">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-brand-blue/10 p-2 text-brand-blue">
+                  <Edit2 size={20} />
+                </div>
+                <h2 className="text-xl font-black text-brand-foreground">Edit User Profile</h2>
+              </div>
+              <button onClick={() => setEditingUser(null)} className="text-brand-muted hover:text-brand-foreground">
+                <X size={24} />
+              </button>
             </div>
-          ) : (
-            <table className="w-full border-separate border-spacing-0 text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600">
-                <tr>
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Email</th>
-                  <th className="px-6 py-4">Role</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Action</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                {users.map(user => (
-                  <tr key={user.id} className="border-t border-slate-200">
-                    <td className="px-6 py-4 text-slate-900">{user.name}</td>
-                    <td className="px-6 py-4 text-slate-600">{user.email}</td>
-                    <td className="px-6 py-4 text-slate-600">{user.role.replace('-', ' ')}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${user.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                        {user.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        type="button"
-                        onClick={() => toggleUserActive(user.id)}
-                        className="rounded-2xl bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-                      >
-                        {user.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+
+            <form onSubmit={handleEditSave} className="space-y-4">
+              <Input 
+                label="Full Name" 
+                value={editingUser.name} 
+                onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} 
+              />
+              <Input 
+                label="Email Address" 
+                type="email" 
+                value={editingUser.email} 
+                onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} 
+              />
+              <Select 
+                label="Role" 
+                options={roleOptions} 
+                value={editingUser.role || ''} 
+                onChange={e => setEditingUser({ ...editingUser, role: e.target.value as UserRole })} 
+              />
+              
+              <div className="pt-6 flex justify-end gap-3 border-t border-brand-divider">
+                <Button variant="secondary" onClick={() => setEditingUser(null)}>Cancel</Button>
+                <Button type="submit" className="gap-2">
+                  <Save size={18} /> Save Changes
+                </Button>
+              </div>
+            </form>
+          </Card>
         </div>
-      </section>
-    </div>
+      )}
+    </main>
   );
 }

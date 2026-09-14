@@ -28,6 +28,20 @@ import {
 } from '../../types/dashboard/dashboardTypes';
 
 export async function fetchExecutiveSummary(): Promise<ExecutiveSummary> {
+  if (!useMockData) {
+    const intelligence = await fetchDashboardIntelligence();
+    return {
+      greeting: 'Executive Overview',
+      userName: 'Administrator',
+      organization: 'ODCHC NMIS',
+      dateLabel: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
+      todayFocus: `${intelligence.provider.active} providers are currently active in the network. Total population stands at ${intelligence.population.total.toLocaleString()} enrollees.`,
+      quickActions: [
+        { label: 'Register Provider', icon: 'UserPlus', variant: 'primary' },
+        { label: 'Export Report', icon: 'Download', variant: 'secondary' }
+      ],
+    };
+  }
   const summary = await dashboardMocks.getExecutiveSummary();
   const providers = await getProviderDirectory({ pageSize: -1 });
   const activeCount = (providers as any).activeCount ?? providers.filter(p => p.status === ProviderLifecycleStatus.Active).length;
@@ -181,51 +195,82 @@ export async function fetchProviderCategories(): Promise<DistributionPoint[]> {
 }
 
 export async function fetchMonthlyGrowth(): Promise<GrowthPoint[]> {
-  // Mock growth for now as it requires historical data
+  if (!useMockData) {
+    const intelligence = await fetchDashboardIntelligence();
+    return intelligence.population.monthlyTrend.map(t => ({ 
+      period: t.name, 
+      providers: intelligence.provider.total,
+      inspections: 0,
+      capitation: t.value 
+    }));
+  }
   return dashboardMocks.getMonthlyGrowth();
 }
 
 export async function fetchInspectionCompletion(): Promise<CompletionPoint[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getInspectionCompletion();
 }
 
 export async function fetchPerformanceRating(): Promise<PerformancePoint[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getPerformanceRating();
 }
 
 export async function fetchCapitationTrend(): Promise<TrendPoint[]> {
+  if (!useMockData) {
+    const intelligence = await fetchDashboardIntelligence();
+    return intelligence.population.monthlyTrend.map(t => ({ period: t.name, value: t.value }));
+  }
   return dashboardMocks.getCapitationTrend();
 }
 
 export async function fetchUtilizationTrend(): Promise<TrendPoint[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getUtilizationTrend();
 }
 
 export async function fetchCoverageLocations(): Promise<CoverageLocation[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getCoverageLocations();
 }
 
 export async function fetchDashboardTasks(): Promise<DashboardTask[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getDashboardTasks();
 }
 
 export async function fetchDashboardActivities(): Promise<ActivityItem[]> {
+  if (!useMockData) {
+    const logs = await fetchAuditLogs();
+    return logs.map(log => ({
+      id: log.id || '',
+      timestamp: log.createdAt || '',
+      title: log.action,
+      description: `${log.userEmail || 'System'} performed ${log.action} on ${log.entity}`,
+      badge: 'Security'
+    }));
+  }
   return dashboardMocks.getDashboardActivities();
 }
 
 export async function fetchUpcomingActivities(): Promise<UpcomingActivity[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getUpcomingActivities();
 }
 
 export async function fetchDashboardNotifications(): Promise<NotificationSummary> {
+  if (!useMockData) return { unread: 0, alerts: 0, urgent: 0, items: [] };
   return dashboardMocks.getDashboardNotifications();
 }
 
 export async function fetchAiInsights(): Promise<AiInsight[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getAiInsights();
 }
 
 export async function fetchPerformanceGauges(): Promise<PerformanceGauge[]> {
+  if (!useMockData) return [];
   return dashboardMocks.getPerformanceGauges();
 }
 

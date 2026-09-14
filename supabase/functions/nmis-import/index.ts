@@ -1,13 +1,9 @@
-import { secureJson, trustedWorkflowUnavailable } from '../_shared/security.ts';
+// PENDING LIVE VERIFICATION — do not deploy before approved staging preflight.
+// This reviewed boundary will later enforce identity, controlled role, AAL2 where
+// required, source-file validation, SHA-256 provenance, batch transitions and
+// immutable audit events. It intentionally performs no Storage or database work.
+import { secureJson } from '../_shared/security.ts';
 
-Deno.serve(async request => {
-  if (request.method !== 'POST') {
-    return secureJson(405, { code: 'METHOD_NOT_ALLOWED', message: 'Only POST is supported.' });
-  }
-
-  // This is intentionally non-operative. It does not accept browser-supplied
-  // actor/email/role/timestamps as authoritative, does not touch Storage, and
-  // cannot create import batches, financial records, enrollee records, matches,
-  // or audit logs before the required contracts are approved and deployed.
-  return trustedWorkflowUnavailable('nmis-import');
-});
+Deno.serve(() => secureJson({
+  error: 'Secure ORANGHIS intake is pending Phase 3B live verification.',
+}, 503));

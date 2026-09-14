@@ -3,10 +3,14 @@ import AppLayout from '../components/AppLayout';
 import LoginPage from '../pages/auth/LoginPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
+import SuspendedPage from '../pages/auth/SuspendedPage';
 import AcceptInvitationPage from '../pages/auth/AcceptInvitationPage';
 import OrganizationSetupPage from '../pages/auth/OrganizationSetupPage';
 import InviteProviderPage from '../pages/auth/InviteProviderPage';
 import ManageUsersPage from '../pages/auth/ManageUsersPage';
+import AuditLogPage from '../pages/admin/AuditLogPage';
+import SystemConfigPage from '../pages/admin/SystemConfigPage';
+import DataManagementPage from '../pages/admin/DataManagementPage';
 import DashboardPage from '../pages/dashboard/ExecutiveDashboardPage';
 import ProviderPage from '../pages/ProviderPage';
 import ProviderProfilePage from '../pages/ProviderProfilePage';
@@ -40,6 +44,7 @@ export default function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/suspended" element={<SuspendedPage />} />
       <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
       <Route
         element={
@@ -73,14 +78,54 @@ export default function AppRoutes() {
         <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
         <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
         <Route path="/inspections" element={<InspectionsPage />} />
+        <Route path="/inspections/accreditation" element={<NewInspectionPage />} />
         <Route path="/inspections/new" element={<NewInspectionPage />} />
         <Route path="/settings/inspection-templates" element={<InspectionTemplateAdminPage />} />
         <Route path="/performance" element={<PerformancePage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/communication" element={<CommunicationPage />} />
         <Route path="/complaints" element={<ComplaintsPage />} />
-        <Route path="/admin/users" element={<ManageUsersPage />} />
-        <Route path="/admin/invite-provider" element={<InviteProviderPage />} />
+        {/* Administrative Routes (Super Admin Only) */}
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <ManageUsersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <AuditLogPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/config"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <SystemConfigPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/data"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <DataManagementPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/invite-provider"
+          element={
+            <ProtectedRoute allowedRoles={['super-admin']}>
+              <InviteProviderPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

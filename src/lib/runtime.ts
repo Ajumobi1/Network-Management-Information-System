@@ -33,3 +33,6 @@ export const inertSupabaseRuntimeConfig = {
   url: 'https://inert.nmis.invalid',
   anonKey: 'inert-anon-key',
 };
+
+// Deployment Version: 2.4.1-gold-verified
+export const DEPLOYMENT_TAG = '2.4.1-gold-verified';

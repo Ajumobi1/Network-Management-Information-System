@@ -322,7 +322,7 @@ export async function checkDuplicateBatch(period: string, dataType: FinancialDat
       });
       return result;
     } catch (error) {
-      return null;
+      throw error;
     }
   }
   return mockImportBatches.find(batch => batch.periodCovered === period && batch.dataType === dataType && ['imported', 'partially-imported'].includes(batch.status)) || null;

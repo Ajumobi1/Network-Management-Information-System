@@ -2,8 +2,7 @@ import { AuthErrorCode, AuthResult, AuthSession, AuthUser } from '../../auth/aut
 
 const mockUsers: Record<string, AuthUser & { password: string }> = {
   'admin@nmis.org': { id: 'mock-admin', name: 'Super Admin', email: 'admin@nmis.org', password: 'Admin123!', role: 'super-admin' },
-  'executive@nmis.org': { id: 'mock-executive', name: 'Executive Leader', email: 'executive@nmis.org', password: 'Exec123!', role: 'executive' },
-  'inspector@nmis.org': { id: 'mock-inspector', name: 'Field Inspector', email: 'inspector@nmis.org', password: 'Insp123!', role: 'inspector' },
+  'officer@nmis.org': { id: 'mock-officer', name: 'Network Officer', email: 'officer@nmis.org', password: 'Officer123!', role: 'network-officer' },
 };
 
 let currentSession: AuthSession | null = null;

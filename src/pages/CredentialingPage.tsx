@@ -37,8 +37,8 @@ export default function CredentialingPage() {
   const selectedApp = useMemo(() => applications.find(a => a.id === selectedAppId), [applications, selectedAppId]);
 
   const stats = useMemo(() => {
-    const submittedInspections = inspections.filter(i => i.status === 'submitted').length;
-    const completedInspections = inspections.filter(i => i.status === 'completed').length;
+    const submittedInspections = inspections.filter(i => i.status.toLowerCase() === 'submitted').length;
+    const completedInspections = inspections.filter(i => i.status.toLowerCase() === 'completed').length;
     
     return {
       total: applications.length + submittedInspections + completedInspections,
@@ -221,7 +221,7 @@ export default function CredentialingPage() {
                         <p className="text-[9px] font-bold uppercase text-brand-muted">Infrastructure</p>
                       </td>
                       <td className="px-6 py-4">
-                        <Badge variant={item.status === 'completed' || item.status === 'submitted' ? 'success' : 'warning'}>
+                        <Badge variant={item.status.toLowerCase() === 'completed' || item.status.toLowerCase() === 'submitted' ? 'success' : 'warning'}>
                           {item.status}
                         </Badge>
                       </td>

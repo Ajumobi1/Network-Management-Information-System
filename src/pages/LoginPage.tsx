@@ -1,8 +1,34 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AtSymbolIcon, CheckCircleIcon, EyeIcon, GlobeAltIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { AtSymbolIcon, CheckCircleIcon, EyeIcon, EyeSlashIcon, GlobeAltIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { authService } from '../services/auth/authService';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    
+    try {
+      const result = await authService.signIn(email, password, true);
+      if (result.success) {
+        navigate('/dashboard');
+      } else {
+        setError(result.error.message);
+      }
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-6 sm:px-6 sm:py-10">
@@ -69,12 +95,14 @@ function LoginPage() {
             </div>
 
             <div className="rounded-[2rem] bg-white p-5 shadow-soft sm:p-8">
+              {error && (
+                <div className="mb-6 rounded-2xl bg-red-50 p-4 text-sm font-medium text-red-600 border border-red-100">
+                  {error}
+                </div>
+              )}
               <form
                 className="space-y-6"
-                onSubmit={e => {
-                  e.preventDefault();
-                  navigate('/dashboard');
-                }}
+                onSubmit={handleSignIn}
               >
                 <label className="block">
                   <span className="text-sm font-medium text-slate-700">Email Address</span>
@@ -84,6 +112,9 @@ function LoginPage() {
                     </span>
                     <input
                       type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      required
                       className="w-full bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
                       placeholder="Enter your email"
                     />
@@ -94,16 +125,23 @@ function LoginPage() {
                   <span className="text-sm font-medium text-slate-700">Password</span>
                   <div className="mt-2 flex items-center gap-3 rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm focus-within:border-[#0D184C] focus-within:ring-2 focus-within:ring-[#0D184C]/20">
                     <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white text-slate-500 shadow-sm">
-                      <EyeIcon className="h-5 w-5" />
+                      <ShieldCheckIcon className="h-5 w-5" />
                     </span>
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      required
                       className="w-full bg-transparent text-slate-900 outline-none placeholder:text-slate-400"
                       placeholder="Enter your password"
                     />
-                    <button type="button" className="text-slate-400 transition hover:text-slate-700">
-                      <span className="sr-only">Show password</span>
-                      <EyeIcon className="h-5 w-5" />
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-slate-400 transition hover:text-slate-700"
+                    >
+                      <span className="sr-only">{showPassword ? 'Hide password' : 'Show password'}</span>
+                      {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
                     </button>
                   </div>
                 </label>
@@ -113,16 +151,34 @@ function LoginPage() {
                   <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-[#16A34A] focus:ring-[#16A34A]" />
                   Remember me
                 </label>
-                <button type="button" className="font-medium text-[#0D184C] hover:text-[#10224D]">
+                <button 
+                  type="button" 
+                  onClick={async () => {
+                    if (!email) {
+                      setError('Please enter your email address first.');
+                      return;
+                    }
+                    setIsLoading(true);
+                    const res = await authService.forgotPassword(email);
+                    setIsLoading(false);
+                    if (res.success) {
+                      alert('Password reset link sent to your email.');
+                    } else {
+                      setError(res.error.message);
+                    }
+                  }}
+                  className="font-medium text-[#0D184C] hover:text-[#10224D]"
+                >
                   Forgot password?
                 </button>
               </div>
 
               <button
                 type="submit"
-                className="w-full rounded-2xl bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600"
+                disabled={isLoading}
+                className="w-full rounded-2xl bg-[#16A34A] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-600 disabled:opacity-50"
               >
-                Sign In
+                {isLoading ? 'Signing In...' : 'Sign In'}
               </button>
             </form>
 

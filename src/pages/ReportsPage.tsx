@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
-import { Download, FileText, PieChart, Users, Calendar, CheckCircle2, Clock, Settings } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { 
+  Download, FileText, PieChart, Users, Calendar, 
+  CheckCircle2, Clock, Settings, FileSpreadsheet,
+  ArrowUpRight, ShieldCheck, Filter, Search, BarChart3
+} from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
@@ -9,11 +13,12 @@ import * as reportsService from '../services/reports/reportsService';
 
 export default function ReportsPage() {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<'all' | 'network' | 'financial' | 'quality'>('all');
 
   const handleDownload = async (id: string, action: () => Promise<any>) => {
     setIsGenerating(id);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate generation delay
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Professional delay
       await action();
     } finally {
       setIsGenerating(null);
@@ -23,133 +28,192 @@ export default function ReportsPage() {
   const reports = [
     {
       id: 'provider-network',
-      title: 'Provider Network Report',
-      description: 'Comprehensive registry of all healthcare facilities, including classification and current compliance status.',
-      icon: <Users size={20} className="text-brand-blue" />,
+      category: 'network',
+      title: 'Provider Network Registry',
+      description: 'Authoritative registry of all accredited healthcare facilities, including detailed classification and compliance tiering.',
+      icon: <Users size={20} />,
+      type: 'Registry',
       action: () => reportsService.generateProviderReport()
     },
     {
       id: 'inspections',
-      title: 'Inspection & Compliance',
-      description: 'Historical and scheduled inspection records with Overall, Credentialing, and Accreditation scores for management review.',
-      icon: <CheckCircle2 size={20} className="text-status-success" />,
+      category: 'quality',
+      title: 'QA & Compliance Audit',
+      description: 'Consolidated inspection outcomes with breakdown of Credentialing and Accreditation scores across the network.',
+      icon: <CheckCircle2 size={20} />,
+      type: 'Audit',
       action: () => reportsService.generateInspectionReport(),
       pdfAction: () => reportsService.generateInspectionPdfReport()
     },
     {
       id: 'financial-summary',
-      title: 'Financial Summary',
-      description: 'Consolidated view of Claims, Capitation, and FFS expenditure across reporting periods.',
-      icon: <PieChart size={20} className="text-brand-secondary" />,
-      action: async () => { alert('Financial report generation planned.'); }
+      category: 'financial',
+      title: 'Expenditure Summary',
+      description: 'Comprehensive financial report covering Claims, Capitation, and Fee-for-Service disbursements for management review.',
+      icon: <PieChart size={20} />,
+      type: 'Financial',
+      action: () => reportsService.generateFinancialSummaryReport()
+    },
+    {
+      id: 'enrolment-demographics',
+      category: 'network',
+      title: 'Population Demographics',
+      description: 'Detailed analysis of beneficiary enrolment across LGAs, age groups, and program types (AMCHIS/ORANGHIS).',
+      icon: <Users size={20} />,
+      type: 'Demographics',
+      action: () => reportsService.generateEnrolmentReport()
     },
   ];
 
-  const templates: any[] = [];
+  const filteredReports = useMemo(() => {
+    return activeCategory === 'all' 
+      ? reports 
+      : reports.filter(r => r.category === activeCategory);
+  }, [activeCategory]);
 
   return (
     <main className="nmis-page">
-      <div className="space-y-6">
-        <PageHeader
-          eyebrow="Analytics & Reports"
-          title="Reporting Centre"
-          subtitle="Generate operational, financial, and provider reports with export-ready output for management review."
-          actions={<Button disabled className="gap-2"><Settings size={16} /> Manage Automations (Soon)</Button>}
-        />
+      <PageHeader
+        eyebrow="Intelligence & Governance"
+        title="Reporting Centre"
+        subtitle="Access high-fidelity operational data, financial summaries, and compliance audits with export-ready outputs."
+        actions={
+          <Button variant="secondary"><Settings size={16} /> Automation Settings</Button>
+        }
+      />
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {reports.map(report => (
-            <Card key={report.id} className="flex flex-col">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-xl bg-brand-surface border border-brand-divider">
+      {/* Analytics Overview */}
+      <div className="grid gap-6 md:grid-cols-4">
+        <Card className="relative overflow-hidden group hover:border-brand-blue/30 transition-all">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted mb-2">Total Reports</p>
+          <p className="text-2xl font-black text-brand-foreground">12</p>
+          <BarChart3 size={40} className="absolute -right-2 -bottom-2 opacity-5 group-hover:opacity-10 transition-opacity" />
+        </Card>
+        <Card className="relative overflow-hidden group hover:border-brand-blue/30 transition-all">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted mb-2">Recent Exports</p>
+          <p className="text-2xl font-black text-brand-foreground">48</p>
+          <Download size={40} className="absolute -right-2 -bottom-2 opacity-5 group-hover:opacity-10 transition-opacity" />
+        </Card>
+        <Card className="relative overflow-hidden group hover:border-brand-blue/30 transition-all">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted mb-2">Data Freshness</p>
+          <p className="text-2xl font-black text-status-success">Real-time</p>
+          <Clock size={40} className="absolute -right-2 -bottom-2 opacity-5 group-hover:opacity-10 transition-opacity" />
+        </Card>
+        <Card className="relative overflow-hidden group hover:border-brand-blue/30 transition-all">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-brand-muted mb-2">Security Level</p>
+          <p className="text-2xl font-black text-brand-blue">Tier 3</p>
+          <ShieldCheck size={40} className="absolute -right-2 -bottom-2 opacity-5 group-hover:opacity-10 transition-opacity" />
+        </Card>
+      </div>
+
+      {/* Filter Hub */}
+      <div className="flex items-center justify-between gap-4 py-2">
+        <div className="flex gap-2">
+          {['all', 'network', 'financial', 'quality'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setActiveCategory(cat as any)}
+              className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeCategory === cat ? 'bg-brand-blue text-white shadow-lg shadow-brand-blue/20' : 'bg-brand-soft text-brand-muted hover:bg-brand-divider'}`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-subtle" size={16} />
+          <input type="text" placeholder="Search reports..." className="nmis-control pl-10 h-9 text-xs" />
+        </div>
+      </div>
+
+      {/* Report Grid */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {filteredReports.map(report => (
+          <Card key={report.id} className="group hover:shadow-xl transition-all duration-300 border-l-4 border-l-brand-blue flex flex-col">
+            <div className="flex-1">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-brand-soft text-brand-blue group-hover:bg-brand-blue group-hover:text-white transition-all">
                     {report.icon}
                   </div>
-                  <Badge variant="default" className="text-[10px] uppercase">Standard</Badge>
+                  <div>
+                    <h3 className="text-lg font-black text-brand-foreground group-hover:text-brand-blue transition-colors">{report.title}</h3>
+                    <p className="text-[10px] font-bold text-brand-muted uppercase tracking-[0.2em]">{report.type}</p>
+                  </div>
                 </div>
-                <h2 className="text-lg font-black text-brand-foreground">{report.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-brand-secondary">{report.description}</p>
+                <Badge variant="default" className="bg-brand-soft text-brand-blue border-none font-black text-[10px]">VERIFIED</Badge>
               </div>
-              <div className="mt-8 pt-6 border-t border-brand-divider">
-                <div className={report.pdfAction ? 'grid gap-2 sm:grid-cols-2' : ''}>
+              <p className="text-sm leading-relaxed text-brand-secondary">{report.description}</p>
+            </div>
+            
+            <div className="mt-8 pt-6 border-t border-brand-divider flex items-center justify-between">
+              <div className="flex gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="gap-2 font-black text-[10px] uppercase tracking-widest"
+                  onClick={() => handleDownload(report.id, report.action)}
+                  disabled={isGenerating !== null}
+                >
+                  {isGenerating === report.id ? (
+                    'Processing...'
+                  ) : (
+                    <><FileSpreadsheet size={14} /> Export CSV</>
+                  )}
+                </Button>
+                {report.pdfAction && (
                   <Button
-                    variant="secondary"
-                    className="w-full gap-2"
-                    onClick={() => handleDownload(report.id, report.action)}
-                    disabled={isGenerating !== null}
-                  >
-                    {isGenerating === report.id ? (
-                      <>Generating...</>
-                    ) : (
-                      <><Download size={16} /> Download CSV</>
-                    )}
-                  </Button>
-                  {report.pdfAction && <Button
                     variant="outline"
-                    className="w-full gap-2"
+                    size="sm"
+                    className="gap-2 font-black text-[10px] uppercase tracking-widest border-brand-divider"
                     onClick={() => handleDownload(`${report.id}-pdf`, report.pdfAction)}
                     disabled={isGenerating !== null}
                   >
-                    {isGenerating === `${report.id}-pdf` ? 'Preparing...' : <><FileText size={16} /> Print / Save PDF</>}
-                  </Button>}
-                </div>
+                    {isGenerating === `${report.id}-pdf` ? 'Preparing...' : <><FileText size={14} /> PDF Report</>}
+                  </Button>
+                )}
               </div>
-            </Card>
-          ))}
-        </div>
-
-        <Card>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <SectionHeader title="Saved Report Templates" subtitle="Pre-defined report configurations for recurring operational reviews." />
-            <Button variant="secondary" size="sm" disabled>New Template (Soon)</Button>
-          </div>
-
-          <div className="mt-6">
-            {templates.length === 0 ? (
-              <div className="p-12 text-center text-slate-500 font-medium bg-brand-surface rounded-control border border-dashed border-brand-divider">
-                No saved templates found.
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {templates.map(item => (
-                  <div key={item.name} className="flex items-center justify-between p-4 rounded-control border border-brand-divider bg-brand-surface hover:border-brand-blue/30 transition-colors group">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-brand-soft text-brand-blue">
-                        <FileText size={18} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-brand-foreground group-hover:text-brand-blue transition-colors">{item.name}</p>
-                        <div className="mt-1 flex items-center gap-3">
-                          <span className="text-[10px] font-bold uppercase text-brand-muted flex items-center gap-1">
-                            <Clock size={10} /> {item.lastUsed}
-                          </span>
-                          <Badge variant={item.status === 'Active' ? 'success' : 'default'} size="sm">{item.status}</Badge>
-                        </div>
-                      </div>
-                    </div>
-                    <button className="text-brand-muted hover:text-brand-blue transition-colors"><Settings size={14} /></button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </Card>
-
-        <Card className="bg-brand-navy border-brand-navy p-8 overflow-hidden relative">
-          <div className="relative z-10">
-            <h3 className="text-xl font-black text-white uppercase tracking-wider">Scheduled Reports</h3>
-            <p className="mt-2 text-brand-subtle max-w-xl">
-              Automate your reporting workflow. Configure reports to be delivered to your email or a shared workspace on a daily, weekly, or monthly basis.
-            </p>
-            <Button className="mt-6 bg-white text-brand-navy hover:bg-brand-surface border-none" disabled>
-              Configure Schedule (Coming Soon)
-            </Button>
-          </div>
-          <div className="absolute -right-12 -bottom-12 opacity-10 text-white rotate-12 pointer-events-none">
-            <Calendar size={240} />
-          </div>
-        </Card>
+              <button className="text-brand-muted hover:text-brand-blue transition-colors">
+                <ArrowUpRight size={18} />
+              </button>
+            </div>
+          </Card>
+        ))}
       </div>
+
+      {/* Automated Schedules Section */}
+      <Card className="bg-slate-900 border-none p-8 overflow-hidden relative">
+        <div className="relative z-10 grid lg:grid-cols-[1fr_auto] gap-8 items-center">
+          <div>
+            <div className="flex items-center gap-2 text-brand-orange mb-4">
+              <ShieldCheck size={20} />
+              <h3 className="text-xs font-black uppercase tracking-[0.3em]">Governance Module</h3>
+            </div>
+            <h3 className="text-2xl font-black text-white leading-tight">Automated Delivery Protocol</h3>
+            <p className="mt-2 text-white/60 max-w-xl text-sm leading-relaxed">
+              Configure secure automated delivery of mission-critical reports directly to authorized personnel. 
+              Supports encrypted SFTP, secure email dispatch, and portal-integrated notifications.
+            </p>
+            <div className="mt-8 flex gap-4">
+              <Button className="bg-brand-blue hover:bg-brand-blue/90 border-none px-8 font-black text-xs uppercase tracking-widest">
+                Configure Protocol
+              </Button>
+              <Button variant="ghost" className="text-white hover:bg-white/10 px-8 font-black text-xs uppercase tracking-widest">
+                View Schedules
+              </Button>
+            </div>
+          </div>
+          <div className="hidden lg:block">
+            <div className="h-40 w-40 rounded-full border-8 border-white/5 flex items-center justify-center relative">
+              <div className="h-24 w-24 rounded-full border-4 border-brand-blue/20 flex items-center justify-center animate-pulse">
+                <FileText size={40} className="text-brand-blue" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="absolute -right-20 -top-20 opacity-5 text-white pointer-events-none">
+          <Calendar size={400} />
+        </div>
+      </Card>
     </main>
   );
 }

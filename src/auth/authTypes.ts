@@ -1,13 +1,6 @@
 export type UserRole =
   | 'super-admin'
-  | 'executive'
-  | 'head-of-network'
-  | 'network-officer'
-  | 'inspector'
-  | 'finance'
-  | 'claims'
-  | 'customer-service'
-  | 'provider';
+  | 'network-officer';
 
 export type AuthUser = {
   id: string;
@@ -16,6 +9,7 @@ export type AuthUser = {
   role: UserRole | null;
   avatarUrl?: string;
   isActive?: boolean;
+  status?: 'active' | 'suspended' | 'locked' | 'pending';
 };
 
 export type AuthSession = {
@@ -38,8 +32,10 @@ export type AuthInvitation = {
 
 export enum AuthErrorCode {
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+  EMAIL_NOT_CONFIRMED = 'EMAIL_NOT_CONFIRMED',
   UNAUTHORIZED = 'UNAUTHORIZED',
   NETWORK = 'NETWORK',
+  RATE_LIMITED = 'RATE_LIMITED',
   SESSION_EXPIRED = 'SESSION_EXPIRED',
   NOT_FOUND = 'NOT_FOUND',
   UNKNOWN = 'UNKNOWN',

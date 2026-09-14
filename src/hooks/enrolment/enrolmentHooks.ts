@@ -71,13 +71,3 @@ export function useCreateEnrolmentImportBatch() {
     },
   });
 }
-
-export function useBackfillJulyPhones() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (batch: Array<{ policy_number: string; phone_number: string }>) => enrolmentService.backfillJulyPhones(batch),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['enrolment'] });
-    },
-  });
-}
