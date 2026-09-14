@@ -14,7 +14,8 @@ import {
   updateProviderMock,
   setProviderStatusMock,
 } from '../../mocks/providersMocks';
-import { ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile } from '../../types/providers/providerTypes';
+import { ProviderDirectoryFilters, ProviderDirectoryItem, ProviderLifecycleStatus, ProviderProfile } from '../../types/providers/providerTypes';
+import type { ProviderMatch } from '../../types/financial-data';
 import type { ProvidersRow } from '../../lib/supabase/database.types';
 import { loadOfflineInspectionPack } from '../../lib/offline/inspectionOfflineStore';
 
@@ -26,6 +27,7 @@ export type ProviderRegistrationCommand = Omit<ProviderDirectoryItem, 'id' | 'pr
 };
 
 export type ProviderOperationalUpdate = Partial<ProviderDirectoryItem> & {
+  address?: string | null;
   bankName?: string | null;
   accountName?: string | null;
   accountNumber?: string | null;
@@ -52,6 +54,7 @@ type ProviderDirectoryRpcRow = {
   last_inspection_date?: string | null;
   services?: string[] | null;
   senatorial_district?: string | null;
+  register_position?: number | null;
 };
 
 type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
@@ -64,6 +67,9 @@ type ProviderProfileRpcRow = ProviderDirectoryRpcRow & {
   staff_strength?: number | null;
   equipment?: string[] | null;
   register_position?: number | null;
+  bank_name?: string | null;
+  account_name?: string | null;
+  account_number?: string | null;
 };
 
 type ProviderDirectoryRpcResult = ProviderDirectoryRpcRow[] | { items: ProviderDirectoryRpcRow[] };
@@ -87,8 +93,8 @@ function normalizedLifecycleStatus(status: string): ProviderLifecycleStatus {
 function mapDirectoryRow(row: ProviderDirectoryRpcRow): ProviderDirectoryItem {
   return {
     id: row.id,
-    providerCode: (row as any).register_position 
-      ? String((row as any).register_position).padStart(3, '0') 
+    providerCode: row.register_position
+      ? String(row.register_position).padStart(3, '0')
       : row.provider_code,
     providerName: row.provider_name,
     category: row.category as ProviderDirectoryItem['category'],
@@ -118,9 +124,9 @@ function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
     contactPerson: row.contact_person ?? 'Pending verification',
     phone: row.phone ?? 'Pending verification',
     email: row.email ?? 'Pending verification',
-    bankName: (row as any).bank_name ?? 'Pending verification',
-    accountName: (row as any).account_name ?? 'Pending verification',
-    accountNumber: (row as any).account_number ?? 'Pending verification',
+    bankName: row.bank_name ?? 'Pending verification',
+    accountName: row.account_name ?? 'Pending verification',
+    accountNumber: row.account_number ?? 'Pending verification',
     services: row.services ?? [],
     departments: row.departments ?? [],
     staffStrength: row.staff_strength ?? 0,
@@ -133,8 +139,10 @@ function mapOperationalProfile(row: ProviderProfileRpcRow): ProviderProfile {
   };
 }
 
+type ProviderAdminWriteResult = { provider?: ProviderDirectoryRpcRow };
+
 async function invokeProviderAdmin(args: { command: string; providerId?: string | null; payload: Record<string, unknown> }): Promise<ProviderDirectoryItem> {
-  const result = await invokeSecureRpc<any>('nmis_provider_admin_write', {
+  const result = await invokeSecureRpc<ProviderAdminWriteResult>('nmis_provider_admin_write', {
     p_command: args.command,
     p_provider_id: args.providerId || null,
     p_payload: args.payload,
@@ -175,7 +183,9 @@ export async function deleteProvider(id: string): Promise<boolean> {
   throw trustedOperationRequired('provider retention or correction');
 }
 
-export async function getProviderDirectory(filters: Record<string, any> = {}): Promise<ProviderDirectoryItem[] & { totalCount?: number }> {
+type ProviderDirectoryResult = ProviderDirectoryItem[] & { totalCount?: number; activeCount?: number; pendingCount?: number; riskCount?: number };
+
+export async function getProviderDirectory(filters: Partial<ProviderDirectoryFilters> = {}): Promise<ProviderDirectoryResult> {
   const page = filters.page && filters.page > 0 ? Number(filters.page) : 1;
   const isAll = filters.pageSize === -1;
   // The secured provider RPC caps one request at 1,000 rows. In all-records mode,
@@ -219,7 +229,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
 
   let result: ProviderDirectoryRpcResult;
   let countResult: number;
-  let summaryResult: any[];
+  let summaryResult: Array<Record<string, unknown>>;
   try {
     [result, countResult, summaryResult] = await Promise.all([
       invokeSecureRpc<ProviderDirectoryRpcResult>('nmis_list_provider_directory', {
@@ -229,7 +239,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
         p_sort: 'provider_name',
       }),
       invokeSecureRpc<number>('nmis_count_provider_directory', rpcFilters),
-      invokeSecureRpc<any[]>('nmis_provider_directory_summary', rpcFilters)
+      invokeSecureRpc<Array<Record<string, unknown>>>('nmis_provider_directory_summary', rpcFilters)
     ]);
   } catch (error) {
     const cached = await loadOfflineInspectionPack().catch(() => null);
@@ -267,7 +277,7 @@ export async function getProviderDirectory(filters: Record<string, any> = {}): P
   const items = sorted.map((item, index) => ({
     ...item,
     providerCode: String(offset + index + 1).padStart(3, '0'),
-  })) as ProviderDirectoryItem[] & { totalCount?: number; activeCount?: number; pendingCount?: number; riskCount?: number };
+  })) as ProviderDirectoryResult;
 
   items.totalCount = totalCount;
 
@@ -333,7 +343,7 @@ export async function updateDirectoryProvider(id: string, payload: ProviderOpera
   if (payload.subcategory !== undefined) safePayload.subcategory = payload.subcategory || null;
   if (payload.ownership !== undefined) safePayload.ownership = payload.ownership;
   if (payload.lga !== undefined) safePayload.lga = payload.lga;
-  if ((payload as any).address !== undefined) safePayload.address = (payload as any).address || null;
+  if (payload.address !== undefined) safePayload.address = payload.address || null;
   if (payload.contactPerson !== undefined) safePayload.contact_person = payload.contactPerson || null;
   if (payload.phone !== undefined) safePayload.phone = payload.phone || null;
   if (payload.email !== undefined) safePayload.email = payload.email || null;
@@ -436,10 +446,10 @@ export async function getProviderFacilities(_providerId: string) {
   throw accessRestricted('provider facility data');
 }
 
-export async function getPersistedProviderMatches(): Promise<Record<string, any>> {
+export async function getPersistedProviderMatches(): Promise<Record<string, ProviderMatch>> {
   if (useMockData) return {};
-  const result = await invokeSecureRpc<any[]>('nmis_get_persisted_provider_matches', {});
-  const matches: Record<string, any> = {};
+  const result = await invokeSecureRpc<ProviderMatch[]>('nmis_get_persisted_provider_matches', {});
+  const matches: Record<string, ProviderMatch> = {};
   if (Array.isArray(result)) {
     result.forEach(m => {
       if (m.excel_name) {
@@ -450,7 +460,7 @@ export async function getPersistedProviderMatches(): Promise<Record<string, any>
   return matches;
 }
 
-export async function saveProviderMatchResolution(payload: any, _resolvedBy?: string) {
+export async function saveProviderMatchResolution(payload: ProviderMatch, _resolvedBy?: string) {
   if (useMockData) return true;
-  return invokeSecureRpc<any>('nmis_save_provider_match_resolution', payload);
+  return invokeSecureRpc<unknown>('nmis_save_provider_match_resolution', payload);
 }
