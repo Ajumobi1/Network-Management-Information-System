@@ -1,44 +1,46 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
-import LoginPage from '../pages/auth/LoginPage';
-import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
-import ResetPasswordPage from '../pages/auth/ResetPasswordPage';
-import SuspendedPage from '../pages/auth/SuspendedPage';
-import AcceptInvitationPage from '../pages/auth/AcceptInvitationPage';
-import OrganizationSetupPage from '../pages/auth/OrganizationSetupPage';
-import InviteProviderPage from '../pages/auth/InviteProviderPage';
-import ManageUsersPage from '../pages/auth/ManageUsersPage';
-import AuditLogPage from '../pages/admin/AuditLogPage';
-import SystemConfigPage from '../pages/admin/SystemConfigPage';
-import DataManagementPage from '../pages/admin/DataManagementPage';
-import DashboardPage from '../pages/dashboard/ExecutiveDashboardPage';
-import ProviderPage from '../pages/ProviderPage';
-import ProviderProfilePage from '../pages/ProviderProfilePage';
-import ProviderRegistrationPage from '../pages/ProviderRegistrationPage';
-import InspectionsPage from '../pages/InspectionsPage';
-import NewInspectionPage from '../pages/inspections/NewInspectionPage';
-import InspectionTemplateAdminPage from '../pages/inspections/InspectionTemplateAdminPage';
-import ContractsPage from '../pages/ContractsPage';
-import ReportsPage from '../pages/ReportsPage';
-import CredentialingPage from '../pages/CredentialingPage';
-import CapitationPage from '../pages/CapitationPage';
-import PerformancePage from '../pages/PerformancePage';
-import FinancialRegisterPage from '../pages/financial/FinancialRegisterPage';
-import FinancialManualEntryPage from '../pages/financial/FinancialManualEntryPage';
-import DataUploadCentrePage from '../pages/financial/DataUploadCentrePage';
-import ImportHistoryPage from '../pages/financial/ImportHistoryPage';
-import EnrolmentUploadPage from '../pages/enrolment/EnrolmentUploadPage';
-import NewEnrolleePage from '../pages/enrolment/NewEnrolleePage';
-import EnrolmentRegisterPage from '../pages/enrolment/EnrolmentRegisterPage';
-import CommunicationPage from '../pages/CommunicationPage';
-import ComplaintsPage from '../pages/ComplaintsPage';
-import SettingsPage from '../pages/SettingsPage';
-import PublicHomePage from '../pages/public/PublicHomePage';
+const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
+const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage'));
+const SuspendedPage = lazy(() => import('../pages/auth/SuspendedPage'));
+const AcceptInvitationPage = lazy(() => import('../pages/auth/AcceptInvitationPage'));
+const OrganizationSetupPage = lazy(() => import('../pages/auth/OrganizationSetupPage'));
+const InviteProviderPage = lazy(() => import('../pages/auth/InviteProviderPage'));
+const ManageUsersPage = lazy(() => import('../pages/auth/ManageUsersPage'));
+const AuditLogPage = lazy(() => import('../pages/admin/AuditLogPage'));
+const SystemConfigPage = lazy(() => import('../pages/admin/SystemConfigPage'));
+const DataManagementPage = lazy(() => import('../pages/admin/DataManagementPage'));
+const DashboardPage = lazy(() => import('../pages/dashboard/ExecutiveDashboardPage'));
+const ProviderPage = lazy(() => import('../pages/ProviderPage'));
+const ProviderProfilePage = lazy(() => import('../pages/ProviderProfilePage'));
+const ProviderRegistrationPage = lazy(() => import('../pages/ProviderRegistrationPage'));
+const InspectionsPage = lazy(() => import('../pages/InspectionsPage'));
+const NewInspectionPage = lazy(() => import('../pages/inspections/NewInspectionPage'));
+const InspectionTemplateAdminPage = lazy(() => import('../pages/inspections/InspectionTemplateAdminPage'));
+const ContractsPage = lazy(() => import('../pages/ContractsPage'));
+const ReportsPage = lazy(() => import('../pages/ReportsPage'));
+const CredentialingPage = lazy(() => import('../pages/CredentialingPage'));
+const CapitationPage = lazy(() => import('../pages/CapitationPage'));
+const PerformancePage = lazy(() => import('../pages/PerformancePage'));
+const FinancialRegisterPage = lazy(() => import('../pages/financial/FinancialRegisterPage'));
+const FinancialManualEntryPage = lazy(() => import('../pages/financial/FinancialManualEntryPage'));
+const DataUploadCentrePage = lazy(() => import('../pages/financial/DataUploadCentrePage'));
+const ImportHistoryPage = lazy(() => import('../pages/financial/ImportHistoryPage'));
+const EnrolmentUploadPage = lazy(() => import('../pages/enrolment/EnrolmentUploadPage'));
+const NewEnrolleePage = lazy(() => import('../pages/enrolment/NewEnrolleePage'));
+const EnrolmentRegisterPage = lazy(() => import('../pages/enrolment/EnrolmentRegisterPage'));
+const CommunicationPage = lazy(() => import('../pages/CommunicationPage'));
+const ComplaintsPage = lazy(() => import('../pages/ComplaintsPage'));
+const SettingsPage = lazy(() => import('../pages/SettingsPage'));
+const PublicHomePage = lazy(() => import('../pages/public/PublicHomePage'));
 import ProtectedRoute from './ProtectedRoute';
 
 export default function AppRoutes() {
   return (
-    <Routes>
+    <Suspense fallback={<main className="nmis-page flex min-h-48 items-center justify-center"><p className="text-sm font-bold text-brand-muted">Loading NMIS workspace...</p></main>}>
+      <Routes>
       <Route path="/" element={<PublicHomePage />} />
       <Route path="/setup" element={<OrganizationSetupPage />} />
       <Route path="/login" element={<LoginPage />} />
@@ -128,6 +130,7 @@ export default function AppRoutes() {
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }

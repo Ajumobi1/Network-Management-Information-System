@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App';
+import AppErrorBoundary from './components/system/AppErrorBoundary';
 import './index.css';
 
 // Register service worker for PWA
@@ -13,7 +14,9 @@ if (rootElement) {
   try {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
-        <App />
+        <AppErrorBoundary>
+          <App />
+        </AppErrorBoundary>
       </React.StrictMode>,
     );
   } catch (error) {
