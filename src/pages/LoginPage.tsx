@@ -17,7 +17,7 @@ function LoginPage() {
     setError('');
     
     try {
-      const result = await authService.signIn(email, password, true);
+      const result = await authService.signIn(email, password);
       if (result.success) {
         navigate('/dashboard');
       } else {
@@ -146,11 +146,7 @@ function LoginPage() {
                   </div>
                 </label>
 
-              <div className="flex flex-col items-start gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-                <label className="inline-flex items-center gap-2">
-                  <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-[#16A34A] focus:ring-[#16A34A]" />
-                  Remember me
-                </label>
+              <div className="flex flex-col items-start gap-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-end">
                 <button 
                   type="button" 
                   onClick={async () => {

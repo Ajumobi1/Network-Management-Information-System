@@ -10,7 +10,6 @@ import Button from '../../components/ui/Button';
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
   password: z.string().min(1, 'Password is required').min(8, 'Password must contain at least 8 characters'),
-  remember: z.boolean().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -31,12 +30,11 @@ export default function LoginPage() {
     defaultValues: {
       email: '',
       password: '',
-      remember: false,
     },
   });
 
   const onSubmit = async (values: LoginFormValues) => {
-    const success = await signIn(values.email, values.password, values.remember ?? false);
+    const success = await signIn(values.email, values.password);
     if (success) {
       navigate(fromPath, { replace: true });
     }
@@ -141,17 +139,6 @@ export default function LoginPage() {
                 </button>
               </div>
               {errors.password && <p className="mt-1.5 text-xs font-medium text-status-error">{errors.password.message}</p>}
-            </div>
-
-            <div className="flex items-center">
-              <label className="flex cursor-pointer items-center gap-3 text-sm font-medium text-brand-secondary">
-                <input
-                  type="checkbox"
-                  {...register('remember')}
-                  className="h-4 w-4 rounded border-brand-border text-brand-blue focus:ring-brand-blue"
-                />
-                Remember me
-              </label>
             </div>
 
             <div className="pt-2">
