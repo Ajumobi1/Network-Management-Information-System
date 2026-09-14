@@ -1,10 +1,12 @@
-import * as notificationsRepository from '../../repositories/notifications';
-import { NotificationsRow } from '../../lib/supabase/database.types';
+import { notificationsRepository } from '../../repositories/notifications/notificationsRepository';
+import { SystemNotification } from '../../types/notifications/notificationTypes';
 
-export async function fetchNotifications(): Promise<NotificationsRow[]> {
-  return notificationsRepository.getNotifications();
-}
+export const notificationsService = {
+  async getNotifications(unreadOnly = false): Promise<SystemNotification[]> {
+    return notificationsRepository.fetchNotifications(unreadOnly);
+  },
 
-export async function markNotificationRead(id: string): Promise<NotificationsRow> {
-  return notificationsRepository.markNotificationRead(id);
-}
+  async markAsRead(id: string): Promise<boolean> {
+    return notificationsRepository.markAsRead(id);
+  },
+};
