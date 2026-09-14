@@ -17,7 +17,7 @@ export default defineConfig({
       manifest: {
         name: 'ODCHC NMIS',
         short_name: 'NMIS',
-        description: 'Ondo State Contributory Health Commission National Management Information System',
+        description: 'Ondo State Contributory Health Commission Network Management Information System',
         theme_color: '#071c4b',
         background_color: '#ffffff',
         display: 'standalone',
