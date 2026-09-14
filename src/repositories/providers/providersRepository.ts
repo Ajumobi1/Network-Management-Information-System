@@ -448,12 +448,14 @@ export async function getProviderFacilities(_providerId: string) {
 
 export async function getPersistedProviderMatches(): Promise<Record<string, ProviderMatch>> {
   if (useMockData) return {};
-  const result = await invokeSecureRpc<ProviderMatch[]>('nmis_get_persisted_provider_matches', {});
+  type PersistedProviderMatchRow = ProviderMatch & { excel_name?: string };
+  const result = await invokeSecureRpc<PersistedProviderMatchRow[]>('nmis_get_persisted_provider_matches', {});
   const matches: Record<string, ProviderMatch> = {};
   if (Array.isArray(result)) {
     result.forEach(m => {
-      if (m.excel_name) {
-        matches[m.excel_name.toLowerCase().trim()] = m;
+      const excelName = m.excel_name ?? m.excelName;
+      if (excelName) {
+        matches[excelName.toLowerCase().trim()] = m;
       }
     });
   }
@@ -462,5 +464,5 @@ export async function getPersistedProviderMatches(): Promise<Record<string, Prov
 
 export async function saveProviderMatchResolution(payload: ProviderMatch, _resolvedBy?: string) {
   if (useMockData) return true;
-  return invokeSecureRpc<unknown>('nmis_save_provider_match_resolution', payload);
+  return invokeSecureRpc<unknown>('nmis_save_provider_match_resolution', { ...payload });
 }
