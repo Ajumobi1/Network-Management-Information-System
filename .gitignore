@@ -11,6 +11,10 @@ pnpm-debug.log*
 Thumbs.db
 *.tmp
 *.temp
+*.jsonl
+*.csv
+*.zip
+july_age_backfill.sql
 
 # Local duplicate checkouts and Android Studio metadata
 NMIS-Frontend-*/
