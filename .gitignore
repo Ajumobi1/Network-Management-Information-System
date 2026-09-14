@@ -16,6 +16,18 @@ Thumbs.db
 *.zip
 july_age_backfill.sql
 
+# Keep operational artifacts under ops/ rather than the application root
+/*.py
+/*.json
+/*.md
+/*.sql
+/*.csv
+/*.zip
+/*.xlsx
+/*.txt
+!/README.md
+!/package.json
+
 # Local duplicate checkouts and Android Studio metadata
 NMIS-Frontend-*/
 NMIS-Frontend/
