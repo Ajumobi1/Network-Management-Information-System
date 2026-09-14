@@ -11,3 +11,9 @@ pnpm-debug.log*
 Thumbs.db
 *.tmp
 *.temp
+.env.production
+
+# Local duplicate checkouts and Android Studio metadata
+NMIS-Frontend-*/
+NMIS-Frontend/
+android/.idea/
