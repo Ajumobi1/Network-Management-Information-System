@@ -17,7 +17,7 @@ function LoginPage() {
     setError('');
     
     try {
-      const result = await authService.signIn(email, password, true);
+      const result = await authService.signIn(email, password);
       if (result.success) {
         navigate('/dashboard');
       } else {

@@ -65,7 +65,7 @@ function mapAuthError(message: string): AuthResult<never> {
 }
 
 export const authService = {
-  async signIn(email: string, password: string, remember: boolean): Promise<AuthResult<AuthSession>> {
+  async signIn(email: string, password: string): Promise<AuthResult<AuthSession>> {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (error || !data.session) return mapAuthError(error?.message ?? 'No session was returned.');
 

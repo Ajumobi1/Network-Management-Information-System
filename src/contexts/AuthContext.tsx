@@ -6,7 +6,7 @@ type AuthContextState = {
   session: AuthSession | null;
   loading: boolean;
   error: AuthError | null;
-  signIn: (email: string, password: string, remember: boolean) => Promise<boolean>;
+  signIn: (email: string, password: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   forgotPassword: (email: string) => Promise<AuthError | null>;
   resetPassword: (password: string) => Promise<AuthError | null>;
@@ -71,12 +71,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [session?.user?.id]);
 
-  const signIn = useCallback(async (email: string, password: string, remember: boolean) => {
+  const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
     setLoading(true);
     setIsLocked(false);
     setIsSuspended(false);
-    const response = await authService.signIn(email, password, remember);
+    const response = await authService.signIn(email, password);
     setLoading(false);
 
     if (!response.success) {
