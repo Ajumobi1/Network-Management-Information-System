@@ -55,7 +55,7 @@ const DRAFT_KEY = 'nmis-structured-pharmacy-inspection-draft';
 const WORKFLOW_ONLY_SECTION_CODES = new Set(['REMARKS', 'TEAM']);
 
 function SectionCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
-  return <Card><div className="mb-5 border-b border-brand-divider pb-4"><h2 className="text-lg font-black text-brand-foreground">{title}</h2><p className="mt-1 text-sm text-brand-muted">{subtitle}</p></div>{children}</Card>;
+  return <Card className="p-4 sm:p-6"><div className="mb-5 border-b border-brand-divider pb-4"><h2 className="text-lg font-black text-brand-foreground">{title}</h2><p className="mt-1 text-sm text-brand-muted">{subtitle}</p></div>{children}</Card>;
 }
 
 function isManualItem(item: InspectionTemplateItem) {
@@ -526,15 +526,15 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
         </div>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
         <textarea
           rows={2}
           value={response.remark}
           onChange={event => onChange({ ...response, remark: event.target.value })}
           placeholder="Remark or evidence note..."
-          className="nmis-control resize-y"
+          className="nmis-control min-w-0 resize-y"
         />
-        <div className="min-w-20 text-right">
+        <div className="min-w-20 text-left sm:text-right">
           <p className="text-lg font-black text-brand-blue">{earned}/{denominator}</p>
           <p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">points</p>
         </div>
@@ -620,7 +620,8 @@ export default function NewInspectionPage() {
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [draftLoaded, setDraftLoaded] = useState(false);
 
-  const draftKey = `${DRAFT_KEY}:${facilityTypeCode}:${inspectionId || 'new'}`;
+  const draftIdentity = inspectionRecordId || inspectionId || 'new';
+  const draftKey = `${DRAFT_KEY}:${facilityTypeCode}:${draftIdentity}`;
   const template = templateQuery.data;
   const items = template?.items || [];
   const isScoredTemplate = Boolean(template && template.template.passing_threshold > 0);
@@ -642,14 +643,53 @@ export default function NewInspectionPage() {
     setSaveMessage('');
   }, [requestedFacilityTypeCode, requestedProviderId]);
 
+  const restoreLocalDraft = (key: string) => {
+    if (typeof window === 'undefined') return false;
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (!raw) return false;
+      const saved = JSON.parse(raw) as Partial<{
+        step: number;
+        inspectionId: string | null;
+        providerId: string;
+        profile: FacilityProfileState;
+        extraProfile: Record<string, string>;
+        eligibility: Record<string, EligibilityState>;
+        generalRemarks: string;
+        responses: Record<string, ResponseState>;
+        team: TeamMember[];
+        validationErrors: Record<string, string>;
+      }>;
+      if (!saved || typeof saved !== 'object') return false;
+      if (saved.inspectionId) setInspectionId(saved.inspectionId);
+      if (saved.providerId !== undefined) setProviderId(saved.providerId);
+      if (saved.profile) setProfile({ ...EMPTY_PROFILE, ...saved.profile });
+      if (saved.extraProfile) setExtraProfile(saved.extraProfile);
+      if (saved.eligibility) setEligibility(saved.eligibility);
+      if (saved.generalRemarks !== undefined) setGeneralRemarks(saved.generalRemarks);
+      if (saved.responses) setResponses(saved.responses);
+      if (saved.team) setTeam(saved.team);
+      if (saved.validationErrors) setValidationErrors(saved.validationErrors);
+      if (typeof saved.step === 'number' && Number.isFinite(saved.step)) setStep(Math.max(0, saved.step));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   useEffect(() => {
     if (!selectedFacilityType?.configured || !template || draftLoaded) return;
+    let cancelled = false;
     if (!inspectionRecordId) {
-      setDraftLoaded(true);
-      return;
+      const recovered = restoreLocalDraft(draftKey);
+      if (!cancelled) {
+        setSaveMessage(recovered ? 'Recovered your unfinished inspection from this device.' : '');
+        setDraftLoaded(true);
+      }
+      return () => { cancelled = true; };
     }
 
-    let cancelled = false;
+
     setSaveMessage('Loading saved inspection...');
     getStructuredInspection(inspectionRecordId)
       .then((saved: any) => {
@@ -701,7 +741,9 @@ export default function NewInspectionPage() {
         setSaveMessage(savedStatus === 'draft' ? 'Draft loaded. Continue the inspection and submit when ready.' : 'Submitted inspection loaded. Update the evidence and submit again when ready.');
       })
       .catch(error => {
-        if (!cancelled) setSaveMessage(error instanceof Error ? error.message : 'Unable to load saved draft.');
+        if (cancelled) return;
+        const recovered = restoreLocalDraft(draftKey);
+        setSaveMessage(recovered ? 'The saved record was temporarily unavailable. Recovered your latest local copy.' : error instanceof Error ? error.message : 'Unable to load saved draft.');
       })
       .finally(() => {
         if (!cancelled) setDraftLoaded(true);
@@ -725,8 +767,25 @@ export default function NewInspectionPage() {
   }, [template, draftLoaded]);
 
   useEffect(() => {
-    if (!template || !draftLoaded) return;
-    localStorage.setItem(draftKey, JSON.stringify({ step, inspectionId, providerId, profile, extraProfile, eligibility, generalRemarks, responses, team, validationErrors }));
+    if (!template || !draftLoaded || typeof window === 'undefined') return;
+    const persistDraft = () => {
+      try {
+        window.localStorage.setItem(draftKey, JSON.stringify({ step, inspectionId, providerId, profile, extraProfile, eligibility, generalRemarks, responses, team, validationErrors, savedAt: new Date().toISOString() }));
+      } catch {
+        // Keep the live form usable even when device storage is full or unavailable.
+      }
+    };
+    persistDraft();
+    const onPageHide = () => persistDraft();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') persistDraft();
+    };
+    window.addEventListener('pagehide', onPageHide);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [draftKey, template, draftLoaded, step, inspectionId, providerId, profile, extraProfile, eligibility, generalRemarks, responses, team, validationErrors]);
 
   useEffect(() => {
@@ -867,7 +926,7 @@ export default function NewInspectionPage() {
   }, [inspectionRecordId, requestedProviderId, providerId, scopedProviders]);
 
   const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({
- mode, step: stepLabels[step].toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
+ mode, step: (stepLabels[Math.min(step, stepLabels.length - 1)] || 'ELIGIBILITY').toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId || null, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks, facility_category: selectedFacilityType?.facility_type.name || 'Facility', facility_source: 'directory' }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
 
   const saveDraft = async () => {
     if (!providerId) { setSaveMessage('Select a provider before saving the draft.'); return; }
@@ -875,6 +934,11 @@ export default function NewInspectionPage() {
     try {
       const result = await saveMutation.mutateAsync({ inspectionId, payload: buildPayload('draft') });
       setInspectionId(result.inspection_id);
+      try {
+        localStorage.removeItem(`${DRAFT_KEY}:${facilityTypeCode}:new`);
+      } catch {
+        // Ignore storage cleanup failures; the server draft is already saved.
+      }
       setSaveMessage(`Draft saved - ${result.overall_score}% preview score. You can start a new accreditation or resume this draft from the Drafts list.`);
       navigate('/inspections');
     } catch (error) { setSaveMessage(error instanceof Error ? error.message : 'Unable to save draft.'); }
@@ -941,7 +1005,7 @@ export default function NewInspectionPage() {
 
   return <main className="nmis-page"><div className="space-y-6"><PageHeader eyebrow="ONDO STATE CONTRIBUTORY HEALTH COMMISSION" title={`ACCREDITATION CHECKLIST — ${selectedFacilityType.facility_type.name.toUpperCase()}${selectedFacilityType.facility_type.name.toUpperCase().includes('SERVICES') ? '' : ' SERVICES'}`} subtitle={`Complete the ${selectedFacilityType.facility_type.name.toLowerCase()}${selectedFacilityType.facility_type.name.toLowerCase().includes('services') ? '' : ' services'} accreditation process, capture clinical evidence, and submit a signed recommendation.`} actions={<Button variant="secondary" onClick={() => navigate('/inspections')}><X size={16} /> Exit</Button>} />
     <Card><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Facility type *</span><select className="nmis-control" value={facilityTypeCode} onChange={event => setFacilityTypeCode(event.target.value)}>{templateOptionsQuery.data?.map(option => <option key={option.facility_type.code} value={option.facility_type.code}>{option.facility_type.name}</option>)}</select></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4 text-sm text-brand-secondary"><p className="font-black text-brand-foreground">Active checklist</p><p className="mt-1">{template.template.name} · v{template.template.version}</p></div></div></Card>
-    <div className="grid gap-3 md:grid-cols-6">{stepLabels.map((label, index) => <button key={label} type="button" onClick={() => index <= step && setStep(index)} className={`rounded-2xl border p-3 text-left transition ${index === step ? 'border-brand-blue bg-brand-soft shadow-sm' : index < step ? 'border-status-success/30 bg-status-successSoft' : 'border-brand-divider bg-brand-card'}`}><div className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${index === step ? 'bg-brand-blue text-white' : index < step ? 'bg-status-success text-white' : 'bg-brand-surface text-brand-muted'}`}>{index < step ? <Check size={14} /> : index + 1}</span><span className="text-xs font-black text-brand-foreground">{label}</span></div></button>)}</div>
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">{stepLabels.map((label, index) => <button key={label} type="button" onClick={() => index <= step && setStep(index)} className={`rounded-2xl border p-3 text-left transition ${index === step ? 'border-brand-blue bg-brand-soft shadow-sm' : index < step ? 'border-status-success/30 bg-status-successSoft' : 'border-brand-divider bg-brand-card'}`}><div className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${index === step ? 'bg-brand-blue text-white' : index < step ? 'bg-status-success text-white' : 'bg-brand-surface text-brand-muted'}`}>{index < step ? <Check size={14} /> : index + 1}</span><span className="text-xs font-black text-brand-foreground">{label}</span></div></button>)}</div>
 
     {isScoredTemplate && step === 0 && <SectionCard title="ELIGIBILITY CRITERIA" subtitle="Record each criterion as observed. Eligibility findings do not block scored sections or submission."><div className="space-y-4">{template.eligibility.map(item => { const current = eligibility[item.criterion_code] || { met: false, notes: '' }; return <div key={item.criterion_code} className="flex flex-col gap-3 rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:flex-row sm:items-center"><div className="flex flex-1 items-start gap-3"><ShieldCheck size={20} className={current.met ? 'text-status-success' : 'text-brand-muted'} /><div><p className="text-sm font-black text-brand-foreground">{item.criterion_label}{item.required ? ' *' : ''}</p><input value={current.notes} onChange={event => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, notes: event.target.value } }))} placeholder="Optional note or evidence reference" className="nmis-control mt-2" /></div></div><YesNoToggle value={current.met} onChange={met => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, met } }))} /></div>; })}</div><div className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${allEligibilityMet ? 'border-status-success/30 bg-status-successSoft text-status-success' : 'border-status-warning/30 bg-status-warningSoft text-status-warning'}`}>{allEligibilityMet ? 'All required criteria are MET.' : 'One or more criteria are not MET. You may continue; record the finding and supporting evidence for follow-up.'}</div></SectionCard>}
 
@@ -967,7 +1031,7 @@ export default function NewInspectionPage() {
                     onChange={met => Object.prototype.hasOwnProperty.call(EMPTY_PROFILE, field.key) ? setProfileValue(field.key as any, String(met)) : setExtraProfile(prev => ({ ...prev, [field.key]: String(met) }))} 
                   />
                   {pairedField && (
-                    <div className="flex flex-1 items-center gap-3 min-w-[240px]">
+                    <div className="flex min-w-0 flex-1 items-center gap-3 sm:min-w-[240px]">
                       <span className="text-xs font-black text-brand-muted whitespace-nowrap">{pairedField.label}</span>
                       <input 
                         type="text" 
@@ -1091,6 +1155,6 @@ export default function NewInspectionPage() {
     )}
 
     {saveMessage && <div className="rounded-2xl border border-brand-divider bg-brand-surface p-4 text-sm font-bold text-brand-secondary">{saveMessage}</div>}
-    <div className="flex flex-col-reverse gap-3 border-t border-brand-divider pt-5 sm:flex-row sm:items-center sm:justify-between"><Button variant="secondary" onClick={() => setStep(previous => Math.max(0, previous - 1))} disabled={step === 0}><ChevronLeft size={16} /> Back</Button><div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" onClick={saveDraft} disabled={saveMutation.isPending || reportProgress}><Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save draft'}</Button>{step < stepLabels.length - 1 ? <Button onClick={() => { setSaveMessage(''); setStep(previous => Math.min(stepLabels.length - 1, previous + 1)); }} disabled={reportProgress}><ChevronRight size={16} /> Continue</Button> : <Button onClick={submitInspection} disabled={saveMutation.isPending || reportProgress}><Send size={16} /> {reportProgress ? 'Generating PDF...' : saveMutation.isPending ? 'Submitting...' : 'Submit inspection'}</Button>}</div></div>
+    <div className="sticky bottom-0 z-20 -mx-4 flex flex-col-reverse gap-3 border-t border-brand-divider bg-brand-background/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-4 backdrop-blur sm:static sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:bg-transparent sm:px-0 sm:py-0 sm:backdrop-blur-none"><Button variant="secondary" onClick={() => setStep(previous => Math.max(0, previous - 1))} disabled={step === 0}><ChevronLeft size={16} /> Back</Button><div className="flex flex-col gap-2 sm:flex-row"><Button variant="secondary" onClick={saveDraft} disabled={saveMutation.isPending || reportProgress}><Save size={16} /> {saveMutation.isPending ? 'Saving...' : 'Save draft'}</Button>{step < stepLabels.length - 1 ? <Button onClick={() => { setSaveMessage(''); setStep(previous => Math.min(stepLabels.length - 1, previous + 1)); }} disabled={reportProgress}><ChevronRight size={16} /> Continue</Button> : <Button onClick={submitInspection} disabled={saveMutation.isPending || reportProgress}><Send size={16} /> {reportProgress ? 'Generating PDF...' : saveMutation.isPending ? 'Submitting...' : 'Submit inspection'}</Button>}</div></div>
   </div></main>;
 }

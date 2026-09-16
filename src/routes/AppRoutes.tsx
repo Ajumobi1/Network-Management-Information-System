@@ -52,6 +52,7 @@ function RouteLoadingFallback() {
 export default function AppRoutes() {
   return (
     <Suspense fallback={<RouteLoadingFallback />}>
+
       <Routes>
       <Route path="/" element={<PublicHomePage />} />
       <Route path="/setup" element={<OrganizationSetupPage />} />
