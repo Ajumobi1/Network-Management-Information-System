@@ -105,9 +105,7 @@ export default function ProviderPage() {
     <main className="nmis-page">
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Provider Network"
           title="Providers"
-          subtitle="The authoritative official Network Provider Register within the Network Management Information System (NMIS). Search, filter, and inspect facility records and operational status."
           actions={
             <div className="flex flex-wrap gap-2">
               <ProviderImportExport filters={filters} />

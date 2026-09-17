@@ -1117,3 +1117,5 @@ select:focus-visible {
 .nmis-main.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #0b65a1;
 }
+
+.nmis-display-heading { caret-color: transparent; user-select: none; }
