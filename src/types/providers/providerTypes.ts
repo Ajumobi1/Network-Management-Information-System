@@ -100,6 +100,10 @@ export type ProviderRegistrationDraft = {
   basicInformation: Record<string, string>;
   facilityInformation: Record<string, string>;
   ownership: Record<string, string>;
-  services: string[];
+  medicalServices: string[];
+  departments: string[];
+  staffStrength: Record<string, string>;
+  equipment: string[];
+  bankDetails: Record<string, string>;
   documents: ProviderDocument[];
 };
