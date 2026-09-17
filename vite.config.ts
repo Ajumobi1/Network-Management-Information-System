@@ -11,7 +11,6 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Do not silently reload an active Android/PWA inspection session when a new build is available.
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'android-chrome-192x192.png', 'android-chrome-512x512.png'],
       workbox: {
@@ -25,10 +24,6 @@ export default defineConfig({
           {
             urlPattern: /^https:\/\/[^/]+\.supabase\.co\/(?:rest\/v1|auth\/v1|storage\/v1)(?:\/.*)?$/i,
             handler: 'NetworkOnly',
-            options: {
-              cacheName: 'nmis-private-supabase-network-only',
-              cacheableResponse: undefined,
-            },
           },
         ],
       },
@@ -43,44 +38,25 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         icons: [
-          {
-            src: 'android-chrome-192x192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: 'android-chrome-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any'
-          },
-          {
-            src: 'android-chrome-512x512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable'
-          }
-        ]
-      }
-    })
+          { src: 'android-chrome-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'android-chrome-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+      },
+    }),
   ],
   server: {
     allowedHosts: true,
     host: true,
     port: 5173,
     strictPort: true,
-    hmr: {
-      clientPort: 443,
-    },
+    hmr: { clientPort: 443 },
   },
   resolve: {
     alias: {
       '@nmis/mock-auth': path.resolve(
         __dirname,
-        developmentBuild
-          ? 'src/services/auth/authService.mock.ts'
-          : 'src/services/auth/authService.mock.disabled.ts',
+        developmentBuild ? 'src/services/auth/authService.mock.ts' : 'src/services/auth/authService.mock.disabled.ts',
       ),
     },
   },
