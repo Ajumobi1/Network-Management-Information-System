@@ -41,7 +41,29 @@ const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const PublicHomePage = lazy(() => import('../pages/public/PublicHomePage'));
 
 function RouteLoadingFallback() {
-  return <main className="flex min-h-[60vh] items-center justify-center bg-brand-background px-6 py-12" role="status" aria-live="polite"><div className="flex items-center gap-3 rounded-control border border-brand-divider bg-brand-card px-4 py-3 text-sm font-bold text-brand-secondary shadow-soft"><span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-divider border-t-brand-blue" aria-hidden="true" />Loading page...</div></main>;
+  return (
+    <main className="flex min-h-[75vh] w-full items-center justify-center bg-brand-background px-6 py-16" role="status" aria-live="polite">
+      <div className="relative flex flex-col items-center gap-5 rounded-2xl border border-brand-divider/85 bg-brand-card p-10 shadow-2xl backdrop-blur-xl transition-all duration-300 max-w-sm w-full">
+        <div className="absolute -top-3 px-3 py-1 rounded-full bg-[#f7931e]/10 border border-[#f7931e]/30 text-[10px] font-black uppercase tracking-widest text-[#f7931e] shadow-sm">
+          Secure Workspace
+        </div>
+        
+        <div className="relative flex items-center justify-center mt-2">
+          <div className="absolute h-16 w-16 rounded-full border-4 border-[#f7931e]/20 animate-pulse"></div>
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-divider border-t-[#f7931e]" aria-hidden="true"></div>
+        </div>
+
+        <div className="flex flex-col items-center gap-1.5 text-center">
+          <h3 className="text-base font-black tracking-tight text-brand-foreground">Loading Module</h3>
+          <p className="text-xs font-medium text-brand-muted">Synchronizing network data...</p>
+        </div>
+
+        <div className="w-full bg-brand-divider/30 h-1.5 rounded-full overflow-hidden mt-1">
+          <div className="bg-gradient-to-r from-[#f7931e] via-amber-400 to-blue-600 h-full w-2/3 animate-pulse"></div>
+        </div>
+      </div>
+    </main>
+  );
 }
 
 export default function AppRoutes() {
@@ -97,4 +119,5 @@ export default function AppRoutes() {
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes></Suspense>;
 }
+
 
