@@ -5,6 +5,8 @@ import path from 'node:path';
 
 const developmentBuild = process.env.NODE_ENV !== 'production';
 
+const privateNavigationPattern = /^\/(?:dashboard|providers(?:\/.*)?|provider-registration|credentialing(?:\/.*)?|contracts(?:\/.*)?|capitation(?:\/.*)?|financial(?:\/.*)?|analytics(?:\/.*)?|population(?:\/.*)?|inspections(?:\/.*)?|accreditations(?:\/.*)?|performance(?:\/.*)?|reports(?:\/.*)?|communication(?:\/.*)?|complaints(?:\/.*)?|admin(?:\/.*)?|settings(?:\/.*)?|setup(?:\/.*)?)(?:\/|$)/;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -13,11 +15,22 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'android-chrome-192x192.png', 'android-chrome-512x512.png'],
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // Increase limit to 5MB
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: '/index.html',
+        navigateFallbackDenylist: [privateNavigationPattern],
         cleanupOutdatedCaches: true,
         clientsClaim: false,
         skipWaiting: false,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/[^/]+\.supabase\.co\/(?:rest\/v1|auth\/v1|storage\/v1)(?:\/.*)?$/i,
+            handler: 'NetworkOnly',
+            options: {
+              cacheName: 'nmis-private-supabase-network-only',
+              cacheableResponse: undefined,
+            },
+          },
+        ],
       },
       manifest: {
         name: 'ODCHC NMIS',
