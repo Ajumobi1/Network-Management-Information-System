@@ -81,3 +81,4 @@ export function getFacilityMatchingNames(input: string): string[] {
 
   return [...names.values()];
 }
+
