@@ -1,8 +1,62 @@
 {
-  "rewrites": [
+  "headers": [
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(self), payment=(), usb=()" },
+        { "key": "Content-Security-Policy", "value": "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'self' https://www.google.com https://www.google.com/maps/; worker-src 'self' blob:; manifest-src 'self'" }
+      ]
     }
+  ],
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/setup", "destination": "/index.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/forgot-password", "destination": "/index.html" },
+    { "source": "/reset-password", "destination": "/index.html" },
+    { "source": "/suspended", "destination": "/index.html" },
+    { "source": "/accept-invitation", "destination": "/index.html" },
+    { "source": "/dashboard", "destination": "/index.html" },
+    { "source": "/providers", "destination": "/index.html" },
+    { "source": "/providers/new", "destination": "/index.html" },
+    { "source": "/providers/:providerId", "destination": "/index.html" },
+    { "source": "/provider-registration", "destination": "/index.html" },
+    { "source": "/credentialing", "destination": "/index.html" },
+    { "source": "/contracts", "destination": "/index.html" },
+    { "source": "/capitation", "destination": "/index.html" },
+    { "source": "/financial/dashboard", "destination": "/index.html" },
+    { "source": "/analytics/financial-intelligence", "destination": "/index.html" },
+    { "source": "/financial/register", "destination": "/index.html" },
+    { "source": "/financial/claims", "destination": "/index.html" },
+    { "source": "/financial/claims/analytics", "destination": "/index.html" },
+    { "source": "/financial/capitation", "destination": "/index.html" },
+    { "source": "/financial/ffs", "destination": "/index.html" },
+    { "source": "/financial/enrolment", "destination": "/index.html" },
+    { "source": "/population/enrolment/register", "destination": "/index.html" },
+    { "source": "/population/enrolment/new", "destination": "/index.html" },
+    { "source": "/financial/upload", "destination": "/index.html" },
+    { "source": "/financial/manual", "destination": "/index.html" },
+    { "source": "/financial/manual/capitation", "destination": "/index.html" },
+    { "source": "/financial/history", "destination": "/index.html" },
+    { "source": "/population/enrolment", "destination": "/index.html" },
+    { "source": "/population/enrolment/upload", "destination": "/index.html" },
+    { "source": "/inspections", "destination": "/index.html" },
+    { "source": "/inspections/new", "destination": "/index.html" },
+    { "source": "/accreditations", "destination": "/index.html" },
+    { "source": "/accreditations/new", "destination": "/index.html" },
+    { "source": "/settings/inspection-templates", "destination": "/index.html" },
+    { "source": "/performance", "destination": "/index.html" },
+    { "source": "/reports", "destination": "/index.html" },
+    { "source": "/communication", "destination": "/index.html" },
+    { "source": "/complaints", "destination": "/index.html" },
+    { "source": "/admin/users", "destination": "/index.html" },
+    { "source": "/admin/audit", "destination": "/index.html" },
+    { "source": "/admin/config", "destination": "/index.html" },
+    { "source": "/admin/data", "destination": "/index.html" },
+    { "source": "/admin/invite-provider", "destination": "/index.html" },
+    { "source": "/settings", "destination": "/index.html" }
   ]
 }
