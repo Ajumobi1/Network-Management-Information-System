@@ -57,6 +57,7 @@ export const FACILITY_NAME_ALIASES: readonly FacilityAlias[] = [
   { accountName: 'OLATUNDE MEMORIAL EL-SHADOLA SPECIALIST HOSPITAL LTD', siteName: 'EL-SHADDAI SPECIALIST HOSPITAL, AKURE' },
   { accountName: 'AGROMEDICAL COMPLEX LTD (FOUNTAIN HOSP.)', siteName: 'FOUNTAIN SPECIALIST HOSPITAL,OBA-ILE AKURE' },
   { accountName: 'MIDAS HOSPITAL LIMITED', siteName: 'MIDAS HOSPITAL OKE-IJEBU, AKURE' },
+  { accountName: 'CHC OBAILE BHC PROV FUND ACCT', siteName: 'PRIMARY HEALTH CENTRE OBAILE' },
 ];
 
 export function normalizeFacilityMatchName(value: string): string {
