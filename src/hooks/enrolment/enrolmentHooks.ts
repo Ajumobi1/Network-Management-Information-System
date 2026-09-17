@@ -14,10 +14,11 @@ export function useEnrolmentFilterOptions() {
   });
 }
 
-export function useEnrollees(filters: EnrolmentFilters = {}) {
+export function useEnrollees(filters: EnrolmentFilters = {}, enabled = true) {
   return useQuery({
     queryKey: ['enrolment', 'records', filters],
     queryFn: () => enrolmentService.fetchEnrollees(filters),
+    enabled,
     staleTime: 1000 * 60 * 5,
   });
 }
@@ -31,10 +32,11 @@ export function useEnrollee(id: string | null) {
   });
 }
 
-export function useEnrolmentAnalytics(filters: EnrolmentFilters = {}) {
+export function useEnrolmentAnalytics(filters: EnrolmentFilters = {}, enabled = true) {
   return useQuery({
     queryKey: ['enrolment', 'analytics', filters],
     queryFn: () => enrolmentService.fetchEnrolmentAnalyticsWithFinance(filters),
+    enabled,
     staleTime: 1000 * 60 * 5,
   });
 }
