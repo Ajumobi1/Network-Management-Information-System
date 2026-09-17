@@ -10,14 +10,7 @@ import { supabase } from '../../lib/supabase/supabaseClient';
 
 const controlledRoles: readonly UserRole[] = [
   'super-admin',
-  'executive',
-  'head-of-network',
   'network-officer',
-  'inspector',
-  'finance',
-  'claims',
-  'customer-service',
-  'provider',
 ];
 
 function controlledRole(session: Session): UserRole | null {
@@ -135,6 +128,10 @@ export const authService = {
   },
 
   async provisionUser(name: string, email: string, password: string, role: UserRole): Promise<AuthResult<null>> {
+    if (!controlledRoles.includes(role)) {
+      return mapAuthError('Invalid NMIS role');
+    }
+
     const { data, error } = await supabase.functions.invoke('nmis-admin-provision-user', {
       body: { name, email, password, role },
     });
