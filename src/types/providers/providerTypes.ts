@@ -25,6 +25,8 @@ export type ProviderDirectoryItem = {
   contactPerson: string;
   phone: string;
   email: string;
+  address?: string;
+  accountName?: string;
   status: ProviderLifecycleStatus;
   contractStatus: ProviderWorkflowStatus;
   credentialStatus: ProviderWorkflowStatus;
@@ -98,10 +100,6 @@ export type ProviderRegistrationDraft = {
   basicInformation: Record<string, string>;
   facilityInformation: Record<string, string>;
   ownership: Record<string, string>;
-  medicalServices: string[];
-  departments: string[];
-  staffStrength: Record<string, string>;
-  equipment: string[];
-  bankDetails: Record<string, string>;
+  services: string[];
   documents: ProviderDocument[];
 };
