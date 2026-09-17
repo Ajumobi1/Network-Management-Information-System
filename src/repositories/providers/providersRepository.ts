@@ -20,6 +20,9 @@ import { loadOfflineInspectionPack } from '../../lib/offline/inspectionOfflineSt
 
 export type ProviderRegistrationCommand = Omit<ProviderDirectoryItem, 'id' | 'providerCode' | 'status' | 'contractStatus' | 'credentialStatus' | 'inspectionStatus' | 'capitationStatus' | 'inspectionRating' | 'lastInspectionDate'> & {
   address?: string | null;
+  bankName?: string | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
 };
 
 export type ProviderOperationalUpdate = Partial<ProviderDirectoryItem> & {
@@ -314,6 +317,9 @@ export async function createDirectoryProvider(payload: ProviderRegistrationComma
       phone: payload.phone || null,
       email: payload.email || null,
       services: payload.services || [],
+      bank_name: payload.bankName || null,
+      account_name: payload.accountName || null,
+      account_number: payload.accountNumber || null,
     },
   });
 }

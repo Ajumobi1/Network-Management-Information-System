@@ -80,6 +80,7 @@ export default function AppRoutes() {
         <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
         <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
         <Route path="/inspections" element={<InspectionsPage />} />
+        <Route path="/inspections/accreditation" element={<NewInspectionPage />} />
         <Route path="/inspections/new" element={<NewInspectionPage />} />
         <Route path="/settings/inspection-templates" element={<InspectionTemplateAdminPage />} />
         <Route path="/performance" element={<PerformancePage />} />
