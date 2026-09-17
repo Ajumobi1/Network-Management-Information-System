@@ -53,15 +53,15 @@ export default function EnrolmentRegisterPage() {
   }, [optionsPeriods]);
 
   const filterOptionsLoading = filterOptionsQuery.isLoading;
-  const filtersReady = periodInitializedFromOptions.current || filterOptionsQuery.isError;
+  const filtersReady = !filterOptionsQuery.isPending;
 
   const filters = useMemo<EnrolmentFilters>(() => ({
     search, sector, category, gender, state, lga, senatorialDistrict: district, providerId, period
   }), [category, district, gender, lga, period, providerId, search, sector, state]);
 
-  const analyticsQuery = useEnrolmentAnalytics(filters);
+  const analyticsQuery = useEnrolmentAnalytics(filters, filtersReady);
   const analytics = analyticsQuery.data;
-  const isAnalyticsLoading = analyticsQuery.isLoading;
+  const isAnalyticsLoading = analyticsQuery.isLoading || !filtersReady;
 
   const recordsQuery = useEnrollees({
     ...filters,
@@ -69,9 +69,9 @@ export default function EnrolmentRegisterPage() {
     pageSize,
     sortField,
     sortDirection
-  });
+  }, filtersReady);
   const records = recordsQuery.data ?? [];
-  const isLoading = recordsQuery.isLoading;
+  const isLoading = recordsQuery.isLoading || !filtersReady;
 
   const { data: selectedRecord } = useEnrollee(selectedId);
   const secureError = [filterOptionsQuery.error, recordsQuery.error, analyticsQuery.error].find(isSecureContractError);
