@@ -80,8 +80,8 @@ export default function AppRoutes() {
       <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
       <Route path="/inspections" element={<InspectionsPage />} />
       <Route path="/inspections/new" element={<RegisteredInspectionPage />} />
-      <Route path="/inspections/accreditation" element={<AccreditationPage />} />
-      <Route path="/inspections/accreditation/new" element={<NewAccreditationPage />} />
+      <Route path="/accreditations" element={<AccreditationPage />} />
+      <Route path="/accreditations/new" element={<NewAccreditationPage />} />
       <Route path="/settings/inspection-templates" element={<InspectionTemplateAdminPage />} />
       <Route path="/performance" element={<PerformancePage />} />
       <Route path="/reports" element={<ReportsPage />} />
