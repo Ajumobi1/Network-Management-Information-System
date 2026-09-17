@@ -217,7 +217,8 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
                         {section.children.map(child => (
                           <NavLink 
                             key={`${section.label}-${child.label}`} 
-                            to={child.path} 
+                            to={child.path}
+                      end={child.end} 
                             onClick={onClose} 
                             className={({ isActive }) => `
                               flex items-center gap-3 rounded-control px-3 py-2 text-[0.8125rem] font-medium transition-all duration-200
@@ -244,3 +245,4 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     </>
   );
 }
+
