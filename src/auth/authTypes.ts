@@ -1,13 +1,6 @@
 export type UserRole =
   | 'super-admin'
-  | 'executive'
-  | 'head-of-network'
-  | 'network-officer'
-  | 'inspector'
-  | 'finance'
-  | 'claims'
-  | 'customer-service'
-  | 'provider';
+  | 'network-officer';
 
 export type AuthUser = {
   id: string;
