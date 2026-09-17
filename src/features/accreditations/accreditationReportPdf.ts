@@ -1,0 +1,198 @@
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import type { InspectionTemplateItem } from '../../repositories/inspections/structuredInspectionRepository';
+
+export type AccreditationPdfInput = {
+  accreditationId: string;
+  facilityName: string;
+  facilityType: string;
+  assessmentDate: string;
+  templateName: string;
+  passingThreshold: number;
+  conditionalThreshold: number;
+  profile: Record<string, string>;
+  eligibility: Array<{ criterion_label: string; met: boolean; notes: string }>;
+  items: InspectionTemplateItem[];
+  sections: Array<{ section_code: string; section_label: string }>;
+  responses: Record<string, { number: string; manual_score: string; boolean: boolean | null; remark: string }>;
+  generalRemarks: string;
+  team: Array<{ name: string; role: string; inspection_date: string; signature_data: string }>;
+  score: {
+    points: number;
+    possible: number;
+    percentage: number;
+    recommendation: string;
+    credentialingPoints: number;
+    credentialingPossible: number;
+    accreditationPoints: number;
+    accreditationPossible: number;
+  };
+};
+
+const C = {
+  navy: rgb(0.035, 0.22, 0.38),
+  blue: rgb(0.04, 0.31, 0.51),
+  orange: rgb(0.94, 0.48, 0.08),
+  ink: rgb(0.08, 0.12, 0.18),
+  muted: rgb(0.34, 0.40, 0.47),
+  line: rgb(0.82, 0.86, 0.90),
+  soft: rgb(0.96, 0.975, 0.99),
+  softBlue: rgb(0.93, 0.96, 0.99),
+  softOrange: rgb(1, 0.97, 0.91),
+  green: rgb(0.07, 0.47, 0.28),
+  red: rgb(0.72, 0.13, 0.13),
+  white: rgb(1, 1, 1),
+};
+
+function safe(value: unknown) {
+  return String(value ?? '').replace(/\u20A6/g, 'NGN ').replace(/[\u2013\u2014]/g, '-').replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'").normalize('NFKD').replace(/[^\x00-\xFF]/g, '?');
+}
+function date(value: string) {
+  if (!value) return 'Not recorded';
+  const d = new Date(`${value}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? safe(value) : d.toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function recommendationColor(value: string) {
+  const v = value.toLowerCase();
+  return v.includes('recommended') && !v.includes('not') ? C.green : v.includes('conditional') ? C.orange : C.red;
+}
+function toBytes(dataUrl: string) {
+  const base64 = dataUrl.split(',')[1] || '';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+export async function buildAccreditationReportPdf(input: AccreditationPdfInput) {
+  const pdf = await PDFDocument.create();
+  const regular = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  let page = pdf.addPage([612, 792]);
+  let y = 710;
+  const margin = 42;
+  const width = 612;
+  const bottom = 48;
+
+  const chrome = () => {
+    page.drawRectangle({ x: 0, y: 0, width, height: 792, color: C.white });
+    page.drawRectangle({ x: 0, y: 748, width, height: 44, color: C.navy });
+    page.drawRectangle({ x: 0, y: 744, width, height: 4, color: C.orange });
+    page.drawText('ODCHC NMIS', { x: margin, y: 766, size: 16, font: bold, color: C.white });
+    page.drawText('NEW FACILITY ACCREDITATION', { x: margin, y: 753, size: 7, font: bold, color: rgb(0.88, 0.94, 1) });
+  };
+  chrome();
+  const newPage = () => { page = pdf.addPage([612, 792]); y = 710; chrome(); };
+  const ensure = (h: number) => { if (y - h < bottom) newPage(); };
+  const wrap = (text: string, font: typeof regular, size: number, max: number) => {
+    const words = safe(text).split(/\s+/).filter(Boolean);
+    const lines: string[] = []; let line = '';
+    for (const word of words) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (!line || font.widthOfTextAtSize(candidate, size) <= max) line = candidate;
+      else { lines.push(line); line = word; }
+    }
+    if (line) lines.push(line);
+    return lines.length ? lines : [''];
+  };
+  const text = (value: string, size = 9, font = regular, color = C.ink, max = width - margin * 2, gap = 4) => {
+    const lines = wrap(value, font, size, max); const lh = size + 4; ensure(lines.length * lh + gap);
+    lines.forEach((line, i) => page.drawText(line, { x: margin, y: y - i * lh, size, font, color })); y -= lines.length * lh + gap;
+  };
+  const heading = (value: string) => {
+    ensure(34); page.drawRectangle({ x: margin, y: y - 19, width: width - margin * 2, height: 24, color: C.softBlue });
+    page.drawRectangle({ x: margin, y: y - 19, width: 4, height: 24, color: C.orange });
+    page.drawText(safe(value), { x: margin + 12, y: y - 11, size: 12, font: bold, color: C.blue }); y -= 34;
+  };
+  const twoColumn = (pairs: Array<[string, string]>) => {
+    const col = (width - margin * 2 - 18) / 2;
+    for (let i = 0; i < pairs.length; i += 2) {
+      const entries = pairs.slice(i, i + 2); const heights = entries.map(([label, value]) => Math.max(30, wrap(label.toUpperCase(), bold, 7, col - 16).length * 9 + wrap(value, regular, 9, col - 16).length * 11 + 18));
+      const rowH = Math.max(...heights); ensure(rowH + 8); const top = y;
+      entries.forEach(([label, value], idx) => {
+        const x = margin + idx * (col + 18); page.drawRectangle({ x, y: top - rowH + 4, width: col, height: rowH, color: C.white, borderColor: C.line, borderWidth: 0.6 });
+        const labels = wrap(label.toUpperCase(), bold, 7, col - 16); const values = wrap(value, regular, 9, col - 16);
+        labels.forEach((line, n) => page.drawText(line, { x: x + 8, y: top - 12 - n * 9, size: 7, font: bold, color: C.muted }));
+        values.forEach((line, n) => page.drawText(line, { x: x + 8, y: top - 12 - labels.length * 9 - 3 - n * 11, size: 9, font: regular, color: C.ink }));
+      }); y = top - rowH - 8;
+    }
+  };
+
+  text('NEW FACILITY ACCREDITATION', 17, bold, C.blue, width - margin * 2, 2);
+  text(`${input.facilityType} - ${input.facilityName}`, 11, bold, C.ink, width - margin * 2, 2);
+  text(`Assessment date: ${date(input.assessmentDate)} - Accreditation ID: ${input.accreditationId}`, 8, regular, C.muted, width - margin * 2, 10);
+
+  const boxWidth = (width - margin * 2 - 20) / 3; const top = y; ensure(76);
+  const boxes = [
+    [`OVERALL SCORE\n${input.score.percentage}%\n${input.score.points} / ${input.score.possible}`, C.soft],
+    [`CREDENTIALING SCORE\n${input.score.credentialingPoints} / ${input.score.credentialingPossible}`, C.softBlue],
+    [`ACCREDITATION SCORE\n${input.score.accreditationPoints} / ${input.score.accreditationPossible}`, C.softOrange],
+  ] as const;
+  boxes.forEach(([label, color], i) => { const x = margin + i * (boxWidth + 10); page.drawRectangle({ x, y: top - 62, width: boxWidth, height: 62, color, borderColor: C.line, borderWidth: 0.7 }); label.split('\n').forEach((line, n) => page.drawText(safe(line), { x: x + 9, y: top - 16 - n * 15, size: n === 0 ? 7 : 11, font: n === 0 ? bold : regular, color: n === 0 ? C.muted : C.ink })); });
+  y = top - 78;
+  text(`Recommendation: ${input.score.recommendation}`, 11, bold, recommendationColor(input.score.recommendation), width - margin * 2, 3);
+  text(`Thresholds: >=${input.passingThreshold}% recommended - ${input.conditionalThreshold}-${Math.max(input.passingThreshold - 1, input.conditionalThreshold)}% conditional - below ${input.conditionalThreshold}% not recommended`, 8, regular, C.muted, width - margin * 2, 10);
+
+  heading('Facility profile');
+  twoColumn([
+    ['Facility Name', input.facilityName],
+    ['Facility Type', input.facilityType],
+    ['Facility Address', input.profile.address || 'Not recorded'],
+    ['Assessment Date', date(input.assessmentDate)],
+    ['Telephone', input.profile.telephone || 'Not recorded'],
+    ['Facility email', input.profile.facility_email || 'Not recorded'],
+    ['Contact person', input.profile.contact_person || 'Not recorded'],
+    ['NHIA registration', input.profile.nhia_reg_no || input.profile.nhia_registration_no || 'Not recorded'],
+    ['SMOH registration', input.profile.smoh_reg_no || input.profile.smoh_pcn_registration_no || 'Not recorded'],
+  ]);
+
+  heading('Eligibility criteria');
+  input.eligibility.forEach((criterion, index) => {
+    ensure(48); const fill = criterion.met ? rgb(0.91, 0.97, 0.93) : rgb(1, 0.94, 0.94); const color = criterion.met ? C.green : C.red;
+    page.drawRectangle({ x: margin, y: y - 42, width: width - margin * 2, height: 42, color: fill, borderColor: C.line, borderWidth: 0.6 });
+    page.drawText(`${index + 1}.`, { x: margin + 9, y: y - 15, size: 9, font: bold, color: C.blue });
+    const lines = wrap(criterion.criterion_label, regular, 9, width - margin * 2 - 120); lines.forEach((line, n) => page.drawText(line, { x: margin + 28, y: y - 15 - n * 11, size: 9, font: regular, color: C.ink }));
+    page.drawText(criterion.met ? 'MET' : 'NOT MET', { x: width - margin - 55, y: y - 15, size: 7, font: bold, color });
+    y -= 48;
+    if (criterion.notes) text(`Evidence: ${criterion.notes}`, 8, regular, C.muted, width - margin * 2 - 28, 5);
+  });
+
+  const sections = input.sections.filter(section => !['A', 'PROFILE', 'ELIGIBILITY', 'REMARKS', 'TEAM'].includes(section.section_code.toUpperCase()) && input.items.some(item => item.section_code === section.section_code));
+  for (const section of sections) {
+    heading(section.section_label);
+    for (const item of input.items.filter(i => i.section_code === section.section_code)) {
+      const response = input.responses[item.item_code] || { number: '', manual_score: '', boolean: null, remark: '' };
+      const answer = item.response_type === 'boolean' ? (response.boolean === null ? 'Not answered' : response.boolean ? 'YES' : 'NO') : item.response_type === 'number' ? `Observed count: ${response.number || 'Not recorded'}` : response.remark || 'Not recorded';
+      const scoreText = (item.scoring_method === 'manual_only' || item.manual_score_allowed) ? `Awarded: ${response.manual_score || '0'} / ${item.max_points}` : `${item.max_points} max points`;
+      const lines = wrap(item.item_label, bold, 9, width - margin * 2 - 150); const rowH = Math.max(58, lines.length * 12 + 34 + (response.remark ? wrap(response.remark, regular, 8, width - margin * 2 - 150).length * 10 : 0));
+      ensure(rowH + 8); const rowTop = y; page.drawRectangle({ x: margin, y: rowTop - rowH + 4, width: width - margin * 2, height: rowH, color: C.white, borderColor: C.line, borderWidth: 0.6 });
+      page.drawRectangle({ x: width - margin - 120, y: rowTop - rowH + 4, width: 120, height: rowH, color: C.softOrange, borderColor: C.line, borderWidth: 0.6 });
+      lines.forEach((line, n) => page.drawText(line, { x: margin + 10, y: rowTop - 15 - n * 12, size: 9, font: bold, color: C.ink }));
+      page.drawText(safe(answer), { x: margin + 10, y: rowTop - 15 - lines.length * 12 - 5, size: 8, font: regular, color: C.muted });
+      if (response.remark) wrap(`Evidence: ${response.remark}`, regular, 8, width - margin * 2 - 150).forEach((line, n) => page.drawText(line, { x: margin + 10, y: rowTop - 30 - lines.length * 12 - n * 10, size: 8, font: regular, color: C.muted }));
+      page.drawText(safe(scoreText), { x: width - margin - 110, y: rowTop - 17, size: 8, font: bold, color: C.blue });
+      y = rowTop - rowH - 8;
+    }
+  }
+
+  heading('General remarks / recommendation');
+  text(input.generalRemarks || 'No general remarks were recorded.', 9, regular, C.ink, width - margin * 2, 8);
+  heading('Inspector / assessment team');
+  if (!input.team.length) text('No assessment team member was recorded.', 9, regular, C.red);
+  for (const member of input.team) {
+    ensure(106); const teamY = y; page.drawText(safe(member.name || 'Unnamed team member'), { x: margin, y: teamY, size: 10, font: bold, color: C.ink });
+    page.drawText(safe(`${member.role || 'Inspector'} - ${date(member.inspection_date)}`), { x: margin, y: teamY - 14, size: 8, font: regular, color: C.muted });
+    page.drawLine({ start: { x: margin, y: teamY - 84 }, end: { x: margin + 190, y: teamY - 84 }, thickness: 0.6, color: C.line });
+    if (member.signature_data) {
+      try { const signature = await pdf.embedPng(toBytes(member.signature_data)); page.drawImage(signature, { x: margin, y: teamY - 76, width: 180, height: 48 }); } catch { page.drawText('Signature recorded in system', { x: margin, y: teamY - 68, size: 8, font: regular, color: C.muted }); }
+    } else page.drawText('Signature not recorded', { x: margin, y: teamY - 68, size: 8, font: regular, color: C.red });
+    y = teamY - 104;
+  }
+
+  pdf.getPages().forEach((p, i) => p.drawText(`ODCHC NMIS - New Facility Accreditation - Page ${i + 1} of ${pdf.getPages().length}`, { x: margin, y: 24, size: 7, font: regular, color: C.muted }));
+  return pdf.save();
+}
+
+export function accreditationReportFileName(facilityName: string, assessmentDate: string) {
+  const safeName = facilityName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'facility';
+  return `odchc-nmis-accreditation-report-${safeName}-${assessmentDate || new Date().toISOString().slice(0, 10)}.pdf`;
+}
