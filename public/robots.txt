@@ -1,10 +1,22 @@
 User-agent: *
 Allow: /
+
+# These directives are for crawler hygiene only; application authorization is enforced separately.
 Disallow: /dashboard
 Disallow: /providers
 Disallow: /enrolment
 Disallow: /financial
+Disallow: /population
 Disallow: /admin
 Disallow: /settings
+Disallow: /credentialing
+Disallow: /contracts
+Disallow: /capitation
+Disallow: /inspections
+Disallow: /accreditations
+Disallow: /performance
+Disallow: /reports
+Disallow: /communication
+Disallow: /complaints
 
 Sitemap: https://odchcnmis.online/sitemap.xml
