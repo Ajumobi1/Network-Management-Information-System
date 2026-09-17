@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT count(*) as total_july, count(*) FILTER (WHERE age IS NULL) as null_age_july, count(*) FILTER (WHERE age IS NOT NULL) as populated_age_july FROM public.enrollees WHERE period = '2026-07';"
+}

@@ -1,0 +1,7 @@
+-- Add aliases for FUTA and UNIMEDTH ONDO
+INSERT INTO public.provider_name_aliases (provider_id, alias_name, normalized_alias, source, confidence, active)
+VALUES 
+    ('c9770338-23e5-48ff-afc6-a724f33c1fa4', 'FUTA TEACHING HOSPITAL (UNIMEDTH) AKURE', 'FUTA TEACHING HOSPITAL UNIMEDTH AKURE', 'manual_fix', 1.0, true),
+    ('5a59de3d-e52c-4626-b8a0-944bb613ada4', 'COPY UNIMEDTH, ONDO COMPLEX', 'COPY UNIMEDTH ONDO COMPLEX', 'manual_fix', 1.0, true),
+    ('5a59de3d-e52c-4626-b8a0-944bb613ada4', 'UNIMEDTH, ONDO COMPLEX', 'UNIMEDTH ONDO COMPLEX', 'manual_fix', 1.0, true)
+ON CONFLICT (provider_id, normalized_alias) DO UPDATE SET active = true;

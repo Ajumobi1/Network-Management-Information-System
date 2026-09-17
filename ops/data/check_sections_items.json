@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT s.section_code, s.section_label, s.sort_order, COUNT(i.id) as item_count FROM public.inspection_template_sections s LEFT JOIN public.inspection_template_items i ON s.template_id = i.template_id AND s.section_code = i.section_code WHERE s.template_id = (SELECT id FROM public.inspection_templates WHERE code = 'government-hospital-accreditation') GROUP BY s.section_code, s.section_label, s.sort_order ORDER BY s.sort_order;"
+}

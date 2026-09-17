@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "DO $$ DECLARE v_template_id UUID; BEGIN SELECT id INTO v_template_id FROM public.inspection_templates WHERE code = 'government-hospital-accreditation'; IF v_template_id IS NOT NULL THEN DELETE FROM public.inspection_template_items WHERE template_id = v_template_id AND section_code = 'B' AND item_code IN ('Q018', 'Q019', 'Q020', 'Q021', 'Q022'); END IF; END $$;"
+}

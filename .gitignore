@@ -12,21 +12,44 @@ dist/
 npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
-.DS_Store
 .vscode/
 .idea/
+.DS_Store
+Thumbs.db
 
 # Local data and operational exports
 *.jsonl
 *.csv
 *.zip
+*.xlsx
+*.txt
+*.tmp
+*.temp
 ops/
+
+# Root-level operational artifacts
+/*.py
+/*.json
+/*.md
+/*.sql
+/*.csv
+/*.zip
+!/README.md
+!/package.json
+
+# Known local operational artifact
+july_age_backfill.sql
 
 # Android/Capacitor generated outputs
 android/.gradle/
 android/app/build/
 android/build/
 android/capacitor-cordova-android-plugins/
+android/.idea/
+
+# Local duplicate checkouts
+NMIS-Frontend-*/
+NMIS-Frontend/
 
 # Test and coverage output
 coverage/

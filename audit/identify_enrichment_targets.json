@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"SELECT id, provider_name, lga, address, latitude, longitude FROM public.providers WHERE lower(trim(coalesce(status, 'active'))) = 'active' AND (address IS NULL OR address = 'Access restricted' OR length(trim(address)) < 15 OR address = lga OR address = 'Ondo') ORDER BY provider_name;"}

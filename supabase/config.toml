@@ -1,0 +1,5 @@
+[functions.nmis-provider-admin]
+verify_jwt = true
+
+[functions.nmis-import]
+verify_jwt = true

@@ -12,7 +12,7 @@ function notify(): void {
   listeners.forEach(listener => listener(currentSession));
 }
 
-export async function signIn(email: string, password: string, remember: boolean): Promise<AuthResult<AuthSession>> {
+export async function signIn(email: string, password: string): Promise<AuthResult<AuthSession>> {
   const user = mockUsers[email.trim().toLowerCase()];
   if (!user || user.password !== password) {
     return { success: false, error: { code: AuthErrorCode.INVALID_CREDENTIALS, message: 'Email or password is incorrect.' } };
@@ -21,7 +21,7 @@ export async function signIn(email: string, password: string, remember: boolean)
   currentSession = {
     token: `mock-session-${user.id}-${Date.now()}`,
     user: { id: user.id, name: user.name, email: user.email, role: user.role },
-    expiresAt: new Date(Date.now() + (remember ? 30 : 2) * 60 * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
   };
   notify();
   return { success: true, data: currentSession };

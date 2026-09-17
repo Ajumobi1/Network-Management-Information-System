@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"SELECT a.alias_name, a.provider_id, p.provider_name, p.lga FROM public.provider_name_aliases a JOIN public.providers p ON p.id = a.provider_id WHERE a.source = 'workbook_import' ORDER BY a.alias_name LIMIT 100"}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent, ReactNode } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CalendarDays, Check, CheckCircle2, ChevronLeft, ChevronRight, FileText, Plus, RotateCcw, Save, Send, ShieldCheck, Trash2, UserRound, X } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
@@ -11,8 +11,6 @@ import { ProviderCategory, ProviderLifecycleStatus, ProviderOwnership } from '..
 import { useInspectionTemplate, useInspectionTemplateOptions, useSaveStructuredInspection } from '../../hooks/inspections/structuredInspectionHooks';
 import { getStructuredInspection, InspectionTemplateItem, StructuredInspectionPayload } from '../../repositories/inspections/structuredInspectionRepository';
 import { providerDocumentsRepository } from '../../repositories/providers/providerDocumentsRepository';
-import { loadOfflineInspectionDraft, removeOfflineInspectionDraft, saveOfflineInspectionDraft } from '../../lib/offline/inspectionOfflineStore';
-import { saveStructuredInspection } from '../../repositories/inspections/structuredInspectionRepository';
 import { buildInspectionReportPdf, downloadPdf, inspectionReportFileName, pdfBytesToBlob, reportStoragePath } from '../../features/inspections/inspectionReportPdf';
 
 type FacilityProfileState = {
@@ -402,7 +400,7 @@ function QAItem({ item, response, quarter, onChange }: { item: InspectionTemplat
               <input
                 type="number"
                 min="0"
-                value={response.number || ''}
+                value={response.number}
                 onChange={event => onChange({ ...response, number: event.target.value })}
                 className="nmis-control"
                 placeholder="0"
@@ -506,8 +504,8 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
                 min="0"
                 value={response.number}
                 onChange={event => onChange({ ...response, number: event.target.value })}
-                className="nmis-control appearance-none"
-                placeholder=""
+                className="nmis-control"
+                placeholder="Observed headcount"
               />
             </label>
           )}
@@ -518,10 +516,10 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
               min="0"
               max={item.max_points}
               step="0.01"
-              value={response.manual_score || ''}
+              value={response.manual_score}
               onChange={event => handleManualScoreChange(event.target.value)}
-              className={`nmis-control appearance-none ${error ? 'border-status-error ring-2 ring-status-error/10' : ''}`}
-              placeholder=""
+              className={`nmis-control ${error ? 'border-status-error ring-2 ring-status-error/10' : ''}`}
+              placeholder="Awarded points"
             />
             {error && <span className="text-xs font-bold text-status-error">{error}</span>}
           </label>
@@ -547,12 +545,9 @@ function ScoredItem({ item, response, error, onChange }: { item: InspectionTempl
 
 export default function NewInspectionPage() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [searchParams] = useSearchParams();
   const inspectionRecordId = searchParams.get('inspectionId') || searchParams.get('draftId');
   const requestedProviderId = searchParams.get('providerId');
-  const isAccreditation = searchParams.get('workflow') === 'accreditation' || location.pathname === '/inspections/accreditation';
-  const workflow = isAccreditation ? 'accreditation' : 'inspection';
   const requestedFacilityTypeCode = searchParams.get('facilityType') || 'pharmacy';
   const templateOptionsQuery = useInspectionTemplateOptions();
   const [facilityTypeCode, setFacilityTypeCode] = useState(requestedFacilityTypeCode);
@@ -586,40 +581,28 @@ export default function NewInspectionPage() {
   }, [facilityTypeCode]);
   const [providerSearch, setProviderSearch] = useState('');
   const [manualFacility, setManualFacility] = useState(false);
-  // Load the complete registered directory here and apply the facility-type match
-  // locally. This avoids hiding valid providers when legacy records use labels such
-  // as "Pharmacy" while the canonical filter uses "PHARMACY".
   const providerQuery = useProviderDirectory({
     search: providerSearch,
-    status: 'all',
+    status: ProviderLifecycleStatus.Active,
     contractStatus: 'all',
     credentialStatus: 'all',
     inspectionStatus: 'all',
     capitationStatus: 'all',
     lga: 'all',
-    category: 'all',
+    category: providerCategory || 'all',
     subcategory: 'all',
-    ownership: 'all',
+    ownership: providerOwnership as 'all' | ProviderOwnership,
     service: 'all',
     page: 1,
     pageSize: -1
   });
   const scopedProviders = useMemo(() => {
-    const category = providerCategory ? String(providerCategory).trim().toLowerCase().replace(/[_\s-]+/g, '') : null;
+    const category = providerCategory ? String(providerCategory).trim().toLowerCase() : null;
     const ownership = providerOwnership !== 'all' ? String(providerOwnership).trim().toLowerCase() : null;
-    const categoryAliases: Record<string, string[]> = {
-      pharmacy: ['pharmacy'],
-      hospital: ['hospital', 'clinic', 'primaryhealthcentre', 'primaryhealthcenter'],
-      opticalcentre: ['opticalcentre', 'opticalcenter', 'optical'],
-      dentalcentre: ['dentalcentre', 'dentalcenter', 'dental'],
-      diagnosticcentre: ['diagnosticcentre', 'diagnosticcenter', 'diagnostic', 'laboratory'],
-    };
     return (providerQuery.data || []).filter(provider => {
-      const providerCategoryValue = String(provider.category || '').trim().toLowerCase().replace(/[_\s-]+/g, '');
+      const providerCategoryValue = String(provider.category || '').trim().toLowerCase();
       const providerOwnershipValue = String(provider.ownership || '').trim().toLowerCase();
-      const categoryMatches = !category || (categoryAliases[category] || [category]).some(alias => providerCategoryValue.includes(alias));
-      const ownershipMatches = !ownership || providerOwnershipValue === ownership;
-      return categoryMatches && ownershipMatches;
+      return (!category || providerCategoryValue === category) && (!ownership || providerOwnershipValue === ownership);
     });
   }, [providerQuery.data, providerCategory, providerOwnership]);
   const saveMutation = useSaveStructuredInspection();
@@ -651,7 +634,6 @@ export default function NewInspectionPage() {
     setInspectionId(null);
     setProviderId(requestedProviderId || '');
     setProviderSearch('');
-    setManualFacility(isAccreditation);
     setProfile(EMPTY_PROFILE);
     setExtraProfile({});
     setEligibility({});
@@ -660,7 +642,7 @@ export default function NewInspectionPage() {
     setTeam([]);
     setValidationErrors({});
     setSaveMessage('');
-  }, [requestedFacilityTypeCode, requestedProviderId, isAccreditation]);
+  }, [requestedFacilityTypeCode, requestedProviderId]);
 
   const restoreLocalDraft = (key: string) => {
     if (typeof window === 'undefined') return false;
@@ -953,58 +935,11 @@ export default function NewInspectionPage() {
   }, [inspectionRecordId, requestedProviderId, providerId, scopedProviders]);
 
   const buildPayload = (mode: 'draft' | 'submit'): StructuredInspectionPayload => ({
-  mode,
-  step: (stepLabels[Math.min(step, stepLabels.length - 1)] || 'ELIGIBILITY').toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'),
-  template_code: template?.template.code || 'pharmacy-accreditation',
-  provider_id: providerId || null,
-  inspection_type: isAccreditation ? `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation` : `${selectedFacilityType?.facility_type.name || 'Facility'} Inspection`,
-  scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10),
-  inspector_name: '',
-  facility_profile: {
-    ...profile,
-    ...extraProfile,
-    general_remarks: generalRemarks,
-    facility_category: selectedFacilityType?.facility_type.name || 'Facility',
-    facility_source: manualFacility ? 'manual' : isAccreditation ? 'accreditation_application' : 'directory',
-    workflow_type: workflow,
-  },
-  eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [],
-  responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })),
-  team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })),
-});
+ mode, step: (stepLabels[Math.min(step, stepLabels.length - 1)] || 'ELIGIBILITY').toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || 'pharmacy-accreditation', provider_id: providerId || null, inspection_type: `${selectedFacilityType?.facility_type.name || 'Facility'} Accreditation`, scheduled_date: profile.inspection_date || new Date().toISOString().slice(0, 10), inspector_name: '', facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks, facility_category: selectedFacilityType?.facility_type.name || 'Facility', facility_source: manualFacility ? 'manual' : 'directory' }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
 
-  useEffect(() => {
-    if (!template || !draftLoaded || (!providerId && !manualFacility) || typeof navigator === 'undefined' || navigator.onLine) return;
-    void saveOfflineInspectionDraft({
-      key: draftKey,
-      savedAt: new Date().toISOString(),
-      status: 'pending-sync',
-      inspectionId,
-      payload: buildPayload('draft'),
-    }).catch(() => undefined);
-  }, [draftKey, draftLoaded, inspectionId, providerId, manualFacility, template, step, profile, extraProfile, eligibility, generalRemarks, responses, team]);
-  useEffect(() => {
-    if (!template || !draftLoaded || typeof window === 'undefined') return;
-    const syncQueuedDraft = async () => {
-      if (!navigator.onLine) return;
-      const queued = await loadOfflineInspectionDraft(draftKey).catch(() => null);
-      if (!queued) return;
-      try {
-        const result = await saveStructuredInspection(queued.inspectionId, queued.payload as StructuredInspectionPayload);
-        await removeOfflineInspectionDraft(draftKey);
-        setInspectionId(result.inspection_id);
-        setSaveMessage('Offline draft synchronized successfully.');
-      } catch {
-        setSaveMessage('Offline draft is still queued and will retry when the connection is stable.');
-      }
-    };
-    void syncQueuedDraft();
-    window.addEventListener('online', syncQueuedDraft);
-    return () => window.removeEventListener('online', syncQueuedDraft);
-  }, [draftKey, draftLoaded, template]);
   const saveDraft = async () => {
-    const hasFacilityIdentity = isAccreditation || manualFacility ? Boolean(profile.facility_name.trim() && profile.address.trim()) : Boolean(providerId.trim());
-    if (!hasFacilityIdentity) { setSaveMessage(isAccreditation ? 'Enter the new facility name and address before saving the accreditation application.' : 'Select a registered facility from the provider directory before saving the inspection.'); return; }
+    if (!manualFacility && !providerId) { setSaveMessage('Select a provider or choose Other / new facility before saving the draft.'); return; }
+    if (manualFacility && (!profile.facility_name.trim() || !profile.address.trim())) { setSaveMessage('Enter the new facility name and address before saving the draft.'); return; }
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before saving.'); return; }
     try {
       const result = await saveMutation.mutateAsync({ inspectionId, payload: buildPayload('draft') });
@@ -1014,21 +949,14 @@ export default function NewInspectionPage() {
       } catch {
         // Ignore storage cleanup failures; the server draft is already saved.
       }
-      setSaveMessage(`Draft saved - ${result.overall_score}% preview score. You can resume this ${isAccreditation ? 'accreditation application' : 'inspection'} from the Drafts list.`);
+      setSaveMessage(`Draft saved - ${result.overall_score}% preview score. You can start a new accreditation or resume this draft from the Drafts list.`);
       navigate('/inspections');
-    } catch (error) {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        await saveOfflineInspectionDraft({ key: draftKey, savedAt: new Date().toISOString(), status: 'pending-sync', inspectionId, payload: buildPayload('draft') });
-        setSaveMessage('Draft saved securely on this device. It will synchronize automatically when the network returns.');
-        return;
-      }
-      setSaveMessage(error instanceof Error ? error.message : 'Unable to save draft.');
-    }
+    } catch (error) { setSaveMessage(error instanceof Error ? error.message : 'Unable to save draft.'); }
   };
 
   const submitInspection = async () => {
-    const hasFacilityIdentity = isAccreditation || manualFacility ? Boolean(profile.facility_name.trim() && profile.address.trim()) : Boolean(providerId.trim());
-    if (!hasFacilityIdentity) { setSaveMessage(isAccreditation ? 'Enter the new facility name and address before submitting the accreditation application.' : 'Select a registered facility from the provider directory before submitting the inspection.'); return; }
+    if (!manualFacility && !providerId) { setSaveMessage('Select a provider or choose Other / new facility before submission.'); return; }
+    if (manualFacility && (!profile.facility_name.trim() || !profile.address.trim())) { setSaveMessage('Enter the new facility name and address before submission.'); return; }
     if (!template) { setSaveMessage('The inspection template is still loading. Please retry submission.'); return; }
     if (Object.keys(validationErrors).length) { setSaveMessage('Correct the highlighted manual score errors before submission.'); return; }
     const blockers: string[] = [];
@@ -1066,16 +994,14 @@ export default function NewInspectionPage() {
       });
       downloadPdf(reportBytes, reportFileName);
 
-      if (!isAccreditation && providerId) {
-        const filePath = reportStoragePath(providerId, submittedInspectionId);
-        await providerDocumentsRepository.uploadInspectionReport(filePath, pdfBytesToBlob(reportBytes));
-        await providerDocumentsRepository.registerInspectionReport({ providerId, inspectionId: submittedInspectionId, filePath, fileName: reportFileName });
-      }
+      const filePath = reportStoragePath(providerId, submittedInspectionId);
+      await providerDocumentsRepository.uploadInspectionReport(filePath, pdfBytesToBlob(reportBytes));
+      await providerDocumentsRepository.registerInspectionReport({ providerId, inspectionId: submittedInspectionId, filePath, fileName: reportFileName });
 
       localStorage.removeItem(`${DRAFT_KEY}:${facilityTypeCode}:${submittedInspectionId}`);
       localStorage.removeItem(`${DRAFT_KEY}:${facilityTypeCode}:new`);
-      setSaveMessage(isAccreditation ? 'Accreditation application submitted successfully. It is awaiting review and has not created a provider record.' : 'Inspection submitted successfully. The PDF outcome was downloaded and attached to the provider Documents tab.');
-      navigate(isAccreditation ? '/inspections' : `/providers/${providerId}?tab=Inspections`);
+      setSaveMessage('Inspection submitted successfully. The PDF outcome was downloaded and attached to the provider Documents tab.');
+      navigate(`/providers/${providerId}?tab=Inspections`);
     } catch (error) {
       setSaveMessage(error instanceof Error ? error.message : 'Inspection submission or report generation failed.');
     } finally {
@@ -1088,13 +1014,13 @@ export default function NewInspectionPage() {
   if (!selectedFacilityType.configured) return <main className="nmis-page"><div className="space-y-6"><PageHeader eyebrow="Quality & Compliance" title="New facility inspection" subtitle="Select a facility type with a configured checklist to begin." actions={<Button variant="secondary" onClick={() => navigate('/inspections')}><X size={16} /> Exit</Button>} /><Card><h2 className="text-lg font-black text-brand-foreground">{selectedFacilityType.facility_type.name} template not configured</h2><p className="mt-2 text-sm text-brand-secondary">An administrator must configure the {selectedFacilityType.facility_type.name} eligibility gate, facility profile, sections, checklist items, scoring methods, and thresholds before inspectors can start this workflow.</p></Card></div></main>;
   if (templateQuery.isError || !template) return <main className="nmis-page"><ErrorState title="Inspection template unavailable" action={{ label: 'Retry', onClick: () => templateQuery.refetch() }} /></main>;
 
-  return <main className="nmis-page"><div className="space-y-6"><PageHeader eyebrow="ONDO STATE CONTRIBUTORY HEALTH COMMISSION" title={`${isAccreditation ? 'ACCREDITATION APPLICATION' : 'FACILITY INSPECTION'} — ${selectedFacilityType.facility_type.name.toUpperCase()}${selectedFacilityType.facility_type.name.toUpperCase().includes('SERVICES') ? '' : ' SERVICES'}`} subtitle={isAccreditation ? `Enter the new facility details, complete the accreditation checklist, and submit an application for review. No provider record will be created automatically.` : `Inspect a registered provider facility, capture evidence, and submit the signed inspection outcome.`} actions={<Button variant="secondary" onClick={() => navigate('/inspections')}><X size={16} /> Exit</Button>} />
+  return <main className="nmis-page"><div className="space-y-6"><PageHeader eyebrow="ONDO STATE CONTRIBUTORY HEALTH COMMISSION" title={`ACCREDITATION CHECKLIST — ${selectedFacilityType.facility_type.name.toUpperCase()}${selectedFacilityType.facility_type.name.toUpperCase().includes('SERVICES') ? '' : ' SERVICES'}`} subtitle={`Complete the ${selectedFacilityType.facility_type.name.toLowerCase()}${selectedFacilityType.facility_type.name.toLowerCase().includes('services') ? '' : ' services'} accreditation process, capture clinical evidence, and submit a signed recommendation.`} actions={<Button variant="secondary" onClick={() => navigate('/inspections')}><X size={16} /> Exit</Button>} />
     <Card><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Facility type *</span><select className="nmis-control" value={facilityTypeCode} onChange={event => setFacilityTypeCode(event.target.value)}>{templateOptionsQuery.data?.map(option => <option key={option.facility_type.code} value={option.facility_type.code}>{option.facility_type.name}</option>)}</select></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4 text-sm text-brand-secondary"><p className="font-black text-brand-foreground">Active checklist</p><p className="mt-1">{template.template.name} · v{template.template.version}</p></div></div></Card>
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-6">{stepLabels.map((label, index) => <button key={label} type="button" onClick={() => index <= step && setStep(index)} className={`rounded-2xl border p-3 text-left transition ${index === step ? 'border-brand-blue bg-brand-soft shadow-sm' : index < step ? 'border-status-success/30 bg-status-successSoft' : 'border-brand-divider bg-brand-card'}`}><div className="flex items-center gap-2"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-black ${index === step ? 'bg-brand-blue text-white' : index < step ? 'bg-status-success text-white' : 'bg-brand-surface text-brand-muted'}`}>{index < step ? <Check size={14} /> : index + 1}</span><span className="text-xs font-black text-brand-foreground">{label}</span></div></button>)}</div>
 
     {isScoredTemplate && step === 0 && <SectionCard title="ELIGIBILITY CRITERIA" subtitle="Record each criterion as observed. Eligibility findings do not block scored sections or submission."><div className="space-y-4">{template.eligibility.map(item => { const current = eligibility[item.criterion_code] || { met: false, notes: '' }; return <div key={item.criterion_code} className="flex flex-col gap-3 rounded-2xl border border-brand-divider bg-brand-surface p-4 sm:flex-row sm:items-center"><div className="flex flex-1 items-start gap-3"><ShieldCheck size={20} className={current.met ? 'text-status-success' : 'text-brand-muted'} /><div><p className="text-sm font-black text-brand-foreground">{item.criterion_label}{item.required ? ' *' : ''}</p><input value={current.notes} onChange={event => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, notes: event.target.value } }))} placeholder="Optional note or evidence reference" className="nmis-control mt-2" /></div></div><YesNoToggle value={current.met} onChange={met => setEligibility(previous => ({ ...previous, [item.criterion_code]: { ...current, met } }))} /></div>; })}</div><div className={`mt-5 rounded-2xl border p-4 text-sm font-bold ${allEligibilityMet ? 'border-status-success/30 bg-status-successSoft text-status-success' : 'border-status-warning/30 bg-status-warningSoft text-status-warning'}`}>{allEligibilityMet ? 'All required criteria are MET.' : 'One or more criteria are not MET. You may continue; record the finding and supporting evidence for follow-up.'}</div></SectionCard>}
 
-    {step === (isScoredTemplate ? 1 : 0) && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5">{!isAccreditation && !manualFacility ? <div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {scopedProviders.length.toLocaleString()} registered providers matching this facility type</p></div></div><label className="block space-y-1.5"><span className="nmis-label">Registered provider / facility *</span><select className="nmis-control" value={providerId} onChange={event => applyProvider(event.target.value)} required disabled={providerQuery.isLoading}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider directory unavailable' : `Select a registered ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option><option value="__manual_facility__">Other / new facility not in directory</option>{scopedProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. You can still use the Other / new facility option if this facility is not yet registered.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}</label></div> : null}{(isAccreditation || manualFacility) ? <div className="rounded-2xl border border-brand-blue/20 bg-brand-soft p-4 md:col-span-2"><p className="text-xs font-black uppercase tracking-wide text-brand-blue">{isAccreditation ? 'New facility accreditation application' : 'Facility not in provider directory'}</p><p className="mt-1 text-sm text-brand-secondary">{isAccreditation ? 'Enter the new facility details below.' : `Enter the facility details below. This ${selectedFacilityType.facility_type.name.toLowerCase()} will be saved as an unlisted facility for this inspection.`}</p><div className="mt-4 space-y-3"><Field label="Facility name" value={profile.facility_name} onChange={value => setProfile(previous => ({ ...previous, facility_name: value }))} required /><Field label="Address / location" value={profile.address} onChange={value => setProfile(previous => ({ ...previous, address: value }))} required /><div className="grid gap-3 sm:grid-cols-2"><Field label="Telephone" value={profile.telephone} onChange={value => setProfile(previous => ({ ...previous, telephone: value }))} /><Field label="Contact person" value={profile.contact_person} onChange={value => setProfile(previous => ({ ...previous, contact_person: value }))} /></div></div></div> : null}<div className="grid gap-4 md:grid-cols-2">{(() => {
+    {step === (isScoredTemplate ? 1 : 0) && <SectionCard title="Section A · FACILITY PROFILE" subtitle="Capture the metadata exactly as observed during the inspection visit."><div className="space-y-5">{!manualFacility ? <div className="space-y-4 md:col-span-2"><div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"><label className="block space-y-1.5"><span className="nmis-label">Search provider directory</span><input className="nmis-control" value={providerSearch} onChange={event => setProviderSearch(event.target.value)} placeholder={`Search ${selectedFacilityType.facility_type.name.toLowerCase()} name, code, or LGA`} /></label><div className="rounded-2xl border border-brand-divider bg-brand-soft p-4"><p className="nmis-label">Directory scope</p><p className="mt-1 text-sm font-black text-brand-foreground">{selectedFacilityType.facility_type.name} providers only</p><p className="mt-1 text-xs text-brand-muted">Showing {scopedProviders.length.toLocaleString()} matching providers</p></div></div><label className="block space-y-1.5"><span className="nmis-label">Provider / Facility *</span><select className="nmis-control" value={providerId} onChange={event => applyProvider(event.target.value)} required disabled={providerQuery.isLoading || providerQuery.isError}><option value="">{providerQuery.isLoading ? `Loading ${selectedFacilityType.facility_type.name.toLowerCase()} providers...` : providerQuery.isError ? 'Provider Directory unavailable' : `Select an authoritative ${selectedFacilityType.facility_type.name.toLowerCase()}`}</option><option value="__manual_facility__">Other / new facility not in directory</option>{scopedProviders.map(provider => <option key={provider.id} value={provider.id}>{provider.providerName} · {provider.providerCode} · {provider.lga}</option>)}</select>{providerQuery.isError ? <span className="text-xs font-bold text-status-error">The provider directory could not be loaded. You can still use the Other / new facility option if this facility is not yet registered.</span> : scopedProviders.length === 0 ? <span className="text-xs text-brand-muted">No {selectedFacilityType.facility_type.name.toLowerCase()} providers match this search.</span> : null}{selectedProvider && <span className="text-xs text-brand-muted">Selected: {selectedProvider.providerName} · {selectedProvider.providerCode}</span>}</label></div> : <div className="rounded-2xl border border-brand-blue/20 bg-brand-soft p-4 md:col-span-2"><p className="text-xs font-black uppercase tracking-wide text-brand-blue">Facility not in provider directory</p><p className="mt-1 text-sm text-brand-secondary">Enter the facility details below. This {selectedFacilityType.facility_type.name.toLowerCase()} will be saved as an unlisted facility for this inspection.</p><div className="mt-4 space-y-3"><Field label="Facility name" value={profile.facility_name} onChange={value => setProfile(previous => ({ ...previous, facility_name: value }))} required /><Field label="Address / location" value={profile.address} onChange={value => setProfile(previous => ({ ...previous, address: value }))} required /><div className="grid gap-3 sm:grid-cols-2"><Field label="Telephone" value={profile.telephone} onChange={value => setProfile(previous => ({ ...previous, telephone: value }))} /><Field label="Contact person" value={profile.contact_person} onChange={value => setProfile(previous => ({ ...previous, contact_person: value }))} /></div></div></div>}<div className="grid gap-4 md:grid-cols-2">{(() => {
           const pairedTargetKeys = new Set((template.template.facility_profile_fields || []).filter(f => (f as any).pair_with).map(f => (f as any).pair_with));
           return (template.template.facility_profile_fields || []).map(field => {
             if ((field as any).hidden || pairedTargetKeys.has(field.key)) return null;

@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT id, provider_name, provider_code, contact_person, phone, email, address FROM public.providers WHERE lower(trim(coalesce(status, 'active'))) = 'active' ORDER BY provider_name;"
+}

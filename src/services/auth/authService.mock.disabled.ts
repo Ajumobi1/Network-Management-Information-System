@@ -8,7 +8,7 @@ const blocked = <T>(): AuthResult<T> => ({
   },
 });
 
-export async function signIn(_email: string, _password: string, _remember: boolean): Promise<AuthResult<AuthSession>> {
+export async function signIn(_email: string, _password: string): Promise<AuthResult<AuthSession>> {
   return blocked<AuthSession>();
 }
 

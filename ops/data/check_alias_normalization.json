@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"SELECT alias_name, normalized_alias, regexp_replace(lower(trim(alias_name)), '[^a-z0-9]', '', 'g') AS matcher_normalized, provider_id FROM public.provider_name_aliases WHERE source = 'workbook_import' ORDER BY alias_name LIMIT 100"}

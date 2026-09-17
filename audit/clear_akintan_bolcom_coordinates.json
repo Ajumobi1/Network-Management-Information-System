@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"UPDATE public.providers SET latitude = NULL, longitude = NULL, updated_at = now() WHERE provider_name ILIKE '%AKINTAN MEMORIAL HOSPITAL%' OR provider_name ILIKE '%BOLCOM HOSPITAL%';"}

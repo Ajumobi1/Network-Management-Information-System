@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"SELECT id, provider_code, provider_name, lga FROM public.providers WHERE provider_name ILIKE '%SIJU%' OR provider_name ILIKE '%MICHAEL%' OR provider_name ILIKE '%MERCY%' OR provider_name ILIKE '%REDEEM%' OR provider_name ILIKE '%ADULOJU%' ORDER BY provider_name LIMIT 20"}

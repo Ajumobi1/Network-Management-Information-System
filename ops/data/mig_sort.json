@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "DO $$ DECLARE v_template_id UUID; BEGIN SELECT id INTO v_template_id FROM public.inspection_templates WHERE code = 'government-hospital-accreditation'; IF v_template_id IS NOT NULL THEN UPDATE public.inspection_template_sections SET sort_order = 1 WHERE template_id = v_template_id AND section_code = 'B'; UPDATE public.inspection_template_sections SET sort_order = 2 WHERE template_id = v_template_id AND section_code = 'DRUGS'; UPDATE public.inspection_template_sections SET sort_order = 3 WHERE template_id = v_template_id AND section_code = 'IMPLEMENTATION'; UPDATE public.inspection_template_sections SET sort_order = 4 WHERE template_id = v_template_id AND section_code = 'FINANCIAL'; UPDATE public.inspection_template_sections SET sort_order = 5 WHERE template_id = v_template_id AND section_code = 'REMARKS'; END IF; END $$;"
+}

@@ -1,0 +1,1 @@
+{"project_id":"tnklirwrnrdvbfjsdtel","query":"UPDATE public.providers SET address = 'FUTA Teaching Hospital (UNIMEDTHC), Akure, Ondo State', latitude = 7.3094, longitude = 5.1478, updated_at = now() WHERE provider_name ILIKE '%FUTA TEACHING HOSPITAL%' OR provider_name ILIKE '%UNIMEDTHC, AKURE%';"}

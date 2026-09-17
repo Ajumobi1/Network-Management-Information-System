@@ -141,7 +141,6 @@ export default function LoginPage() {
               {errors.password && <p className="mt-1.5 text-xs font-medium text-status-error">{errors.password.message}</p>}
             </div>
 
-
             <div className="pt-2">
               <Button
                 type="submit"

@@ -1,0 +1,4 @@
+{
+  "project_id": "tnklirwrnrdvbfjsdtel",
+  "query": "SELECT 'facility_type' as type, code, name FROM public.inspection_facility_types UNION ALL SELECT 'template' as type, code, name FROM public.inspection_templates;"
+}

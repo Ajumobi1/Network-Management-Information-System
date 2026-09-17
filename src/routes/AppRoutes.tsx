@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AppLayout from '../components/AppLayout';
+import ProtectedRoute from './ProtectedRoute';
+
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('../pages/auth/ResetPasswordPage'));
@@ -35,11 +37,22 @@ const CommunicationPage = lazy(() => import('../pages/CommunicationPage'));
 const ComplaintsPage = lazy(() => import('../pages/ComplaintsPage'));
 const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const PublicHomePage = lazy(() => import('../pages/public/PublicHomePage'));
-import ProtectedRoute from './ProtectedRoute';
+
+function RouteLoadingFallback() {
+  return (
+    <main className="flex min-h-[60vh] items-center justify-center bg-brand-background px-6 py-12" role="status" aria-live="polite">
+      <div className="flex items-center gap-3 rounded-control border border-brand-divider bg-brand-card px-4 py-3 text-sm font-bold text-brand-secondary shadow-soft">
+        <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-divider border-t-brand-blue" aria-hidden="true" />
+        Loading page...
+      </div>
+    </main>
+  );
+}
 
 export default function AppRoutes() {
   return (
-    <Suspense fallback={<main className="nmis-page flex min-h-48 items-center justify-center"><p className="text-sm font-bold text-brand-muted">Loading NMIS workspace...</p></main>}>
+    <Suspense fallback={<RouteLoadingFallback />}>
+
       <Routes>
       <Route path="/" element={<PublicHomePage />} />
       <Route path="/setup" element={<OrganizationSetupPage />} />
