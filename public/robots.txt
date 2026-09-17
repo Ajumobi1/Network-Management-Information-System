@@ -1,9 +1,10 @@
 User-agent: *
 Allow: /
 
-# These directives are for crawler hygiene only; application authorization is enforced separately.
+# Crawler hygiene only. These rules are NOT an access-control mechanism.
 Disallow: /dashboard
 Disallow: /providers
+Disallow: /provider-registration
 Disallow: /enrolment
 Disallow: /financial
 Disallow: /population
@@ -19,4 +20,4 @@ Disallow: /reports
 Disallow: /communication
 Disallow: /complaints
 
-Sitemap: https://odchcnmis.online/sitemap.xml
+Sitemap: https://www.odchcnmis.online/sitemap.xml
