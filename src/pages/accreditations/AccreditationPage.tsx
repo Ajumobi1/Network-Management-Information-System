@@ -32,7 +32,7 @@ export default function AccreditationPage() {
   const submitted = records.filter(record => record.status.toLowerCase() === 'submitted').length;
   const successful = records.filter(record => (record.recommendation || '').toLowerCase().includes('recommended') && !(record.recommendation || '').toLowerCase().includes('not')).length;
 
-  if (isLoading) return <main className="nmis-page"><LoadingState label="Loading accreditation records…" /></main>;
+  if (isLoading) return <main className="nmis-page"><LoadingState title="Loading accreditation records…" /></main>;
   if (isError) return <main className="nmis-page"><ErrorState title="Accreditation records unavailable" action={{ label: 'Retry', onClick: () => refetch() }} /></main>;
 
   return (
