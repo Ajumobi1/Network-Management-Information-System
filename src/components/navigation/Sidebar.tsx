@@ -49,7 +49,7 @@ const sections: Section[] = [
     icon: ShieldCheck, 
     children: [
       { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, end: true },
-      { label: 'Accreditation', path: '/inspections/accreditation', icon: ClipboardList, end: true },
+      { label: 'Accreditation', path: '/accreditations', icon: ClipboardList, end: true },
       { label: 'Complaints', path: '/complaints', icon: Bell },
     ] 
   },
