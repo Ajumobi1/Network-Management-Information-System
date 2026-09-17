@@ -10,7 +10,14 @@ import { supabase } from '../../lib/supabase/supabaseClient';
 
 const controlledRoles: readonly UserRole[] = [
   'super-admin',
+  'executive',
+  'head-of-network',
   'network-officer',
+  'inspector',
+  'finance',
+  'claims',
+  'customer-service',
+  'provider',
 ];
 
 function controlledRole(session: Session): UserRole | null {
@@ -37,7 +44,7 @@ function mapSession(session: Session | null): AuthSession | null {
     email,
     role: controlledRole(session),
     avatarUrl,
-    status: session.user.app_metadata?.nmis_status as any,
+    status: session.user.app_metadata?.nmis_status as AuthUser['status'],
   };
 
   return {
@@ -70,7 +77,8 @@ export const authService = {
     if (error || !data.session) return mapAuthError(error?.message ?? 'No session was returned.');
 
     const mapped = mapSession(data.session);
-    if (!mapped) return mapAuthError('No session was returned.');
+    if (!mapped || !mapped.user.role) return mapAuthError('This account is not configured for NMIS access.');
+    if (mapped.user.status && mapped.user.status !== 'active') return mapAuthError('This NMIS account is not active.');
     return { success: true, data: mapped };
   },
 
@@ -80,11 +88,16 @@ export const authService = {
 
   async getSession(): Promise<AuthSession | null> {
     const { data } = await supabase.auth.getSession();
-    return mapSession(data.session);
+    const mapped = mapSession(data.session);
+    if (!mapped || !mapped.user.role || (mapped.user.status && mapped.user.status !== 'active')) return null;
+    return mapped;
   },
 
   subscribe(listener: (session: AuthSession | null) => void): () => void {
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => listener(mapSession(session)));
+    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      const mapped = mapSession(session);
+      listener(mapped && mapped.user.role && (!mapped.user.status || mapped.user.status === 'active') ? mapped : null);
+    });
     return () => data.subscription.unsubscribe();
   },
 
@@ -97,91 +110,62 @@ export const authService = {
   },
 
   async resetPassword(password: string): Promise<AuthResult<null>> {
+    if (password.length < 8 || password.length > 128) {
+      return { success: false, error: { code: AuthErrorCode.UNAUTHORIZED, message: 'Password must be between 8 and 128 characters.' } };
+    }
     const { error } = await supabase.auth.updateUser({ password });
     if (error) return mapAuthError(error.message);
     return { success: true, data: null };
   },
 
-  // Administration & User Management
   async listUsers(): Promise<AuthResult<AuthUser[]>> {
     const { data, error } = await supabase.rpc('nmis_admin_list_users');
     if (error) return mapAuthError(error.message);
-    
+
     const users: AuthUser[] = (data as any[]).map(u => ({
       id: u.id,
       email: u.email,
       name: u.full_name || u.email,
       role: u.role as UserRole,
       isActive: u.status === 'active',
-      status: u.status as any
+      status: u.status as AuthUser['status'],
     }));
 
     return { success: true, data: users };
   },
 
   async provisionUser(name: string, email: string, password: string, role: UserRole): Promise<AuthResult<null>> {
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-      options: {
-        data: { full_name: name },
-        emailRedirectTo: `${window.location.origin}/login`,
-      }
+    const { data, error } = await supabase.functions.invoke('nmis-admin-provision-user', {
+      body: { name, email, password, role },
     });
-
     if (error) return mapAuthError(error.message);
-
-    if (data.user) {
-      // 1. Set the role
-      const { error: roleError } = await supabase.rpc('nmis_admin_update_user_role', {
-        p_user_id: data.user.id,
-        p_role: role
-      });
-      if (roleError) return mapAuthError(roleError.message);
-
-      // 2. Auto-confirm the user to bypass email verification
-      const { error: confirmationError } = await supabase.rpc('nmis_admin_confirm_user', {
-        p_user_id: data.user.id
-      });
-      if (confirmationError) return mapAuthError(confirmationError.message);
-    }
-
+    if (!data?.success) return mapAuthError(typeof data?.error === 'string' ? data.error : 'User provisioning failed.');
     return { success: true, data: null };
   },
 
   async updateUserStatus(userId: string, status: 'active' | 'suspended' | 'locked'): Promise<AuthResult<null>> {
     const { error } = await supabase.rpc('nmis_admin_update_user_status', {
       p_user_id: userId,
-      p_status: status
+      p_status: status,
     });
     if (error) return mapAuthError(error.message);
     return { success: true, data: null };
   },
 
   async deleteUser(userId: string): Promise<AuthResult<null>> {
-    const { error } = await supabase.rpc('nmis_admin_delete_user', {
-      p_user_id: userId
-    });
+    const { error } = await supabase.rpc('nmis_admin_delete_user', { p_user_id: userId });
     if (error) return mapAuthError(error.message);
     return { success: true, data: null };
   },
-  
+
   async checkUserStatus(userId: string): Promise<'active' | 'suspended' | 'locked' | 'pending' | 'deleted'> {
     try {
-      const { data, error } = await supabase.rpc('nmis_check_user_status', {
-        p_user_id: userId
-      });
-      
-      if (error) {
-        // If RPC fails because user doesn't exist, they are likely deleted
-        if (error.message.includes('not found') || error.code === 'P0002') return 'deleted';
-        return 'active'; // Default to active on transient errors
-      }
-      
+      const { data, error } = await supabase.rpc('nmis_check_user_status', { p_user_id: userId });
+      if (error) return 'deleted';
       if (!data) return 'deleted';
-      return data as any;
+      return data as 'active' | 'suspended' | 'locked' | 'pending';
     } catch {
-      return 'active';
+      return 'deleted';
     }
-  }
+  },
 };
