@@ -16,7 +16,7 @@ const sections: Section[] = [
     label: 'Provider Network', 
     icon: Building2, 
     children: [
-      { label: 'Provider Directory', path: '/providers', icon: Users },
+      { label: 'Provider Directory', path: '/providers', icon: Users, end: true },
       { label: 'Register Provider', path: '/providers/new', icon: ClipboardList },
       { label: 'Credentialing', path: '/credentialing', icon: ShieldCheck },
       { label: 'Contracts', path: '/contracts', icon: FileText },
