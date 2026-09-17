@@ -1,0 +1,13 @@
+/* Privacy notice displayed directly beneath the public complaint form. */
+#complaints form::after {
+  content: "Privacy notice: The Commission uses the contact details and complaint information you provide to review, respond to, and manage your case. Do not include passwords, payment credentials, or unnecessary sensitive personal information. Public reporting uses aggregated, privacy-safe information.";
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid rgba(11, 101, 161, 0.14);
+  border-radius: 0.75rem;
+  background: #f8fbff;
+  color: #55738b;
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
