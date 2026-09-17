@@ -19,7 +19,7 @@ const ProviderPage = lazy(() => import('../pages/ProviderPage'));
 const ProviderProfilePage = lazy(() => import('../pages/ProviderProfilePage'));
 const ProviderRegistrationPage = lazy(() => import('../pages/ProviderRegistrationPage'));
 const InspectionsPage = lazy(() => import('../pages/InspectionsPage'));
-const InspectionEntryPage = lazy(() => import('../pages/inspections/InspectionEntryPage'));
+const RegisteredInspectionPage = lazy(() => import('../pages/inspections/RegisteredInspectionPage'));
 const InspectionTemplateAdminPage = lazy(() => import('../pages/inspections/InspectionTemplateAdminPage'));
 const AccreditationPage = lazy(() => import('../pages/accreditations/AccreditationPage'));
 const NewAccreditationPage = lazy(() => import('../pages/accreditations/NewAccreditationPage'));
@@ -79,7 +79,7 @@ export default function AppRoutes() {
       <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
       <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
       <Route path="/inspections" element={<InspectionsPage />} />
-      <Route path="/inspections/new" element={<InspectionEntryPage />} />
+      <Route path="/inspections/new" element={<RegisteredInspectionPage />} />
       <Route path="/inspections/accreditation" element={<AccreditationPage />} />
       <Route path="/inspections/accreditation/new" element={<NewAccreditationPage />} />
       <Route path="/settings/inspection-templates" element={<InspectionTemplateAdminPage />} />
