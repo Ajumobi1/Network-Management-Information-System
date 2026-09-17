@@ -19,7 +19,7 @@ const ProviderPage = lazy(() => import('../pages/ProviderPage'));
 const ProviderProfilePage = lazy(() => import('../pages/ProviderProfilePage'));
 const ProviderRegistrationPage = lazy(() => import('../pages/ProviderRegistrationPage'));
 const InspectionsPage = lazy(() => import('../pages/InspectionsPage'));
-const NewInspectionPage = lazy(() => import('../pages/inspections/NewInspectionPage'));
+const InspectionEntryPage = lazy(() => import('../pages/inspections/InspectionEntryPage'));
 const InspectionTemplateAdminPage = lazy(() => import('../pages/inspections/InspectionTemplateAdminPage'));
 const AccreditationPage = lazy(() => import('../pages/accreditations/AccreditationPage'));
 const NewAccreditationPage = lazy(() => import('../pages/accreditations/NewAccreditationPage'));
@@ -41,70 +41,59 @@ const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const PublicHomePage = lazy(() => import('../pages/public/PublicHomePage'));
 
 function RouteLoadingFallback() {
-  return (
-    <main className="flex min-h-[60vh] items-center justify-center bg-brand-background px-6 py-12" role="status" aria-live="polite">
-      <div className="flex items-center gap-3 rounded-control border border-brand-divider bg-brand-card px-4 py-3 text-sm font-bold text-brand-secondary shadow-soft">
-        <span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-divider border-t-brand-blue" aria-hidden="true" />
-        Loading page...
-      </div>
-    </main>
-  );
+  return <main className="flex min-h-[60vh] items-center justify-center bg-brand-background px-6 py-12" role="status" aria-live="polite"><div className="flex items-center gap-3 rounded-control border border-brand-divider bg-brand-card px-4 py-3 text-sm font-bold text-brand-secondary shadow-soft"><span className="h-4 w-4 animate-spin rounded-full border-2 border-brand-divider border-t-brand-blue" aria-hidden="true" />Loading page...</div></main>;
 }
 
 export default function AppRoutes() {
-  return (
-    <Suspense fallback={<RouteLoadingFallback />}>
-      <Routes>
-        <Route path="/" element={<PublicHomePage />} />
-        <Route path="/setup" element={<OrganizationSetupPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/suspended" element={<SuspendedPage />} />
-        <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
-        <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/providers" element={<ProviderPage />} />
-          <Route path="/providers/new" element={<ProviderRegistrationPage />} />
-          <Route path="/providers/:providerId" element={<ProviderProfilePage />} />
-          <Route path="/provider-registration" element={<Navigate to="/providers/new" replace />} />
-          <Route path="/credentialing" element={<CredentialingPage />} />
-          <Route path="/contracts" element={<ContractsPage />} />
-          <Route path="/capitation" element={<CapitationPage />} />
-          <Route path="/financial/dashboard" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/analytics/financial-intelligence" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/financial/register" element={<FinancialRegisterPage type="claims-ffs" />} />
-          <Route path="/financial/claims" element={<Navigate to="/financial/register" replace />} />
-          <Route path="/financial/claims/analytics" element={<Navigate to="/financial/register" replace />} />
-          <Route path="/financial/capitation" element={<FinancialRegisterPage type="capitation" />} />
-          <Route path="/financial/ffs" element={<Navigate to="/financial/register" replace />} />
-          <Route path="/financial/enrolment" element={<Navigate to="/financial/register" replace />} />
-          <Route path="/population/enrolment/register" element={<EnrolmentRegisterPage />} />
-          <Route path="/population/enrolment/new" element={<NewEnrolleePage />} />
-          <Route path="/financial/upload" element={<DataUploadCentrePage />} />
-          <Route path="/financial/manual" element={<FinancialManualEntryPage />} />
-          <Route path="/financial/manual/capitation" element={<Navigate to="/financial/manual?type=capitation" replace />} />
-          <Route path="/financial/history" element={<ImportHistoryPage />} />
-          <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
-          <Route path="/inspections" element={<InspectionsPage />} />
-          <Route path="/inspections/new" element={<NewInspectionPage />} />
-          <Route path="/inspections/accreditation" element={<AccreditationPage />} />
-          <Route path="/inspections/accreditation/new" element={<NewAccreditationPage />} />
-          <Route path="/settings/inspection-templates" element={<InspectionTemplateAdminPage />} />
-          <Route path="/performance" element={<PerformancePage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/communication" element={<CommunicationPage />} />
-          <Route path="/complaints" element={<ComplaintsPage />} />
-          <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['super-admin']}><ManageUsersPage /></ProtectedRoute>} />
-          <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={['super-admin']}><AuditLogPage /></ProtectedRoute>} />
-          <Route path="/admin/config" element={<ProtectedRoute allowedRoles={['super-admin']}><SystemConfigPage /></ProtectedRoute>} />
-          <Route path="/admin/data" element={<ProtectedRoute allowedRoles={['super-admin']}><DataManagementPage /></ProtectedRoute>} />
-          <Route path="/admin/invite-provider" element={<ProtectedRoute allowedRoles={['super-admin']}><InviteProviderPage /></ProtectedRoute>} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Suspense>
-  );
+  return <Suspense fallback={<RouteLoadingFallback />}><Routes>
+    <Route path="/" element={<PublicHomePage />} />
+    <Route path="/setup" element={<OrganizationSetupPage />} />
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+    <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <Route path="/suspended" element={<SuspendedPage />} />
+    <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+    <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/providers" element={<ProviderPage />} />
+      <Route path="/providers/new" element={<ProviderRegistrationPage />} />
+      <Route path="/providers/:providerId" element={<ProviderProfilePage />} />
+      <Route path="/provider-registration" element={<Navigate to="/providers/new" replace />} />
+      <Route path="/credentialing" element={<CredentialingPage />} />
+      <Route path="/contracts" element={<ContractsPage />} />
+      <Route path="/capitation" element={<CapitationPage />} />
+      <Route path="/financial/dashboard" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/analytics/financial-intelligence" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/financial/register" element={<FinancialRegisterPage type="claims-ffs" />} />
+      <Route path="/financial/claims" element={<Navigate to="/financial/register" replace />} />
+      <Route path="/financial/claims/analytics" element={<Navigate to="/financial/register" replace />} />
+      <Route path="/financial/capitation" element={<FinancialRegisterPage type="capitation" />} />
+      <Route path="/financial/ffs" element={<Navigate to="/financial/register" replace />} />
+      <Route path="/financial/enrolment" element={<Navigate to="/financial/register" replace />} />
+      <Route path="/population/enrolment/register" element={<EnrolmentRegisterPage />} />
+      <Route path="/population/enrolment/new" element={<NewEnrolleePage />} />
+      <Route path="/financial/upload" element={<DataUploadCentrePage />} />
+      <Route path="/financial/manual" element={<FinancialManualEntryPage />} />
+      <Route path="/financial/manual/capitation" element={<Navigate to="/financial/manual?type=capitation" replace />} />
+      <Route path="/financial/history" element={<ImportHistoryPage />} />
+      <Route path="/population/enrolment" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
+      <Route path="/inspections" element={<InspectionsPage />} />
+      <Route path="/inspections/new" element={<InspectionEntryPage />} />
+      <Route path="/inspections/accreditation" element={<AccreditationPage />} />
+      <Route path="/inspections/accreditation/new" element={<NewAccreditationPage />} />
+      <Route path="/settings/inspection-templates" element={<InspectionTemplateAdminPage />} />
+      <Route path="/performance" element={<PerformancePage />} />
+      <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/communication" element={<CommunicationPage />} />
+      <Route path="/complaints" element={<ComplaintsPage />} />
+      <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['super-admin']}><ManageUsersPage /></ProtectedRoute>} />
+      <Route path="/admin/audit" element={<ProtectedRoute allowedRoles={['super-admin']}><AuditLogPage /></ProtectedRoute>} />
+      <Route path="/admin/config" element={<ProtectedRoute allowedRoles={['super-admin']}><SystemConfigPage /></ProtectedRoute>} />
+      <Route path="/admin/data" element={<ProtectedRoute allowedRoles={['super-admin']}><DataManagementPage /></ProtectedRoute>} />
+      <Route path="/admin/invite-provider" element={<ProtectedRoute allowedRoles={['super-admin']}><InviteProviderPage /></ProtectedRoute>} />
+      <Route path="/settings" element={<SettingsPage />} />
+    </Route>
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes></Suspense>;
 }
