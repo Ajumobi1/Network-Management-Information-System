@@ -4,6 +4,7 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import AppErrorBoundary from './components/system/AppErrorBoundary';
 import './index.css';
+import './public-portal-security.css';
 
 // Register the service worker for PWA support. Private data is explicitly kept
 // network-only by the Workbox configuration in vite.config.ts.
