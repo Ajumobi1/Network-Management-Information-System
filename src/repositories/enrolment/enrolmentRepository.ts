@@ -191,7 +191,9 @@ export async function fetchEnrollees(filters: EnrolmentFilters = {}): Promise<En
   if (useMockData) return (await getEnrolleesMock()).filter(record => matchesFilter(record, filters));
 
   const page = filters.page ?? 1;
-  const pageSize = filters.pageSize ?? 50000;
+  // Never allow the data layer to request an unbounded historical register by default.
+  // The UI supplies its own page size; this fallback is intentionally conservative.
+  const pageSize = filters.pageSize ?? 100;
   const offset = (page - 1) * pageSize;
 
   const rows = await invokeSecureRpc<SecureEnrolleeRow[]>('nmis_list_enrollee_register', {
@@ -255,7 +257,7 @@ export async function checkDuplicateEnrolmentBatch(period: string, providerNames
   const batches = mockImportBatches.filter(batch => batch.dataType === 'enrolment' && batch.periodCovered === period && (() => {
     const providers = Array.isArray(batch.metadata?.providerNames) ? batch.metadata.providerNames as string[] : [];
     return providers.length === 0 || providers.some(name => normalized.has(name.trim().toLowerCase()));
-  }));
+  })());
   return { isDuplicate: batches.length > 0, batches };
 }
 
@@ -304,7 +306,6 @@ export async function createEnrolmentImportBatch(
   mockImportBatches.unshift(created);
   return created;
 }
-
 
 function analyticsFromDashboardIntelligence(intelligence: Dashboard2Intelligence): EnrolmentAnalytics {
   const population = intelligence.population;
