@@ -1119,3 +1119,63 @@ select:focus-visible {
 }
 
 .nmis-display-heading { caret-color: transparent; user-select: none; }
+
+
+/* Global horizontal navigation: the active data surface keeps a fixed scrollbar
+   at the viewport bottom while the page/table scrolls vertically. */
+.nmis-horizontal-scrollbar {
+  position: fixed;
+  left: max(1rem, env(safe-area-inset-left));
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(0.45rem, env(safe-area-inset-bottom));
+  z-index: 80;
+  height: 1.05rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.18rem 0;
+  border: 1px solid rgba(11, 79, 130, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 24px rgba(6, 24, 63, 0.16);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(0.35rem);
+  transition: opacity 140ms ease, transform 140ms ease;
+  scrollbar-color: #0b65a1 transparent;
+  scrollbar-width: thin;
+}
+.nmis-horizontal-scrollbar.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.nmis-horizontal-scrollbar__track {
+  height: 0.55rem;
+  min-width: 160px;
+}
+.nmis-horizontal-scrollbar::-webkit-scrollbar {
+  height: 7px;
+}
+.nmis-horizontal-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.nmis-horizontal-scrollbar::-webkit-scrollbar-thumb {
+  background: #0b65a1;
+  border-radius: 999px;
+}
+.nmis-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #f7931e;
+}
+@media (max-width: 639px) {
+  .nmis-horizontal-scrollbar {
+    left: 0.65rem;
+    right: 0.65rem;
+    bottom: max(0.35rem, env(safe-area-inset-bottom));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nmis-horizontal-scrollbar {
+    transition: none;
+  }
+}
