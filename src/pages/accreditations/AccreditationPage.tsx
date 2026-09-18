@@ -45,7 +45,7 @@ export default function AccreditationPage() {
               <h1 className="mt-3 text-2xl font-black tracking-tight sm:text-3xl">New Facility Accreditation</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-blue-100">Assess facilities that are not yet registered in the Provider Directory. Accreditation records are maintained independently from registered-provider inspections.</p>
             </div>
-            <Button className="bg-[#f7931e] text-white shadow-lg shadow-orange-950/20 hover:bg-[#ff9f2f]" onClick={() => navigate('/inspections/accreditation/new')}><Plus size={16} /> New Accreditation</Button>
+            <Button className="bg-[#f7931e] text-white shadow-lg shadow-orange-950/20 hover:bg-[#ff9f2f]" onClick={() => navigate('/accreditations/new')}><Plus size={16} /> New Accreditation</Button>
           </div>
         </section>
 
@@ -86,7 +86,7 @@ export default function AccreditationPage() {
                     <td className="px-5 py-4"><div className="space-y-1 text-xs"><p><strong>Credentialing:</strong> {record.credentialing_points}/{record.credentialing_possible}</p><p><strong>Accreditation:</strong> {record.accreditation_points}/{record.accreditation_possible}</p><p className="font-black text-brand-blue"><strong>Overall:</strong> {record.overall_score ?? 0}%</p></div></td>
                     <td className="max-w-[250px] px-5 py-4 text-xs font-bold text-brand-secondary">{record.recommendation || 'Pending'}</td>
                     <td className="px-5 py-4"><Badge variant={record.status.toLowerCase() === 'submitted' ? 'success' : 'warning'}>{record.status}</Badge></td>
-                    <td className="px-5 py-4 text-right"><Button variant="secondary" onClick={() => navigate(`/inspections/accreditation/new?draftId=${encodeURIComponent(record.id)}&facilityType=${encodeURIComponent(record.facility_type_code)}`)}>{record.status.toLowerCase() === 'draft' ? 'Resume' : 'View'}</Button></td>
+                    <td className="px-5 py-4 text-right"><Button variant="secondary" onClick={() => navigate(`/accreditations/new?draftId=${encodeURIComponent(record.id)}&facilityType=${encodeURIComponent(record.facility_type_code)}`)}>{record.status.toLowerCase() === 'draft' ? 'Resume' : 'View'}</Button></td>
                   </tr>
                 ))}
                 {!filtered.length && <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-brand-muted">No accreditation records match the current filters.</td></tr>}
