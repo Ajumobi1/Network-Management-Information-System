@@ -1179,3 +1179,19 @@ select:focus-visible {
     transition: none;
   }
 }
+
+
+/* Native table/tab bars are hidden because the active surface is mirrored by
+   the fixed navigation bar below. Scrolling itself remains enabled. */
+.nmis-table-scroll,
+.nmis-tab-scroll,
+.overflow-x-auto,
+.overflow-x-scroll {
+  scrollbar-width: none;
+}
+.nmis-table-scroll::-webkit-scrollbar,
+.nmis-tab-scroll::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-x-scroll::-webkit-scrollbar {
+  display: none;
+}
