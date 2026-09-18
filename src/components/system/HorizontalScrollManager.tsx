@@ -53,10 +53,7 @@ export default function HorizontalScrollManager() {
       }
 
       ensureBar();
-      const width = Math.max(160, active.clientWidth);
-      const ratio = active.clientWidth / active.scrollWidth;
-
-      track!.style.width = `${active.scrollWidth}px`;
+            track!.style.width = `${active.scrollWidth}px`;
       bar!.scrollLeft = active.scrollLeft;
       bar!.classList.add('is-visible');
       bar!.setAttribute('aria-valuemin', '0');
