@@ -50,6 +50,7 @@ const sections: Section[] = [
     children: [
       { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, end: true },
       { label: 'Accreditation', path: '/accreditations', icon: ClipboardList, end: true },
+      { label: 'ODCHC Checklist App', path: '/quality-compliance/checklists', icon: ClipboardCheck },
       { label: 'Complaints', path: '/complaints', icon: Bell },
     ] 
   },
@@ -245,4 +246,3 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
     </>
   );
 }
-

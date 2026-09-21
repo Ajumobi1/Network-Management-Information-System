@@ -23,6 +23,7 @@ const RegisteredInspectionPage = lazy(() => import('../pages/inspections/Registe
 const InspectionTemplateAdminPage = lazy(() => import('../pages/inspections/InspectionTemplateAdminPage'));
 const AccreditationPage = lazy(() => import('../pages/accreditations/AccreditationPage'));
 const NewAccreditationPage = lazy(() => import('../pages/accreditations/NewAccreditationPage'));
+const ODCHCChecklistPage = lazy(() => import('../pages/ODCHCChecklistPage'));
 const ContractsPage = lazy(() => import('../pages/ContractsPage'));
 const ReportsPage = lazy(() => import('../pages/ReportsPage'));
 const CredentialingPage = lazy(() => import('../pages/CredentialingPage'));
@@ -82,6 +83,7 @@ export default function AppRoutes() {
       <Route path="/population/enrolment/upload" element={<EnrolmentUploadPage />} />
       <Route path="/inspections" element={<InspectionsPage />} />
       <Route path="/inspections/new" element={<RegisteredInspectionPage />} />
+      <Route path="/quality-compliance/checklists" element={<ODCHCChecklistPage />} />
       <Route path="/accreditations" element={<AccreditationPage />} />
       <Route path="/accreditations/new" element={<NewAccreditationPage />} />
       <Route path="/settings/inspection-templates" element={<InspectionTemplateAdminPage />} />
