@@ -1,6 +1,9 @@
+import { useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { supabase } from '../lib/supabase/supabaseClient';
+import { supabaseRuntimeConfig } from '../lib/runtime';
 
 /**
  * The ODCHC checklist app is the source of truth for this workflow.
@@ -10,6 +13,33 @@ import Button from '../components/ui/Button';
  */
 export default function ODCHCChecklistPage() {
   const navigate = useNavigate();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const sendSupabaseSession = useCallback(async () => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow || !supabaseRuntimeConfig.url || !supabaseRuntimeConfig.anonKey) return;
+    const { data } = await supabase.auth.getSession();
+    iframe.contentWindow.postMessage({
+      type: 'ODCHC_SUPABASE_SESSION',
+      url: supabaseRuntimeConfig.url,
+      anonKey: supabaseRuntimeConfig.anonKey,
+      accessToken: data.session?.access_token ?? null,
+    }, window.location.origin);
+  }, []);
+
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin === window.location.origin && event.data?.type === 'ODCHC_CHECKLIST_READY') {
+        void sendSupabaseSession();
+      }
+    };
+    window.addEventListener('message', onMessage);
+    const { data: listener } = supabase.auth.onAuthStateChange(() => { void sendSupabaseSession(); });
+    return () => {
+      window.removeEventListener('message', onMessage);
+      listener.subscription.unsubscribe();
+    };
+  }, [sendSupabaseSession]);
 
   return (
     <main className="relative min-h-[calc(100dvh-4rem)] bg-[#072f6b]">
@@ -23,8 +53,10 @@ export default function ODCHCChecklistPage() {
         </Button>
       </div>
       <iframe
+        ref={iframeRef}
         title="ODCHC Accreditation Checklist"
         src="/odchc-checklist/index.html"
+        onLoad={() => { void sendSupabaseSession(); }}
         className="block h-[calc(100dvh-4rem)] min-h-[760px] w-full border-0 bg-white"
         allow="download"
       />

@@ -382,11 +382,26 @@ let recommendation = null;
 let inspectionTeam = [{name:'',date:''},{name:'',date:''},{name:'',date:''},{name:'',date:''}];
 let contactPerson = '';
 let facilityAccount = '';
+let clientSubmissionId = null;
 
 // QA quarter state
 let qaQuarter = {q: '', year: ''}; // global quarter (Section A / most questions)
 let qa024Quarter = {q: '', year: ''}; // Q024a quarter
 let qa025Quarter = {q: '', year: ''}; // Q025 quarter
+
+// Supabase session is supplied by the authenticated NMIS host page.
+let odchcSupabaseSession = null;
+window.addEventListener('message', event => {
+  if (event.origin !== window.location.origin || event.data?.type !== 'ODCHC_SUPABASE_SESSION') return;
+  odchcSupabaseSession = {
+    url: event.data.url,
+    anonKey: event.data.anonKey,
+    accessToken: event.data.accessToken || null,
+  };
+});
+setTimeout(() => {
+  if (window.parent !== window) window.parent.postMessage({type: 'ODCHC_CHECKLIST_READY'}, window.location.origin);
+}, 0);
 
 const QUARTER_MONTHS = {
   '1': ['January','February','March'],
@@ -485,6 +500,7 @@ function updateQ025Tables() {
 // ===================== LOAD =====================
 function loadChecklist(type) {
   currentType = type;
+  clientSubmissionId = window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   scores = {}; remarks = {}; profileData = {}; numAvailable = {}; yesno = {};
   qaQuarter = {q:'', year:''}; qa024Quarter = {q:'', year:''}; qa025Quarter = {q:'', year:''};
   recommendation = null;
@@ -866,6 +882,7 @@ function renderForm(cl) {
     </div>
     <div class="summary-buttons">
       <button class="clear-btn" onclick="confirmClearDraft()">🗑 Clear</button>
+      <button class="export-btn" style="background:var(--green);" onclick="submitChecklist()">☁ Submit to NMIS</button>
       <button class="export-btn" onclick="exportPDF()">📄 Export PDF</button>
     </div>
   </div>`;
@@ -881,6 +898,7 @@ function saveToStorage() {
       currentType,
       scores, remarks, profileData, numAvailable, yesno,
       recommendation, inspectionTeam, contactPerson, facilityAccount,
+      clientSubmissionId,
       qaQuarter, qa024Quarter, qa025Quarter,
       savedAt: new Date().toISOString()
     };
@@ -903,6 +921,7 @@ function loadFromStorage(type) {
     inspectionTeam = draft.inspectionTeam || [{name:'',date:''},{name:'',date:''},{name:'',date:''},{name:'',date:''}];
     contactPerson = draft.contactPerson || '';
     facilityAccount = draft.facilityAccount || '';
+    clientSubmissionId = draft.clientSubmissionId || clientSubmissionId;
     qaQuarter = draft.qaQuarter || {q:'',year:''};
     qa024Quarter = draft.qa024Quarter || {q:'',year:''};
     qa025Quarter = draft.qa025Quarter || {q:'',year:''};
@@ -1026,6 +1045,63 @@ function validateForm() {
     errors.push(`• "No. available" values cannot be negative`);
   }
   return errors;
+}
+
+function checklistSubmissionPayload() {
+  const score = parseFloat(document.getElementById('total-score-bar')?.textContent || '');
+  const maximum = parseFloat(document.getElementById('max-score-bar')?.textContent || '');
+  const percentage = parseFloat(document.getElementById('pct-score-bar')?.textContent || '');
+  const inspectionDate = profileData.inspection_date || new Date().toISOString().slice(0, 10);
+  const clientId = clientSubmissionId || `${currentType}:${Date.now()}`;
+  return {
+    client_submission_id: clientId,
+    checklist_type: currentType,
+    checklist_title: CHECKLISTS[currentType]?.title || currentType,
+    facility_name: profileData.name || '',
+    inspection_date: inspectionDate,
+    overall_score: Number.isFinite(score) ? score : null,
+    maximum_score: Number.isFinite(maximum) ? maximum : null,
+    percentage: Number.isFinite(percentage) ? percentage : null,
+    recommendation,
+    profile_data: { ...profileData, contact_person: contactPerson, facility_account: facilityAccount },
+    responses: { scores, remarks, numAvailable, yesno, qaQuarter, qa024Quarter, qa025Quarter, inspectionTeam },
+    raw_payload: { currentType, profileData, scores, remarks, numAvailable, yesno, recommendation, inspectionTeam, contactPerson, facilityAccount, qaQuarter, qa024Quarter, qa025Quarter },
+  };
+}
+
+async function submitChecklist() {
+  const errors = validateForm();
+  if (errors.length > 0) {
+    alert(`Please fix the following before submitting:\n\n${errors.join('\n')}`);
+    return;
+  }
+  if (!odchcSupabaseSession?.url || !odchcSupabaseSession?.anonKey || !odchcSupabaseSession?.accessToken) {
+    alert('Your NMIS session is not ready. Please sign in again, then reopen the checklist.');
+    return;
+  }
+  const button = [...document.querySelectorAll('.summary-buttons button')].find(b => /Submit to NMIS/.test(b.textContent || ''));
+  if (button) { button.disabled = true; button.textContent = '⏳ Saving…'; }
+  try {
+    const response = await fetch(`${odchcSupabaseSession.url}/rest/v1/rpc/nmis_save_odchc_checklist_submission`, {
+      method: 'POST',
+      headers: {
+        apikey: odchcSupabaseSession.anonKey,
+        Authorization: `Bearer ${odchcSupabaseSession.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_payload: checklistSubmissionPayload() }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.message || result.error_description || 'Supabase rejected the checklist submission.');
+    const saved = Array.isArray(result) ? result[0] : result;
+    alert(`Checklist submitted successfully.\n\nSubmission code: ${saved.submission_code || 'saved'}`);
+    saveToStorage();
+  } catch (error) {
+    console.error('ODCHC checklist submission failed:', error);
+    alert(`Checklist submission failed.\n\n${error instanceof Error ? error.message : 'Please try again.'}`);
+  } finally {
+    if (button) { button.disabled = false; button.textContent = '☁ Submit to NMIS'; }
+  }
 }
 
 function showValidationModal(errors, onProceed) {
