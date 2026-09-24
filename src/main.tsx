@@ -6,9 +6,18 @@ import AppErrorBoundary from './components/system/AppErrorBoundary';
 import './index.css';
 import './public-portal-security.css';
 
-// Register the service worker for PWA support. Private data is explicitly kept
-// network-only by the Workbox configuration in vite.config.ts.
-registerSW({ immediate: true });
+// Keep installed web apps aligned with the current deployment. Private data is
+// explicitly kept network-only by the Workbox configuration in vite.config.ts.
+registerSW({
+  immediate: true,
+  onRegisteredSW: (_swUrl, registration) => {
+    if (!registration) return;
+    window.setInterval(() => { void registration.update(); }, 15 * 60 * 1000);
+  },
+  onNeedRefresh: () => {
+    window.setTimeout(() => window.location.reload(), 250);
+  },
+});
 
 const rootElement = document.getElementById('root');
 

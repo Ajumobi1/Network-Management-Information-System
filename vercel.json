@@ -1,9 +1,16 @@
 {
   "headers": [
     {
+      "source": "/(sw.js|index.html|manifest.webmanifest)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
       "source": "/odchc-checklist/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "https://www.odchcnmis.online" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },

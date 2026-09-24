@@ -1621,8 +1621,3 @@ async function doSavePDF(doc) {
     alert('PDF saved! Check your Downloads folder.');
   }
 }
-
-// PWA
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}

@@ -498,8 +498,13 @@ export function downloadPdf(bytes: Uint8Array, fileName: string) {
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = fileName;
+  anchor.rel = 'noopener';
   document.body.appendChild(anchor);
-  anchor.click();
+  try {
+    anchor.click();
+  } catch {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
