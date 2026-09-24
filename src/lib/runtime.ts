@@ -34,5 +34,6 @@ export const inertSupabaseRuntimeConfig = {
   anonKey: 'inert-anon-key',
 };
 
-// Deployment Version: 2.4.1-gold-verified
-export const DEPLOYMENT_TAG = '2.4.1-gold-verified';
+// Build identifier is injected by vite.config.ts and is shared by the app shell,
+// the PWA update checker, and cache-busting for the bundled ODCHC checklist.
+export const DEPLOYMENT_TAG = import.meta.env.VITE_NMIS_BUILD_ID?.trim() || 'development';
