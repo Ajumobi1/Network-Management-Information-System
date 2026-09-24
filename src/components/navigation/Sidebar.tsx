@@ -51,6 +51,7 @@ const sections: Section[] = [
       { label: 'Inspections', path: '/inspections', icon: ClipboardCheck, end: true },
       { label: 'Accreditation', path: '/accreditations', icon: ClipboardList, end: true },
       { label: 'ODCHC Checklist App', path: '/quality-compliance/checklists', icon: ClipboardCheck },
+      { label: 'Submission History', path: '/quality-compliance/submissions', icon: History },
       { label: 'Complaints', path: '/complaints', icon: Bell },
     ] 
   },
