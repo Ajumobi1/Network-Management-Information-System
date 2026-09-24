@@ -1,6 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { registerSW } from 'virtual:pwa-register';
 import App from './App';
 import AppErrorBoundary from './components/system/AppErrorBoundary';
 import { DEPLOYMENT_TAG } from './lib/runtime';
@@ -8,14 +7,13 @@ import './index.css';
 import './public-portal-security.css';
 
 let reloadTriggered = false;
-let serviceWorkerRegistration: ServiceWorkerRegistration | undefined;
-let updateServiceWorker: ((reloadPage?: boolean) => Promise<void>) | undefined;
+let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
 
-async function cleanupLegacyChecklistServiceWorkers(): Promise<boolean> {
+async function unregisterLegacyChecklistWorkers(): Promise<boolean> {
   if (!('serviceWorker' in navigator)) return false;
 
   const registrations = await navigator.serviceWorker.getRegistrations();
-  let legacyFound = false;
+  let removed = false;
 
   await Promise.all(
     registrations.map(async registration => {
@@ -25,22 +23,21 @@ async function cleanupLegacyChecklistServiceWorkers(): Promise<boolean> {
         registration.installing?.scriptURL,
       ].filter((url): url is string => Boolean(url));
 
-      const isLegacyChecklistWorker =
+      const legacyChecklistWorker =
         registration.scope === `${window.location.origin}/odchc-checklist/` ||
         scriptUrls.some(url => url.includes('/odchc-checklist/sw.js'));
 
-      if (!isLegacyChecklistWorker) return;
+      if (!legacyChecklistWorker) return;
 
-      legacyFound = true;
       try {
-        await registration.unregister();
+        removed = (await registration.unregister()) || removed;
       } catch {
-        // The next launch can retry cleanup if the browser declines the unregister request.
+        // Retry on a later launch if the browser does not unregister immediately.
       }
     }),
   );
 
-  return legacyFound;
+  return removed;
 }
 
 async function fetchServerBuildId(): Promise<string | null> {
@@ -48,108 +45,97 @@ async function fetchServerBuildId(): Promise<string | null> {
 
   try {
     const response = await fetch(`/version.json?check=${Date.now()}`, {
+      method: 'GET',
       cache: 'no-store',
-      headers: {
-        'cache-control': 'no-cache',
-      },
+      headers: { 'cache-control': 'no-cache' },
     });
 
     if (!response.ok) return null;
 
     const payload = await response.json() as { buildId?: unknown };
-    return typeof payload.buildId === 'string' && payload.buildId.trim() ? payload.buildId.trim() : null;
+    return typeof payload.buildId === 'string' && payload.buildId.trim()
+      ? payload.buildId.trim()
+      : null;
   } catch {
     return null;
   }
 }
 
-async function ensureLatestBuild(): Promise<void> {
-  if (reloadTriggered || import.meta.env.DEV || !navigator.onLine || !DEPLOYMENT_TAG) return;
+async function updateServiceWorker(): Promise<void> {
+  if (!navigator.onLine || !serviceWorkerRegistration) return;
+
+  try {
+    await serviceWorkerRegistration.update();
+
+    const waiting = serviceWorkerRegistration.waiting;
+    if (waiting) {
+      waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+  } catch {
+    // A temporary update failure must never interrupt an otherwise valid session.
+  }
+}
+
+async function checkForNewDeployment(): Promise<void> {
+  if (reloadTriggered || import.meta.env.DEV || !navigator.onLine) return;
 
   const serverBuildId = await fetchServerBuildId();
   if (!serverBuildId || serverBuildId === DEPLOYMENT_TAG) return;
 
-  reloadTriggered = true;
-
-  try {
-    sessionStorage.setItem('nmis_pending_build_update', serverBuildId);
-  } catch {
-    // Session storage is optional.
-  }
-
-  try {
-    if (updateServiceWorker) {
-      await updateServiceWorker(true);
-      return;
-    }
-
-    if (serviceWorkerRegistration) {
-      await serviceWorkerRegistration.update();
-    }
-  } catch {
-    // Do not reload against an old service worker if the update could not be prepared.
-    reloadTriggered = false;
-  }
+  // Never reload until a fresh service worker has taken control. Reloading while
+  // an older worker still controls the page can reproduce the stale-PWA problem.
+  await updateServiceWorker();
 }
 
-async function refreshServiceWorker(swUrl: string, registration: ServiceWorkerRegistration): Promise<void> {
-  if (!navigator.onLine || registration.installing) return;
+async function registerCurrentServiceWorker(): Promise<void> {
+  if (!('serviceWorker' in navigator) || import.meta.env.DEV) return;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadTriggered) return;
+    reloadTriggered = true;
+    window.location.reload();
+  });
 
   try {
-    const response = await fetch(`${swUrl}${swUrl.includes('?') ? '&' : '?'}check=${Date.now()}`, {
-      cache: 'no-store',
-      headers: {
-        'cache-control': 'no-cache',
-      },
+    serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none',
     });
 
-    if (response.ok) await registration.update();
-  } catch {
-    // Offline or transient failures should never log the user out or break the application.
-  }
+    await updateServiceWorker();
 
-  await ensureLatestBuild();
+    const check = () => {
+      void updateServiceWorker();
+      void checkForNewDeployment();
+    };
+
+    check();
+    window.setInterval(check, 5 * 60 * 1000);
+    window.addEventListener('focus', check);
+    window.addEventListener('pageshow', check);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') check();
+    });
+  } catch (error) {
+    console.warn('NMIS service-worker registration/update failed:', error);
+  }
 }
 
 async function bootstrap(): Promise<void> {
-  let legacyWorkerFound = false;
+  let removedLegacyWorker = false;
 
   try {
-    legacyWorkerFound = await cleanupLegacyChecklistServiceWorkers();
+    removedLegacyWorker = await unregisterLegacyChecklistWorkers();
   } catch {
-    // Continue startup; the cleanup will be retried on a later launch.
+    // The cleanup remains best-effort and will be retried on another launch.
   }
 
-  if (legacyWorkerFound) {
+  if (removedLegacyWorker) {
     window.location.reload();
     return;
   }
 
-  updateServiceWorker = registerSW({
-    immediate: true,
-    onRegisteredSW: (swUrl, registration) => {
-      if (!registration) return;
-
-      serviceWorkerRegistration = registration;
-
-      const checkForUpdate = () => {
-        void refreshServiceWorker(swUrl, registration);
-      };
-
-      checkForUpdate();
-      window.setInterval(checkForUpdate, 5 * 60 * 1000);
-      window.addEventListener('focus', checkForUpdate);
-      window.addEventListener('pageshow', checkForUpdate);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible') checkForUpdate();
-      });
-    },
-    onNeedRefresh: () => {
-      if (reloadTriggered) return;
-      reloadTriggered = true;
-      window.setTimeout(() => window.location.reload(), 250);
-    },
-  });
+  await registerCurrentServiceWorker();
 
   const rootElement = document.getElementById('root');
 
