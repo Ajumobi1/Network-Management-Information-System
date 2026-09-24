@@ -155,14 +155,18 @@ export const authService = {
     return { success: true, data: null };
   },
 
-  async checkUserStatus(userId: string): Promise<'active' | 'suspended' | 'locked' | 'pending' | 'deleted'> {
+  async checkUserStatus(userId: string): Promise<'active' | 'suspended' | 'locked' | 'pending' | 'deleted' | 'unknown'> {
     try {
       const { data, error } = await supabase.rpc('nmis_check_user_status', { p_user_id: userId });
-      if (error) return 'deleted';
-      if (!data) return 'deleted';
-      return data as 'active' | 'suspended' | 'locked' | 'pending';
-    } catch {
-      return 'deleted';
+      if (error) {
+        console.warn('NMIS user-status check failed:', error.message);
+        return 'unknown';
+      }
+      if (!data) return 'unknown';
+      return data as 'active' | 'suspended' | 'locked' | 'pending' | 'deleted';
+    } catch (error) {
+      console.warn('NMIS user-status check failed:', error);
+      return 'unknown';
     }
   },
 };
