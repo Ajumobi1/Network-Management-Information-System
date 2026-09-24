@@ -392,7 +392,12 @@ let qa025Quarter = {q: '', year: ''}; // Q025 quarter
 // Supabase session is supplied by the authenticated NMIS host page.
 let odchcSupabaseSession = null;
 window.addEventListener('message', event => {
-  if (event.origin !== window.location.origin || event.data?.type !== 'ODCHC_SUPABASE_SESSION') return;
+  if (event.origin !== window.location.origin) return;
+  if (event.data?.type === 'ODCHC_LOAD_SUBMISSION' && event.data.submission) {
+    loadSavedSubmissionForEdit(event.data.submission);
+    return;
+  }
+  if (event.data?.type !== 'ODCHC_SUPABASE_SESSION') return;
   odchcSupabaseSession = {
     url: event.data.url,
     anonKey: event.data.anonKey,
@@ -553,6 +558,72 @@ function restoreDraft(type) {
   // Re-apply yesno button states
   Object.entries(yesno).forEach(([key, val]) => setYesNo(key, val));
   if (recommendation) setRecommendation(recommendation);
+}
+
+function loadSavedSubmissionForEdit(submission) {
+  const payload = submission.raw_payload || {};
+  const type = submission.checklist_type || payload.currentType;
+  if (!type || !CHECKLISTS[type]) return;
+  loadChecklist(type);
+  const draftModal = document.getElementById('draft-modal');
+  if (draftModal) draftModal.remove();
+  currentType = type;
+  clientSubmissionId = payload.clientSubmissionId || submission.id;
+  scores = payload.scores || {};
+  remarks = payload.remarks || {};
+  profileData = payload.profileData || submission.profile_data || {};
+  numAvailable = payload.numAvailable || {};
+  yesno = payload.yesno || {};
+  recommendation = payload.recommendation || null;
+  inspectionTeam = payload.inspectionTeam || inspectionTeam;
+  contactPerson = payload.contactPerson || '';
+  facilityAccount = payload.facilityAccount || '';
+  qaQuarter = payload.qaQuarter || qaQuarter;
+  qa024Quarter = payload.qa024Quarter || qa024Quarter;
+  qa025Quarter = payload.qa025Quarter || qa025Quarter;
+  renderForm(CHECKLISTS[type]);
+  hydrateSavedSubmissionInputs();
+  updateScore();
+  Object.entries(yesno).forEach(([key, val]) => setYesNo(key, val));
+  if (recommendation) setRecommendation(recommendation);
+  setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 0);
+}
+
+function hydrateSavedSubmissionInputs() {
+  document.querySelectorAll('#form-body input, #form-body textarea').forEach(el => {
+    const binding = el.getAttribute('oninput') || '';
+    let keyMatch = binding.match(/(?:profileData|scores|remarks|numAvailable)\['([^']+)'\]/);
+    if (keyMatch) {
+      const sourceName = binding.match(/^(?:.*?)(profileData|scores|remarks|numAvailable)/)?.[1];
+      const source = sourceName === 'profileData' ? profileData : sourceName === 'scores' ? scores : sourceName === 'numAvailable' ? numAvailable : remarks;
+      if (source[keyMatch[1]] !== undefined) {
+        el.value = source[keyMatch[1]];
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      return;
+    }
+    const teamMatch = binding.match(/inspectionTeam\[(\d+)\]\.(name|date)/);
+    if (teamMatch && inspectionTeam[Number(teamMatch[1])]) {
+      el.value = inspectionTeam[Number(teamMatch[1])][teamMatch[2]] || '';
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+    if (binding.includes('contactPerson') && contactPerson) el.value = contactPerson;
+    if (binding.includes('facilityAccount') && facilityAccount) el.value = facilityAccount;
+  });
+  const quarterStates = [qaQuarter, qa024Quarter, qa025Quarter];
+  let quarterIndex = 0;
+  document.querySelectorAll('#form-body select').forEach(select => {
+    const state = quarterStates[quarterIndex++];
+    if (!state) return;
+    select.value = state.q || '';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const yearInput = select.parentElement?.querySelector('input[type="number"]');
+    if (yearInput) {
+      yearInput.value = state.year || '';
+      yearInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
 }
 
 function goBack() {

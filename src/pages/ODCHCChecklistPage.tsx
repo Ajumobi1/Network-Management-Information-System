@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { supabase } from '../lib/supabase/supabaseClient';
@@ -13,7 +13,9 @@ import { supabaseRuntimeConfig } from '../lib/runtime';
  */
 export default function ODCHCChecklistPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const editSubmissionRef = useRef<Record<string, unknown> | null>(null);
 
   const sendSupabaseSession = useCallback(async () => {
     const iframe = iframeRef.current;
@@ -27,10 +29,30 @@ export default function ODCHCChecklistPage() {
     }, window.location.origin);
   }, []);
 
+  const sendEditSubmission = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (iframe?.contentWindow && editSubmissionRef.current) {
+      iframe.contentWindow.postMessage({ type: 'ODCHC_LOAD_SUBMISSION', submission: editSubmissionRef.current }, window.location.origin);
+    }
+  }, []);
+
+  useEffect(() => {
+    const editId = searchParams.get('editId');
+    if (!editId) return;
+    void supabase.rpc('nmis_get_odchc_checklist_submission', { p_submission_id: editId }).then(({ data, error }) => {
+      if (error) window.alert(`Unable to load this submission for editing.\n\n${error.message}`);
+      else {
+        editSubmissionRef.current = data as Record<string, unknown>;
+        sendEditSubmission();
+      }
+    });
+  }, [searchParams, sendEditSubmission]);
+
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin === window.location.origin && event.data?.type === 'ODCHC_CHECKLIST_READY') {
         void sendSupabaseSession();
+        sendEditSubmission();
       }
     };
     window.addEventListener('message', onMessage);
@@ -52,11 +74,11 @@ export default function ODCHCChecklistPage() {
           <ArrowLeft size={16} /> Back to NMIS
         </Button>
       </div>
-      <iframe
+        <iframe
         ref={iframeRef}
         title="ODCHC Accreditation Checklist"
         src="/odchc-checklist/index.html"
-        onLoad={() => { void sendSupabaseSession(); }}
+        onLoad={() => { void sendSupabaseSession(); sendEditSubmission(); }}
         className="block h-[calc(100dvh-4rem)] min-h-[760px] w-full border-0 bg-white"
         allow="download"
       />

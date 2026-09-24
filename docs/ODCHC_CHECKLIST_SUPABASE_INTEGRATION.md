@@ -8,7 +8,7 @@ Apply [`20260923000000_odchc_checklist_submissions.sql`](../supabase/migrations/
 
 The RPC accepts the four checklist types: `primary`, `dental`, `pharmacy`, and `qa`. It stores the facility profile, structured response maps, score summary, recommendation, inspection date, and the complete raw checklist payload. A stable client submission identifier makes repeated clicks for the same draft idempotent while a new checklist session receives a new identifier.
 
-The follow-up migration [`20260924000000_odchc_checklist_submission_history.sql`](../supabase/migrations/20260924000000_odchc_checklist_submission_history.sql) creates the protected list and detail RPCs used by the **Quality & Compliance → Submission History** page. The page supports facility, submission-code, and email search; checklist-type filtering; pagination; and expandable profile, response, and raw-payload details.
+The follow-up migration [`20260924000000_odchc_checklist_submission_history.sql`](../supabase/migrations/20260924000000_odchc_checklist_submission_history.sql) creates the protected list and detail RPCs used by the **Quality & Compliance → Submission History** page. The page supports facility, submission-code, and email search; checklist-type filtering; pagination; a readable submission report; browser PDF/print export; and reopening a saved checklist for editing and resubmission. Technical raw payload details remain available as an audit-only expandable section.
 
 ## Application behavior
 
