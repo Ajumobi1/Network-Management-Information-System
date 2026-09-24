@@ -1011,7 +1011,8 @@ function updateScore() {
 function validateForm() {
   const errors = [];
   // Required profile fields
-  const requiredFields = {name: 'Facility Name', address: 'Address', inspection_date: 'Date of Inspection'};
+  const requiredFields = {name: 'Facility Name', address: 'Address'};
+  if (!CHECKLISTS[currentType]?.isQA) requiredFields.inspection_date = 'Date of Inspection';
   Object.entries(requiredFields).forEach(([id, label]) => {
     if (!profileData[id] || profileData[id].trim() === '') {
       errors.push(`• ${label} is required in Section A`);
