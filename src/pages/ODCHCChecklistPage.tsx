@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { supabase } from '../lib/supabase/supabaseClient';
-import { supabaseRuntimeConfig } from '../lib/runtime';
+import { DEPLOYMENT_TAG, supabaseRuntimeConfig } from '../lib/runtime';
 
 /**
  * The ODCHC checklist app is the source of truth for this workflow.
@@ -79,7 +79,9 @@ export default function ODCHCChecklistPage() {
       window.removeEventListener('message', onMessage);
       listener.subscription.unsubscribe();
     };
-  }, [sendSupabaseSession]);
+  }, [sendSupabaseSession, sendEditSubmission]);
+
+  const checklistAssetVersion = encodeURIComponent(DEPLOYMENT_TAG || 'current');
 
   return (
     <main className="relative min-h-[calc(100dvh-4rem)] bg-[#072f6b]">
@@ -92,14 +94,20 @@ export default function ODCHCChecklistPage() {
           <ArrowLeft size={16} /> Back to NMIS
         </Button>
       </div>
-        {editId && !editReady ? <div className="flex h-[calc(100dvh-4rem)] min-h-[760px] items-center justify-center bg-white text-sm font-semibold text-[#072f6b]">Loading saved checklist for editing...</div> : <iframe
-        ref={iframeRef}
-        title="ODCHC Accreditation Checklist"
-        src="/odchc-checklist/index.html?v=252f584"
-        onLoad={() => { void sendSupabaseSession(); sendEditSubmission(); }}
-        className="block h-[calc(100dvh-4rem)] min-h-[760px] w-full border-0 bg-white"
-        allow="download"
-        />}
+      {editId && !editReady ? (
+        <div className="flex h-[calc(100dvh-4rem)] min-h-[760px] items-center justify-center bg-white text-sm font-semibold text-[#072f6b]">
+          Loading saved checklist for editing...
+        </div>
+      ) : (
+        <iframe
+          ref={iframeRef}
+          title="ODCHC Accreditation Checklist"
+          src={`/odchc-checklist/index.html?v=${checklistAssetVersion}`}
+          onLoad={() => { void sendSupabaseSession(); sendEditSubmission(); }}
+          className="block h-[calc(100dvh-4rem)] min-h-[760px] w-full border-0 bg-white"
+          allow="download"
+        />
+      )}
     </main>
   );
 }
