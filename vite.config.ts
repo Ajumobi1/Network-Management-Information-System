@@ -62,16 +62,34 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'android-chrome-192x192.png', 'android-chrome-512x512.png'],
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        globIgnores: ['**/version.json'],
+        // Do not precache the HTML application shell. Navigation is network-first
+        // so an installed PWA always receives the current deployment when online.
+        globPatterns: ['**/*.{js,css,ico,png,svg,jpg,jpeg,webp,woff,woff2,ttf,eot}'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [privateNavigationPattern],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
         runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'nmis-navigation-shell-v1',
+              networkTimeoutSeconds: 8,
+              expiration: {
+                maxEntries: 2,
+                maxAgeSeconds: 60 * 60,
+              },
+              cacheableResponse: {
+                statuses: [200],
+              },
+            },
+          },
           {
             urlPattern: /^\/version\.json$/i,
             handler: 'NetworkOnly',
