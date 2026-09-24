@@ -593,8 +593,10 @@ function hydrateSavedSubmissionInputs() {
   document.querySelectorAll('#form-body input, #form-body textarea').forEach(el => {
     const binding = el.getAttribute('oninput') || '';
     let keyMatch = binding.match(/(?:profileData|scores|remarks|numAvailable)\['([^']+)'\]/);
+    const scoreMatch = binding.match(/clampScore\(this,[^,]+,'([^']+)'\)/);
+    if (!keyMatch && scoreMatch) keyMatch = scoreMatch;
     if (keyMatch) {
-      const sourceName = binding.match(/^(?:.*?)(profileData|scores|remarks|numAvailable)/)?.[1];
+      const sourceName = binding.includes('clampScore') ? 'scores' : binding.match(/^(?:.*?)(profileData|scores|remarks|numAvailable)/)?.[1];
       const source = sourceName === 'profileData' ? profileData : sourceName === 'scores' ? scores : sourceName === 'numAvailable' ? numAvailable : remarks;
       if (source[keyMatch[1]] !== undefined) {
         el.value = source[keyMatch[1]];
