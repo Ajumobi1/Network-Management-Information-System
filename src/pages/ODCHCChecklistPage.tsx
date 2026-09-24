@@ -39,10 +39,20 @@ export default function ODCHCChecklistPage() {
   useEffect(() => {
     const editId = searchParams.get('editId');
     if (!editId) return;
-    void supabase.rpc('nmis_get_odchc_checklist_submission', { p_submission_id: editId }).then(({ data, error }) => {
+    void supabase.auth.getSession().then(() => supabase.rpc('nmis_get_odchc_checklist_submission', { p_submission_id: editId })).then(({ data, error }) => {
       if (error) window.alert(`Unable to load this submission for editing.\n\n${error.message}`);
       else {
-        editSubmissionRef.current = data as Record<string, unknown>;
+        const submission = data as Record<string, unknown>;
+        let rawPayload = submission.raw_payload;
+        if (typeof rawPayload === 'string') {
+          try { rawPayload = JSON.parse(rawPayload); } catch { rawPayload = {}; }
+        }
+        editSubmissionRef.current = {
+          ...submission,
+          raw_payload: rawPayload,
+          profile_data: submission.profile_data || {},
+          responses: submission.responses || {},
+        };
         sendEditSubmission();
       }
     });
@@ -77,7 +87,7 @@ export default function ODCHCChecklistPage() {
         <iframe
         ref={iframeRef}
         title="ODCHC Accreditation Checklist"
-        src="/odchc-checklist/index.html"
+        src="/odchc-checklist/index.html?v=252f584"
         onLoad={() => { void sendSupabaseSession(); sendEditSubmission(); }}
         className="block h-[calc(100dvh-4rem)] min-h-[760px] w-full border-0 bg-white"
         allow="download"

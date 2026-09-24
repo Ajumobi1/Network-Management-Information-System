@@ -561,7 +561,11 @@ function restoreDraft(type) {
 }
 
 function loadSavedSubmissionForEdit(submission) {
-  const payload = submission.raw_payload || {};
+  let payload = submission.raw_payload || {};
+  if (typeof payload === 'string') {
+    try { payload = JSON.parse(payload); } catch (e) { payload = {}; }
+  }
+  const storedResponses = submission.responses || {};
   const type = submission.checklist_type || payload.currentType;
   if (!type || !CHECKLISTS[type]) return;
   loadChecklist(type);
@@ -569,18 +573,18 @@ function loadSavedSubmissionForEdit(submission) {
   if (draftModal) draftModal.remove();
   currentType = type;
   clientSubmissionId = payload.clientSubmissionId || submission.id;
-  scores = payload.scores || {};
-  remarks = payload.remarks || {};
+  scores = payload.scores || storedResponses.scores || {};
+  remarks = payload.remarks || storedResponses.remarks || {};
   profileData = payload.profileData || submission.profile_data || {};
-  numAvailable = payload.numAvailable || {};
-  yesno = payload.yesno || {};
+  numAvailable = payload.numAvailable || storedResponses.numAvailable || {};
+  yesno = payload.yesno || storedResponses.yesno || {};
   recommendation = payload.recommendation || null;
-  inspectionTeam = payload.inspectionTeam || inspectionTeam;
-  contactPerson = payload.contactPerson || '';
-  facilityAccount = payload.facilityAccount || '';
-  qaQuarter = payload.qaQuarter || qaQuarter;
-  qa024Quarter = payload.qa024Quarter || qa024Quarter;
-  qa025Quarter = payload.qa025Quarter || qa025Quarter;
+  inspectionTeam = payload.inspectionTeam || storedResponses.inspectionTeam || inspectionTeam;
+  contactPerson = payload.contactPerson || submission.profile_data?.contact_person || '';
+  facilityAccount = payload.facilityAccount || submission.profile_data?.facility_account || '';
+  qaQuarter = payload.qaQuarter || storedResponses.qaQuarter || qaQuarter;
+  qa024Quarter = payload.qa024Quarter || storedResponses.qa024Quarter || qa024Quarter;
+  qa025Quarter = payload.qa025Quarter || storedResponses.qa025Quarter || qa025Quarter;
   renderForm(CHECKLISTS[type]);
   hydrateSavedSubmissionInputs();
   updateScore();
@@ -591,7 +595,7 @@ function loadSavedSubmissionForEdit(submission) {
 
 function hydrateSavedSubmissionInputs() {
   document.querySelectorAll('#form-body input, #form-body textarea').forEach(el => {
-    const binding = el.getAttribute('oninput') || '';
+    const binding = `${el.getAttribute('oninput') || ''} ${el.getAttribute('onchange') || ''}`;
     let keyMatch = binding.match(/(?:profileData|scores|remarks|numAvailable)\['([^']+)'\]/);
     const scoreMatch = binding.match(/clampScore\(this,[^,]+,'([^']+)'\)/);
     if (!keyMatch && scoreMatch) keyMatch = scoreMatch;
@@ -612,6 +616,15 @@ function hydrateSavedSubmissionInputs() {
     }
     if (binding.includes('contactPerson') && contactPerson) el.value = contactPerson;
     if (binding.includes('facilityAccount') && facilityAccount) el.value = facilityAccount;
+  });
+  document.querySelectorAll('#form-body input[type="radio"]').forEach(radio => {
+    const key = radio.name;
+    if (profileData[key] !== undefined) radio.checked = radio.value === profileData[key];
+  });
+  Object.entries(scores).forEach(([key, value]) => {
+    const buttons = [...document.querySelectorAll(`[id^="btn_${key}_"]`)];
+    const selected = buttons.find(button => (button.getAttribute('onclick') || '').includes(`'${value}'`));
+    if (selected) selected.classList.add('active');
   });
   const quarterStates = [qaQuarter, qa024Quarter, qa025Quarter];
   let quarterIndex = 0;

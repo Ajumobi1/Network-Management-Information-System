@@ -12,7 +12,12 @@ registerSW({
   immediate: true,
   onRegisteredSW: (_swUrl, registration) => {
     if (!registration) return;
-    window.setInterval(() => { void registration.update(); }, 15 * 60 * 1000);
+    const checkForUpdate = () => { void registration.update(); };
+    checkForUpdate();
+    window.setInterval(checkForUpdate, 5 * 60 * 1000);
+    window.addEventListener('focus', checkForUpdate);
+    window.addEventListener('pageshow', checkForUpdate);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkForUpdate(); });
   },
   onNeedRefresh: () => {
     window.setTimeout(() => window.location.reload(), 250);
