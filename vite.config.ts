@@ -5,21 +5,21 @@ import path from 'node:path';
 
 const developmentBuild = process.env.NODE_ENV !== 'production';
 
-const privateNavigationPattern = /^\/(?:dashboard|providers(?:\/.*)?|provider-registration|credentialing(?:\/.*)?|contracts(?:\/.*)?|capitation(?:\/.*)?|financial(?:\/.*)?|analytics(?:\/.*)?|population(?:\/.*)?|inspections(?:\/.*)?|accreditations(?:\/.*)?|performance(?:\/.*)?|reports(?:\/.*)?|communication(?:\/.*)?|complaints(?:\/.*)?|admin(?:\/.*)?|settings(?:\/.*)?|setup(?:\/.*)?)(?:\/|$)/;
+const privateNavigationPattern = /^\/(?:dashboard|providers(?:\/.*)?|provider-registration|credentialing(?:\/.*)?|contracts(?:\/.*)?|capitation(?:\/.*)?|financial(?:\/.*)?|analytics(?:\/.*)?|population(?:\/.*)?|inspections(?:\/.*)?|accreditations(?:\/.*)?|quality-compliance(?:\/.*)?|performance(?:\/.*)?|reports(?:\/.*)?|communication(?:\/.*)?|complaints(?:\/.*)?|admin(?:\/.*)?|settings(?:\/.*)?|setup(?:\/.*)?)(?:\/|$)/;
 
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'android-chrome-192x192.png', 'android-chrome-512x512.png'],
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [privateNavigationPattern],
         cleanupOutdatedCaches: true,
-        clientsClaim: false,
-        skipWaiting: false,
+        clientsClaim: true,
+        skipWaiting: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/[^/]+\.supabase\.co\/(?:rest\/v1|auth\/v1|storage\/v1)(?:\/.*)?$/i,

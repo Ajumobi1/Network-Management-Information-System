@@ -516,3 +516,91 @@ export function reportStoragePath(providerId: string, inspectionId: string) {
 export function isInspectionReport(documentType: string) {
   return documentType.toLowerCase() === 'inspection report';
 }
+
+export type OdchcChecklistReportPdfInput = {
+  submissionCode: string;
+  checklistTitle: string;
+  checklistType: string;
+  facilityName: string;
+  inspectionDate: string;
+  submittedAt: string;
+  percentage: number | null;
+  overallScore: number | null;
+  maximumScore: number | null;
+  recommendation: string | null;
+  profile: Record<string, unknown>;
+  responses: Record<string, unknown>;
+};
+
+function odchcValue(value: unknown) {
+  if (value === null || value === undefined || value === '') return 'Not recorded';
+  if (typeof value === 'object') return pdfSafeText(JSON.stringify(value));
+  return pdfSafeText(value);
+}
+
+function odchcLabel(value: string) {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, character => character.toUpperCase());
+}
+
+export async function buildOdchcChecklistReportPdf(input: OdchcChecklistReportPdfInput) {
+  const document = await PDFDocument.create();
+  const regular = await document.embedFont(StandardFonts.Helvetica);
+  const bold = await document.embedFont(StandardFonts.HelveticaBold);
+  const writer = new ReportWriter(document, regular, bold);
+  const margin = writer.getMargin();
+  const pageWidth = writer.getWidth();
+  const percentage = input.percentage === null || input.percentage === undefined ? 'Not scored' : `${input.percentage}%`;
+  const recommendation = input.recommendation ? (input.recommendation === 'yes' ? 'Recommended' : input.recommendation === 'no' ? 'Not recommended' : input.recommendation) : 'Not provided';
+
+  writer.text(input.checklistTitle, { size: 16, font: bold, color: COLORS.blue2, lineHeight: 20, gap: 3 });
+  writer.text(`${input.checklistType} - ${input.facilityName}`, { size: 11, font: bold, color: COLORS.ink, gap: 3 });
+  writer.text(`Inspection date: ${formatDate(input.inspectionDate)} - Submission code: ${input.submissionCode} - Submitted: ${formatDate(input.submittedAt.slice(0, 10))}`, { size: 8, color: COLORS.muted, gap: 10 });
+
+  const scoreBoxes = [
+    [`OVERALL SCORE\n${percentage}\n${input.overallScore ?? 'Not recorded'} / ${input.maximumScore ?? '—'}`, COLORS.soft],
+    [`CHECKLIST\n${input.checklistType}`, COLORS.softBlue],
+    [`RECOMMENDATION\n${recommendation}`, input.recommendation === 'yes' ? COLORS.softSuccess : input.recommendation === 'no' ? COLORS.softDanger : COLORS.softOrange],
+  ] as const;
+  const boxWidth = (pageWidth - (margin * 2) - 20) / 3;
+  writer.ensureSpace(76);
+  const scoreY = writer.getY();
+  scoreBoxes.forEach(([label, color], index) => {
+    const x = margin + index * (boxWidth + 10);
+    writer.getPage().drawRectangle({ x, y: scoreY - 62, width: boxWidth, height: 62, color, borderColor: COLORS.line, borderWidth: 0.7 });
+    label.split('\n').forEach((line, lineIndex) => writer.getPage().drawText(pdfSafeText(line), { x: x + 9, y: scoreY - 16 - lineIndex * 15, size: lineIndex === 0 ? 7 : 10, font: lineIndex === 0 ? bold : regular, color: lineIndex === 0 ? COLORS.muted : COLORS.ink }));
+  });
+  writer.setY(scoreY - 78);
+
+  writer.heading('Facility profile');
+  const profileEntries = Object.entries(input.profile).filter(([, value]) => value !== '' && value !== null && value !== undefined);
+  writer.twoColumn(profileEntries.map(([key, value]) => [odchcLabel(key), odchcValue(value)]));
+
+  const responses = input.responses || {};
+  Object.entries(responses).forEach(([group, values]) => {
+    if (values === null || values === undefined) return;
+    writer.heading(odchcLabel(group));
+    if (typeof values !== 'object' || Array.isArray(values)) {
+      writer.box(odchcValue(values), margin, pageWidth - margin * 2, COLORS.soft);
+      return;
+    }
+    const entries = Object.entries(values as Record<string, unknown>);
+    if (!entries.length) {
+      writer.text('No responses recorded.', { size: 9, color: COLORS.muted });
+      return;
+    }
+    entries.forEach(([key, value]) => {
+      writer.drawChecklistRow(key.replace(/[^0-9A-Za-z.-]/g, ''), odchcLabel(key), odchcValue(value), group === 'scores' ? `Awarded: ${odchcValue(value)}` : 'Recorded response', '');
+    });
+  });
+
+  writer.heading('Report note');
+  writer.box(`This report was generated from the ODCHC NMIS submission record ${input.submissionCode}. The report is a read-only representation of the stored checklist submission.`, margin, pageWidth - margin * 2, COLORS.soft);
+  const pages = document.getPages();
+  pages.forEach((page, index) => page.drawText(`ODCHC NMIS - Checklist Submission Report - Page ${index + 1} of ${pages.length}`, { x: margin, y: 24, size: 7, font: regular, color: COLORS.muted }));
+  return document.save();
+}
+
+export function odchcChecklistReportFileName(facilityName: string, submissionCode: string) {
+  const safeName = facilityName.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'facility';
+  return `odchc-nmis-checklist-report-${safeName}-${submissionCode || new Date().toISOString().slice(0, 10)}.pdf`;
+}

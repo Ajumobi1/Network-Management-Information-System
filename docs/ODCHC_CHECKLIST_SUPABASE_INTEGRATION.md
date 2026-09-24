@@ -8,7 +8,7 @@ Apply [`20260923000000_odchc_checklist_submissions.sql`](../supabase/migrations/
 
 The RPC accepts the four checklist types: `primary`, `dental`, `pharmacy`, and `qa`. It stores the facility profile, structured response maps, score summary, recommendation, inspection date, and the complete raw checklist payload. A stable client submission identifier makes repeated clicks for the same draft idempotent while a new checklist session receives a new identifier.
 
-The follow-up migration [`20260924000000_odchc_checklist_submission_history.sql`](../supabase/migrations/20260924000000_odchc_checklist_submission_history.sql) creates the protected list and detail RPCs used by the **Quality & Compliance → Submission History** page. The page supports facility, submission-code, and email search; checklist-type filtering; pagination; a readable submission report; browser PDF/print export; and reopening a saved checklist for editing and resubmission. Technical raw payload details remain available as an audit-only expandable section.
+The follow-up migration [`20260924000000_odchc_checklist_submission_history.sql`](../supabase/migrations/20260924000000_odchc_checklist_submission_history.sql) creates the protected list and detail RPCs used by the **Quality & Compliance → Submission History** page. The page supports facility, submission-code, and email search; checklist-type filtering; pagination; a readable submission report; direct PDF download using the same `pdf-lib` ODCHC blue/orange report style as site inspections; and reopening a saved checklist for editing and resubmission. Technical raw payload details remain available as an audit-only expandable section.
 
 ## Application behavior
 
@@ -21,5 +21,7 @@ Submission is available to authenticated users whose NMIS role is one of `super-
 After applying the migration, deploy the website with the normal Vercel pipeline and confirm that the deployment has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` configured. Log in to NMIS, open **Quality & Compliance → ODCHC Checklist App**, complete a checklist, and select **Submit to NMIS**. The success message returns the generated `ODCHC-...` submission code.
 
 After applying the history migration as well, open **Quality & Compliance → Submission History** to browse submissions available to the authenticated inspection roles. If the page reports that its RPC cannot be found, apply the second migration and run `NOTIFY pgrst, 'reload schema';` in the Supabase SQL Editor.
+
+The PWA is configured for automatic service-worker updates with `clientsClaim` and `skipWaiting`, and private Quality & Compliance routes are excluded from the public navigation fallback. After Vercel deploys a new `main` commit, installed web apps receive the new precache on their next connection/load; all accounts see the same deployed frontend while Supabase remains the shared source of submission records. A device that is offline cannot receive a code update until it reconnects.
 
 For verification, query the table from an authorized NMIS session or use the existing audit-log viewer. Do not grant the browser direct table access and do not use a Supabase service-role key in the frontend.
