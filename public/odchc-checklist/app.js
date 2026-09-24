@@ -383,6 +383,7 @@ let inspectionTeam = [{name:'',date:''},{name:'',date:''},{name:'',date:''},{nam
 let contactPerson = '';
 let facilityAccount = '';
 let clientSubmissionId = null;
+let loadedEditSubmissionId = null;
 
 // QA quarter state
 let qaQuarter = {q: '', year: ''}; // global quarter (Section A / most questions)
@@ -406,6 +407,10 @@ window.addEventListener('message', event => {
 });
 setTimeout(() => {
   if (window.parent !== window) window.parent.postMessage({type: 'ODCHC_CHECKLIST_READY'}, window.location.origin);
+  try {
+    const savedEdit = window.parent !== window ? window.parent.sessionStorage.getItem('odchc_edit_submission') : null;
+    if (savedEdit) loadSavedSubmissionForEdit(JSON.parse(savedEdit));
+  } catch (e) { console.warn('Saved checklist edit recovery failed:', e); }
 }, 0);
 
 const QUARTER_MONTHS = {
@@ -561,6 +566,7 @@ function restoreDraft(type) {
 }
 
 function loadSavedSubmissionForEdit(submission) {
+  if (loadedEditSubmissionId && loadedEditSubmissionId === submission.id) return;
   let payload = submission.raw_payload || {};
   if (typeof payload === 'string') {
     try { payload = JSON.parse(payload); } catch (e) { payload = {}; }
@@ -573,6 +579,7 @@ function loadSavedSubmissionForEdit(submission) {
   if (draftModal) draftModal.remove();
   currentType = type;
   clientSubmissionId = payload.clientSubmissionId || submission.id;
+  loadedEditSubmissionId = submission.id;
   scores = payload.scores || storedResponses.scores || {};
   remarks = payload.remarks || storedResponses.remarks || {};
   profileData = payload.profileData || submission.profile_data || {};

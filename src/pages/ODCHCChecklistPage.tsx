@@ -38,7 +38,10 @@ export default function ODCHCChecklistPage() {
 
   useEffect(() => {
     const editId = searchParams.get('editId');
-    if (!editId) return;
+    if (!editId) {
+      try { sessionStorage.removeItem('odchc_edit_submission'); } catch { /* storage is optional */ }
+      return;
+    }
     void supabase.auth.getSession().then(() => supabase.rpc('nmis_get_odchc_checklist_submission', { p_submission_id: editId })).then(({ data, error }) => {
       if (error) window.alert(`Unable to load this submission for editing.\n\n${error.message}`);
       else {
@@ -53,6 +56,7 @@ export default function ODCHCChecklistPage() {
           profile_data: submission.profile_data || {},
           responses: submission.responses || {},
         };
+        try { sessionStorage.setItem('odchc_edit_submission', JSON.stringify(editSubmissionRef.current)); } catch { /* storage is optional */ }
         sendEditSubmission();
       }
     });
