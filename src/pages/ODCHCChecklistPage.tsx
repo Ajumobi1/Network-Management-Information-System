@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Button from '../components/ui/Button';
@@ -16,6 +16,8 @@ export default function ODCHCChecklistPage() {
   const [searchParams] = useSearchParams();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const editSubmissionRef = useRef<Record<string, unknown> | null>(null);
+  const editId = searchParams.get('editId');
+  const [editReady, setEditReady] = useState(!editId);
 
   const sendSupabaseSession = useCallback(async () => {
     const iframe = iframeRef.current;
@@ -37,13 +39,14 @@ export default function ODCHCChecklistPage() {
   }, []);
 
   useEffect(() => {
-    const editId = searchParams.get('editId');
     if (!editId) {
+      setEditReady(true);
       try { sessionStorage.removeItem('odchc_edit_submission'); } catch { /* storage is optional */ }
       return;
     }
+    setEditReady(false);
     void supabase.auth.getSession().then(() => supabase.rpc('nmis_get_odchc_checklist_submission', { p_submission_id: editId })).then(({ data, error }) => {
-      if (error) window.alert(`Unable to load this submission for editing.\n\n${error.message}`);
+      if (error) { setEditReady(true); window.alert(`Unable to load this submission for editing.\n\n${error.message}`); }
       else {
         const submission = data as Record<string, unknown>;
         let rawPayload = submission.raw_payload;
@@ -57,10 +60,11 @@ export default function ODCHCChecklistPage() {
           responses: submission.responses || {},
         };
         try { sessionStorage.setItem('odchc_edit_submission', JSON.stringify(editSubmissionRef.current)); } catch { /* storage is optional */ }
+        setEditReady(true);
         sendEditSubmission();
       }
     });
-  }, [searchParams, sendEditSubmission]);
+  }, [editId, sendEditSubmission]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -88,14 +92,14 @@ export default function ODCHCChecklistPage() {
           <ArrowLeft size={16} /> Back to NMIS
         </Button>
       </div>
-        <iframe
+        {editId && !editReady ? <div className="flex h-[calc(100dvh-4rem)] min-h-[760px] items-center justify-center bg-white text-sm font-semibold text-[#072f6b]">Loading saved checklist for editing...</div> : <iframe
         ref={iframeRef}
         title="ODCHC Accreditation Checklist"
         src="/odchc-checklist/index.html?v=252f584"
         onLoad={() => { void sendSupabaseSession(); sendEditSubmission(); }}
         className="block h-[calc(100dvh-4rem)] min-h-[760px] w-full border-0 bg-white"
         allow="download"
-      />
+        />}
     </main>
   );
 }
