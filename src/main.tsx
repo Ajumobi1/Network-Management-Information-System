@@ -117,13 +117,13 @@ async function waitForWorkerActivation(
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
   }
 
-  if (!registration.installing) {
+  const installing = registration.installing;
+  if (!installing) {
     return Boolean(registration.active);
   }
 
   return new Promise(resolve => {
     const timer = window.setTimeout(() => resolve(false), timeoutMs);
-    const installing = registration.installing;
 
     installing.addEventListener('statechange', () => {
       if (installing.state === 'activated') {
@@ -165,7 +165,7 @@ async function registerCurrentServiceWorker(): Promise<ServiceWorkerRegistration
 async function reloadIntoCurrentDeployment(
   registration: ServiceWorkerRegistration | null,
   serverBuildId: string,
-): Promise<never> {
+): Promise<void> {
   showUpdatingState();
 
   if (registration) {
@@ -184,7 +184,7 @@ async function reloadIntoCurrentDeployment(
   reloadTriggered = true;
   window.location.replace(url.toString());
 
-  await new Promise<never>(() => undefined);
+  await new Promise<void>(() => undefined);
 }
 
 async function ensureCurrentDeployment(
