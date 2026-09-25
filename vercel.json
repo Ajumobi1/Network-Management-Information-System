@@ -1,7 +1,7 @@
 {
   "headers": [
     {
-      "source": "/(index.html|manifest.webmanifest|version.json)",
+      "source": "/(sw.js|index.html|manifest.webmanifest|version.json)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
