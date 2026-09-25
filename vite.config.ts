@@ -101,16 +101,12 @@ self.addEventListener('fetch', event => {
   // Navigation is deliberately network-first with an explicit no-store request.
   // This is the critical path for iPhone/Android Home Screen update reliability.
   if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request, { cache: 'no-store' }).catch(() => caches.match('/index.html')),
-    );
-    return;
+    event.respondWith(fetch(request, { cache: 'no-store' }));
   }
 
-  // API, JS, CSS, images and other resources use normal browser HTTP caching.
-  // Vite's production asset filenames are content-hashed, so old assets remain
-  // safe to cache while the network-fresh HTML selects the current build.
-  event.respondWith(fetch(request));
+  // Everything else is intentionally left to the browser's normal request path.
+  // This keeps Supabase/API requests, hashed JS/CSS assets, images, downloads and
+  // third-party resources out of service-worker caching and interception.
 });
 `,
       });
