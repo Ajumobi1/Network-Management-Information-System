@@ -9,6 +9,46 @@ import './public-portal-security.css';
 const UPDATE_QUERY_KEY = '__nmis_refresh';
 let reloadTriggered = false;
 
+async function retireLegacyChecklistWorkers(): Promise<void> {
+  if ('serviceWorker' in navigator) {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations.map(async registration => {
+          const scriptUrls = [
+            registration.active?.scriptURL,
+            registration.waiting?.scriptURL,
+            registration.installing?.scriptURL,
+          ].filter((url): url is string => Boolean(url));
+
+          const isLegacyChecklistWorker =
+            registration.scope === `${window.location.origin}/odchc-checklist/` ||
+            scriptUrls.some(url => url.includes('/odchc-checklist/sw.js'));
+
+          if (isLegacyChecklistWorker) {
+            await registration.unregister();
+          }
+        }),
+      );
+    } catch (error) {
+      console.warn('NMIS legacy checklist service-worker cleanup failed:', error);
+    }
+  }
+
+  if ('caches' in window) {
+    try {
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter(name => /^(workbox-|nmis-|odchc-)/i.test(name))
+          .map(name => caches.delete(name)),
+      );
+    } catch (error) {
+      console.warn('NMIS legacy cache cleanup failed:', error);
+    }
+  }
+}
+
 function showUpdatingState(): void {
   const root = document.getElementById('root');
   if (!root) return;
@@ -177,6 +217,7 @@ async function ensureCurrentDeployment(
 }
 
 async function bootstrap(): Promise<void> {
+  await retireLegacyChecklistWorkers();
   const registration = await registerCurrentServiceWorker();
 
   await ensureCurrentDeployment(registration);
