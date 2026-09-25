@@ -6,38 +6,30 @@ import { DEPLOYMENT_TAG } from './lib/runtime';
 import './index.css';
 import './public-portal-security.css';
 
+const UPDATE_ATTEMPT_KEY = 'nmis-deployment-update-attempt';
 let reloadTriggered = false;
-let serviceWorkerRegistration: ServiceWorkerRegistration | null = null;
 
-async function unregisterLegacyChecklistWorkers(): Promise<boolean> {
-  if (!('serviceWorker' in navigator)) return false;
+async function retireServiceWorkers(): Promise<void> {
+  if (!('serviceWorker' in navigator)) return;
 
-  const registrations = await navigator.serviceWorker.getRegistrations();
-  let removed = false;
+  try {
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(registrations.map(registration => registration.unregister()));
+  } catch (error) {
+    console.warn('NMIS service-worker cleanup failed:', error);
+  }
 
-  await Promise.all(
-    registrations.map(async registration => {
-      const scriptUrls = [
-        registration.active?.scriptURL,
-        registration.waiting?.scriptURL,
-        registration.installing?.scriptURL,
-      ].filter((url): url is string => Boolean(url));
+  if (!('caches' in window)) return;
 
-      const legacyChecklistWorker =
-        registration.scope === `${window.location.origin}/odchc-checklist/` ||
-        scriptUrls.some(url => url.includes('/odchc-checklist/sw.js'));
-
-      if (!legacyChecklistWorker) return;
-
-      try {
-        removed = (await registration.unregister()) || removed;
-      } catch {
-        // Retry on a later launch if the browser does not unregister immediately.
-      }
-    }),
-  );
-
-  return removed;
+  try {
+    const names = await caches.keys();
+    const appCaches = names.filter(name =>
+      /^(workbox-|nmis-|odchc-)/i.test(name),
+    );
+    await Promise.all(appCaches.map(name => caches.delete(name)));
+  } catch (error) {
+    console.warn('NMIS cache cleanup failed:', error);
+  }
 }
 
 async function fetchServerBuildId(): Promise<string | null> {
@@ -61,81 +53,55 @@ async function fetchServerBuildId(): Promise<string | null> {
   }
 }
 
-async function updateServiceWorker(): Promise<void> {
-  if (!navigator.onLine || !serviceWorkerRegistration) return;
-
-  try {
-    await serviceWorkerRegistration.update();
-
-    const waiting = serviceWorkerRegistration.waiting;
-    if (waiting) {
-      waiting.postMessage({ type: 'SKIP_WAITING' });
-    }
-  } catch {
-    // A temporary update failure must never interrupt an otherwise valid session.
-  }
-}
-
-async function checkForNewDeployment(): Promise<void> {
-  if (reloadTriggered || import.meta.env.DEV || !navigator.onLine) return;
+async function ensureCurrentBuild(): Promise<void> {
+  if (import.meta.env.DEV || !navigator.onLine) return;
 
   const serverBuildId = await fetchServerBuildId();
-  if (!serverBuildId || serverBuildId === DEPLOYMENT_TAG) return;
-
-  // Never reload until a fresh service worker has taken control. Reloading while
-  // an older worker still controls the page can reproduce the stale-PWA problem.
-  await updateServiceWorker();
-}
-
-async function registerCurrentServiceWorker(): Promise<void> {
-  if (!('serviceWorker' in navigator) || import.meta.env.DEV) return;
-
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloadTriggered) return;
-    reloadTriggered = true;
-    window.location.reload();
-  });
-
-  try {
-    serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', {
-      scope: '/',
-      updateViaCache: 'none',
-    });
-
-    await updateServiceWorker();
-
-    const check = () => {
-      void updateServiceWorker();
-      void checkForNewDeployment();
-    };
-
-    check();
-    window.setInterval(check, 5 * 60 * 1000);
-    window.addEventListener('focus', check);
-    window.addEventListener('pageshow', check);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') check();
-    });
-  } catch (error) {
-    console.warn('NMIS service-worker registration/update failed:', error);
-  }
-}
-
-async function bootstrap(): Promise<void> {
-  let removedLegacyWorker = false;
-
-  try {
-    removedLegacyWorker = await unregisterLegacyChecklistWorkers();
-  } catch {
-    // The cleanup remains best-effort and will be retried on another launch.
-  }
-
-  if (removedLegacyWorker) {
-    window.location.reload();
+  if (!serverBuildId || serverBuildId === DEPLOYMENT_TAG) {
+    try {
+      sessionStorage.removeItem(UPDATE_ATTEMPT_KEY);
+    } catch {
+      // sessionStorage is optional.
+    }
     return;
   }
 
-  await registerCurrentServiceWorker();
+  let previousAttempt = '';
+  try {
+    previousAttempt = sessionStorage.getItem(UPDATE_ATTEMPT_KEY) || '';
+  } catch {
+    // sessionStorage is optional.
+  }
+
+  if (previousAttempt === serverBuildId) {
+    // One automatic attempt has already happened for this deployment. Avoid a
+    // reload loop; the visible app can still run while the next launch retries.
+    return;
+  }
+
+  try {
+    sessionStorage.setItem(UPDATE_ATTEMPT_KEY, serverBuildId);
+  } catch {
+    // sessionStorage is optional.
+  }
+
+  // Retire any previously-installed PWA worker before the next navigation.
+  // The new architecture deliberately uses ordinary network requests so the
+  // installed Home Screen app cannot keep an old application shell alive.
+  await retireServiceWorkers();
+
+  const url = new URL(window.location.href);
+  url.searchParams.set('__nmis_build', serverBuildId);
+  url.searchParams.set('__nmis_refresh', String(Date.now()));
+
+  reloadTriggered = true;
+  window.location.replace(url.toString());
+  await new Promise<void>(() => undefined);
+}
+
+async function bootstrap(): Promise<void> {
+  await ensureCurrentBuild();
+  await retireServiceWorkers();
 
   const rootElement = document.getElementById('root');
 
@@ -150,6 +116,19 @@ async function bootstrap(): Promise<void> {
       </AppErrorBoundary>
     </React.StrictMode>,
   );
+
+  // Keep long-running tabs current as well. No service worker is involved.
+  const checkWhileOpen = () => {
+    if (reloadTriggered || !navigator.onLine) return;
+    void ensureCurrentBuild();
+  };
+
+  window.setInterval(checkWhileOpen, 5 * 60 * 1000);
+  window.addEventListener('focus', checkWhileOpen);
+  window.addEventListener('pageshow', checkWhileOpen);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkWhileOpen();
+  });
 }
 
 void bootstrap();
