@@ -19,7 +19,9 @@ function resolveDeploymentBuildId(): string {
   if (githubCommit) return githubCommit;
 
   try {
-    const gitCommit = execSync('git rev-parse HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    const gitCommit = execSync('git rev-parse HEAD', {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).toString().trim();
     if (gitCommit) return gitCommit;
   } catch {
     // A source archive or restricted build environment may not contain .git metadata.
@@ -51,7 +53,70 @@ function deploymentVersionPlugin(buildId: string): Plugin {
   };
 }
 
-const privateNavigationPattern = /^\/(?:dashboard|providers(?:\/.*)?|provider-registration|credentialing(?:\/.*)?|contracts(?:\/.*)?|capitation(?:\/.*)?|financial(?:\/.*)?|analytics(?:\/.*)?|population(?:\/.*)?|inspections(?:\/.*)?|accreditations(?:\/.*)?|quality-compliance(?:\/.*)?|performance(?:\/.*)?|reports(?:\/.*)?|communication(?:\/.*)?|complaints(?:\/.*)?|admin(?:\/.*)?|settings(?:\/.*)?|setup(?:\/.*)?)(?:\/|$)/;
+function serviceWorkerPlugin(buildId: string): Plugin {
+  const workerBuildId = JSON.stringify(buildId);
+
+  return {
+    name: 'nmis-service-worker',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'sw.js',
+        source: `const NMIS_BUILD_ID = ${workerBuildId};
+
+self.addEventListener('install', event => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => /^(workbox-|nmis-|odchc-)/i.test(name))
+        .map(name => caches.delete(name)),
+    );
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    void self.skipWaiting();
+    return;
+  }
+
+  if (event.data?.type === 'NMIS_GET_BUILD_ID' && event.ports?.[0]) {
+    event.ports[0].postMessage({
+      type: 'NMIS_BUILD_ID',
+      buildId: NMIS_BUILD_ID,
+    });
+  }
+});
+
+self.addEventListener('fetch', event => {
+  const request = event.request;
+
+  // Navigation is deliberately network-first with an explicit no-store request.
+  // This is the critical path for iPhone/Android Home Screen update reliability.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request, { cache: 'no-store' }).catch(() => caches.match('/index.html')),
+    );
+    return;
+  }
+
+  // API, JS, CSS, images and other resources use normal browser HTTP caching.
+  // Vite's production asset filenames are content-hashed, so old assets remain
+  // safe to cache while the network-fresh HTML selects the current build.
+  event.respondWith(fetch(request));
+});
+`,
+      });
+    },
+  };
+}
 
 export default defineConfig({
   define: {
@@ -60,6 +125,7 @@ export default defineConfig({
   plugins: [
     react(),
     deploymentVersionPlugin(deploymentBuildId),
+    serviceWorkerPlugin(deploymentBuildId),
   ],
   server: {
     allowedHosts: true,
@@ -72,7 +138,9 @@ export default defineConfig({
     alias: {
       '@nmis/mock-auth': path.resolve(
         __dirname,
-        developmentBuild ? 'src/services/auth/authService.mock.ts' : 'src/services/auth/authService.mock.disabled.ts',
+        developmentBuild
+          ? 'src/services/auth/authService.mock.ts'
+          : 'src/services/auth/authService.mock.disabled.ts',
       ),
     },
   },
