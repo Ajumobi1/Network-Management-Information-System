@@ -10,6 +10,7 @@ import { useInspectionTemplate, useInspectionTemplateOptions } from '../../hooks
 import { useAccreditation, useRegisterAccreditationReport, useSaveAccreditation, useUploadAccreditationReport } from '../../hooks/accreditations/accreditationHooks';
 import type { InspectionTemplateItem } from '../../repositories/inspections/structuredInspectionRepository';
 import { buildAccreditationReportPdf, accreditationReportFileName } from '../../features/accreditations/accreditationReportPdf';
+import { readFormAutosave, removeFormAutosave, setActiveForm, writeFormAutosave } from '../../lib/offline/formAutosave';
 
  type ResponseState = { number: string; manual_score: string; boolean: boolean | null; remark: string };
  type EligibilityState = { met: boolean; notes: string };
@@ -73,7 +74,9 @@ export default function NewAccreditationPage() {
   const saveMutation = useSaveAccreditation(); const uploadMutation = useUploadAccreditationReport(); const registerMutation = useRegisterAccreditationReport();
   const [step, setStep] = useState(0); const [accreditationId, setAccreditationId] = useState<string | null>(draftId); const [draftLoaded, setDraftLoaded] = useState(!draftId);
   const [profile, setProfile] = useState<Record<string, string>>(EMPTY_PROFILE); const [extraProfile, setExtraProfile] = useState<Record<string, string>>({});
-  const [eligibility, setEligibility] = useState<Record<string, EligibilityState>>({}); const [responses, setResponses] = useState<Record<string, ResponseState>>({}); const [team, setTeam] = useState<TeamMember[]>([]); const [generalRemarks, setGeneralRemarks] = useState(''); const [message, setMessage] = useState('');
+  const [eligibility, setEligibility] = useState<Record<string, EligibilityState>>({}); const [responses, setResponses] = useState<Record<string, ResponseState>>({}); const [team, setTeam] = useState<TeamMember[]>([]); const [generalRemarks, setGeneralRemarks] = useState(''); const [message, setMessage] = useState(''); const [localDraftRestored, setLocalDraftRestored] = useState(false);
+   const localDraftKey = `nmis-accreditation-draft:${facilityTypeCode}:${accreditationId || 'new'}`;
+   useEffect(() => { setActiveForm(true); return () => setActiveForm(false); }, []);
 
   useEffect(() => { setFacilityTypeCode(requestedType); }, [requestedType]);
   useEffect(() => {
@@ -91,7 +94,25 @@ export default function NewAccreditationPage() {
 
   useEffect(() => { if (!template || !draftLoaded) return; setEligibility(prev => { const next = { ...prev }; template.eligibility.forEach(item => { next[item.criterion_code] = next[item.criterion_code] || { met: false, notes: '' }; }); return next; }); setResponses(prev => { const next = { ...prev }; template.items.forEach(item => { next[item.item_code] = next[item.item_code] || blankResponse(item); }); return next; }); }, [template, draftLoaded]);
 
-  useEffect(() => { if (!template || !draftLoaded || typeof window === 'undefined') return; try { localStorage.setItem(`nmis-accreditation-draft:${facilityTypeCode}:${accreditationId || 'new'}`, JSON.stringify({ step, accreditationId, profile, extraProfile, eligibility, responses, team, generalRemarks, savedAt: new Date().toISOString() })); } catch { /* keep form usable */ } }, [template, draftLoaded, facilityTypeCode, accreditationId, step, profile, extraProfile, eligibility, responses, team, generalRemarks]);
+  useEffect(() => {
+    if (!template || !draftLoaded || draftId || localDraftRestored) return;
+    const saved = readFormAutosave<{ step: number; accreditationId: string | null; profile: Record<string, string>; extraProfile: Record<string, string>; eligibility: Record<string, EligibilityState>; responses: Record<string, ResponseState>; team: TeamMember[]; generalRemarks: string }>(localDraftKey);
+    if (saved?.data) {
+      setStep(saved.data.step || 0); setAccreditationId(saved.data.accreditationId || null); setProfile(saved.data.profile || EMPTY_PROFILE); setExtraProfile(saved.data.extraProfile || {});
+      setEligibility(saved.data.eligibility || {}); setResponses(saved.data.responses || {}); setTeam(saved.data.team || []); setGeneralRemarks(saved.data.generalRemarks || '');
+      setMessage('Recovered unsaved accreditation work from this device.');
+    }
+    setLocalDraftRestored(true);
+  }, [template, draftLoaded, draftId, localDraftKey, localDraftRestored]);
+  useEffect(() => {
+    if (!template || !draftLoaded || !localDraftRestored) return;
+    const snapshot = { step, accreditationId, profile, extraProfile, eligibility, responses, team, generalRemarks };
+    const persist = () => writeFormAutosave(localDraftKey, snapshot);
+    const timer = window.setTimeout(persist, 350);
+    const flush = () => persist();
+    window.addEventListener('pagehide', flush); window.addEventListener('beforeunload', flush);
+    return () => { window.clearTimeout(timer); window.removeEventListener('pagehide', flush); window.removeEventListener('beforeunload', flush); };
+  }, [template, draftLoaded, localDraftRestored, localDraftKey, step, accreditationId, profile, extraProfile, eligibility, responses, team, generalRemarks]);
 
   const items = template?.items || [];
   const isQa = facilityTypeCode === 'government-hospital' || template?.template.code === 'government-hospital-accreditation';
@@ -115,7 +136,7 @@ export default function NewAccreditationPage() {
 
   const buildPayload = (mode: 'draft' | 'submit') => ({ mode, step: (stepLabels[Math.min(step, stepLabels.length - 1)] || 'ELIGIBILITY').toLowerCase().replace(/ & /g, '-').replace(/ /g, '-'), template_code: template?.template.code || facilityTypeCode, scheduled_date: profile.inspection_date || formatDate(''), facility_profile: { ...profile, ...extraProfile, general_remarks: generalRemarks, facility_category: selectedType?.facility_type.name || 'Facility' }, eligibility: template?.eligibility.map(item => ({ criterion_code: item.criterion_code, criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })) || [], responses: items.map(item => ({ item_code: item.item_code, response_number: item.response_type === 'number' ? Number(responses[item.item_code]?.number || 0) : null, manual_score: isManualItem(item) ? Number(responses[item.item_code]?.manual_score || 0) : null, response_boolean: item.response_type === 'boolean' ? responses[item.item_code]?.boolean : null, remark: responses[item.item_code]?.remark || '' })), team: team.map(member => ({ name: member.name, role: member.role, inspection_date: member.inspection_date, signature_data: member.signature_data })) });
 
-  const saveDraft = async () => { if (!profile.facility_name.trim() || !profile.address.trim()) { setMessage('Enter the facility name and address before saving the accreditation draft.'); return; } try { const result = await saveMutation.mutateAsync({ accreditationId, payload: buildPayload('draft') }); setAccreditationId(result.accreditation_id); localStorage.removeItem(`nmis-accreditation-draft:${facilityTypeCode}:new`); setMessage('Accreditation draft saved. It remains under Accreditation and is not part of Inspection history.'); navigate('/accreditations'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save accreditation draft.'); } };
+  const saveDraft = async () => { if (!profile.facility_name.trim() || !profile.address.trim()) { setMessage('Enter the facility name and address before saving the accreditation draft.'); return; } try { const result = await saveMutation.mutateAsync({ accreditationId, payload: buildPayload('draft') }); setAccreditationId(result.accreditation_id); removeFormAutosave(`nmis-accreditation-draft:${facilityTypeCode}:new`); setMessage('Accreditation draft saved. It remains under Accreditation and is not part of Inspection history.'); navigate('/accreditations'); } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save accreditation draft.'); } };
 
   const submit = async () => {
     if (!profile.facility_name.trim() || !profile.address.trim()) { setMessage('Facility name and address are required before submission.'); return; }
@@ -125,7 +146,7 @@ export default function NewAccreditationPage() {
       const result = await saveMutation.mutateAsync({ accreditationId, payload: buildPayload('submit') }); setAccreditationId(result.accreditation_id);
       const pdfBytes = await buildAccreditationReportPdf({ accreditationId: result.accreditation_id, facilityName: profile.facility_name, facilityType: selectedType?.facility_type.name || 'Facility', assessmentDate: profile.inspection_date, templateName: template.template.name, passingThreshold: template.template.passing_threshold, conditionalThreshold: template.template.conditional_threshold, profile: { ...profile, ...extraProfile }, eligibility: template.eligibility.map(item => ({ criterion_label: item.criterion_label, met: Boolean(eligibility[item.criterion_code]?.met), notes: eligibility[item.criterion_code]?.notes || '' })), items, sections: template.sections, responses, generalRemarks, team, score: { ...score, percentage: result.overall_score, points: result.total_points, possible: result.total_possible } });
       const fileName = accreditationReportFileName(profile.facility_name, profile.inspection_date); const filePath = `${result.accreditation_id}/${result.accreditation_id}.pdf`; await uploadMutation.mutateAsync({ filePath, file: new Blob([pdfBytes], { type: 'application/pdf' }) }); await registerMutation.mutateAsync({ accreditationId: result.accreditation_id, filePath, fileName });
-      localStorage.removeItem(`nmis-accreditation-draft:${facilityTypeCode}:${result.accreditation_id}`); localStorage.removeItem(`nmis-accreditation-draft:${facilityTypeCode}:new`); setMessage('New facility accreditation submitted successfully. The PDF is stored under Accreditation records.'); navigate('/accreditations');
+      localStorage.removeItem(`nmis-accreditation-draft:${facilityTypeCode}:${result.accreditation_id}`); removeFormAutosave(`nmis-accreditation-draft:${facilityTypeCode}:new`); setMessage('New facility accreditation submitted successfully. The PDF is stored under Accreditation records.'); navigate('/accreditations');
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Accreditation submission or report generation failed.'); }
   };
 

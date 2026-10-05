@@ -268,9 +268,12 @@ export async function fetchImportBatchById(id: string): Promise<ImportBatch | nu
   return invokeSecureRpc<ImportBatch>('nmis_get_import_batch', { p_batch_id: id });
 }
 
-export async function createImportBatch(batch: Omit<ImportBatch, 'id' | 'uploadedAt'>, records?: FinancialRecord[], _actor?: { id: string; email: string }): Promise<ImportBatch> {
+export type ImportProgress = { phase: 'initializing' | 'uploading' | 'finalizing'; completed: number; total: number };
+
+export async function createImportBatch(batch: Omit<ImportBatch, 'id' | 'uploadedAt'>, records?: FinancialRecord[], _actor?: { id: string; email: string }, onProgress?: (progress: ImportProgress) => void): Promise<ImportBatch> {
   if (!useMockData) {
     // For live mode, we use chunked import to avoid statement timeouts with large workbooks
+    onProgress?.({ phase: 'initializing', completed: 0, total: records?.length || 0 });
     const batchId = await invokeSecureRpc<string>('nmis_init_import_batch', {
       p_file_name: batch.fileName,
       p_data_type: batch.dataType,
@@ -280,19 +283,30 @@ export async function createImportBatch(batch: Omit<ImportBatch, 'id' | 'uploade
     });
 
     if (records && records.length > 0) {
-      // Chunk records (500 per chunk is a safe balance for Supabase timeouts)
-      const chunkSize = 500;
+      // Smaller chunks keep large provider files responsive on mobile networks.
+      const chunkSize = 250;
+      let completed = 0;
       for (let i = 0; i < records.length; i += chunkSize) {
         const chunk = records.slice(i, i + chunkSize);
-        await invokeSecureRpc('nmis_append_import_records', {
-          p_batch_id: batchId,
-          p_data_type: batch.dataType,
-          p_records: chunk,
-        });
+        let lastError: unknown;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          try {
+            await invokeSecureRpc('nmis_append_import_records', { p_batch_id: batchId, p_data_type: batch.dataType, p_records: chunk });
+            lastError = undefined;
+            break;
+          } catch (error) {
+            lastError = error;
+            if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 750));
+          }
+        }
+        if (lastError) throw lastError;
+        completed += chunk.length;
+        onProgress?.({ phase: 'uploading', completed, total: records.length });
       }
     }
 
     // Finalize the batch
+    onProgress?.({ phase: 'finalizing', completed: records?.length || 0, total: records?.length || 0 });
     const result = await invokeSecureRpc<ImportBatch>('nmis_finalize_import_batch', {
       p_batch_id: batchId,
     });

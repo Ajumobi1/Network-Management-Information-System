@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import AppErrorBoundary from './components/system/AppErrorBoundary';
 import { DEPLOYMENT_TAG } from './lib/runtime';
+import { isFormActive } from './lib/offline/formAutosave';
 import './index.css';
 import './public-portal-security.css';
 
@@ -142,6 +143,7 @@ async function registerCurrentServiceWorker(): Promise<ServiceWorkerRegistration
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (reloadTriggered) return;
+    if (isFormActive()) return;
     reloadTriggered = true;
     window.location.reload();
   });
@@ -166,6 +168,7 @@ async function reloadIntoCurrentDeployment(
   registration: ServiceWorkerRegistration | null,
   serverBuildId: string,
 ): Promise<void> {
+  if (isFormActive()) return;
   showUpdatingState();
 
   if (registration) {
@@ -190,7 +193,7 @@ async function reloadIntoCurrentDeployment(
 async function ensureCurrentDeployment(
   registration: ServiceWorkerRegistration | null,
 ): Promise<void> {
-  if (import.meta.env.DEV || !navigator.onLine || reloadTriggered) return;
+  if (import.meta.env.DEV || !navigator.onLine || reloadTriggered || isFormActive()) return;
 
   const serverBuildId = await fetchServerBuildId();
   if (!serverBuildId) return;

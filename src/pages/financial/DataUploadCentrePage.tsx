@@ -151,6 +151,7 @@ export default function DataUploadCentrePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [commitMessage, setCommitMessage] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ phase: string; completed: number; total: number } | null>(null);
   const [isAutonomousMode, setIsAutonomousMode] = useState(true);
   const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [matchSearch, setMatchSearch] = useState<Record<string, string>>({});
@@ -197,6 +198,7 @@ export default function DataUploadCentrePage() {
     setActiveFileId(null);
     setErrorMessage('');
     setCommitMessage('');
+    setImportProgress(null);
     workbookRef.current = null;
   };
 
@@ -209,6 +211,7 @@ export default function DataUploadCentrePage() {
 
     setErrorMessage('');
     setCommitMessage('');
+    setImportProgress(null);
 
     const newItems: FileQueueItem[] = supportedFiles.map(file => ({
       id: Math.random().toString(36).substring(7),
@@ -559,7 +562,8 @@ const generatePreview = () => {
             aiIntegrity: activeItem.data.aiIntegrity,
           }
         },
-        records: activeItem.data.normalizedRecords
+        records: activeItem.data.normalizedRecords,
+        onProgress: progress => setImportProgress(progress),
       });
 
       const importedRows = Number(result?.importedRows ?? 0);
@@ -590,6 +594,7 @@ const generatePreview = () => {
         await processFile(nextPending);
       } else {
         setStep('commit');
+        setImportProgress(null);
         setIsAnalyzing(false);
       }
     } catch (error) {
@@ -718,7 +723,8 @@ const generatePreview = () => {
               unmatchedProviders: reviewCount,
               metadata: { sourceSheet: AUTO_SHEET_VALUE, workflow: item.workflow, detectedDataTypes: [...new Set(classifiedRecords.map(r => r.dataType))], rowTypeSelection: rowTypeSelection as any, providerNames: [...new Set(classifiedRecords.map(r => r.providerName).filter(Boolean))] }
             },
-            records: classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0))
+            records: classifiedRecords.filter(r => r.providerId && r.recordStatus !== 'duplicate' && (!r.validationErrors || r.validationErrors.length === 0)),
+            onProgress: progress => setImportProgress(progress),
           });
 
           const fileIssues = classifiedRecords
@@ -841,6 +847,7 @@ const generatePreview = () => {
             <div className="rounded-3xl border border-slate-200 bg-white py-20 text-center shadow-sm">
               <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-brand-blue" />
               <p className="mt-4 text-sm font-semibold text-slate-700">AI Engine is processing {activeItem?.file.name}...</p>
+              {importProgress && <div className="mx-auto mt-5 max-w-md px-6 text-left"><div className="flex items-center justify-between text-xs font-bold text-slate-600"><span>{importProgress.phase === 'uploading' ? 'Uploading records' : importProgress.phase === 'finalizing' ? 'Finalising import' : 'Starting import'}</span><span>{importProgress.completed.toLocaleString()} / {importProgress.total.toLocaleString()}</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-brand-blue transition-all" style={{ width: `${importProgress.total ? Math.min(100, (importProgress.completed / importProgress.total) * 100) : 4}%` }} /></div><p className="mt-2 text-[11px] text-slate-500">Large files are uploaded in small retryable chunks. Keep this page open until completion.</p></div>}
             </div>
           ) : (
             <>
