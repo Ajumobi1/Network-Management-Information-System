@@ -95,6 +95,17 @@ export type StructuredInspectionPayload = {
   team: Array<{ name: string; role: string; inspection_date: string; signature_data: string }>;
 };
 
+function normalizeInspectionTemplate(data: InspectionTemplate): InspectionTemplate {
+  const sections = [...(data.sections || [])].sort((a, b) => a.sort_order - b.sort_order || a.section_code.localeCompare(b.section_code));
+  const sectionOrder = new Map(sections.map((section, index) => [section.section_code, index]));
+  return {
+    ...data,
+    sections,
+    eligibility: [...(data.eligibility || [])].sort((a, b) => a.sort_order - b.sort_order || a.criterion_code.localeCompare(b.criterion_code)),
+    items: [...(data.items || [])].sort((a, b) => (sectionOrder.get(a.section_code) ?? Number.MAX_SAFE_INTEGER) - (sectionOrder.get(b.section_code) ?? Number.MAX_SAFE_INTEGER) || a.sort_order - b.sort_order || a.item_code.localeCompare(b.item_code)),
+  };
+}
+
 function secureError(error: { code?: string; message?: string }, fallback: string): SecureContractError {
   const code = error.code === 'P0001' && error.message?.includes('ACCESS_RESTRICTED')
     ? 'ACCESS_RESTRICTED'
@@ -123,7 +134,7 @@ export async function getInspectionTemplate(code = 'pharmacy-accreditation'): Pr
     if (cached?.templates[code]) return cached.templates[code];
     throw secureError(error, 'Failed to load the inspection template');
   }
-  return data as InspectionTemplate;
+  return normalizeInspectionTemplate(data as InspectionTemplate);
 }
 
 export async function getInspectionTemplateOptions(): Promise<InspectionTemplateOption[]> {
