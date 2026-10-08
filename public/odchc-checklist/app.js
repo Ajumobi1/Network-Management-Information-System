@@ -379,7 +379,7 @@ let profileData = {};
 let numAvailable = {};
 let yesno = {};
 let recommendation = null;
-let inspectionTeam = [{name:'',date:''},{name:'',date:''},{name:'',date:''},{name:'',date:''}];
+let inspectionTeam = [{name:'',signature:'',date:''},{name:'',signature:'',date:''},{name:'',signature:'',date:''},{name:'',signature:'',date:''}];
 let contactPerson = '';
 let facilityAccount = '';
 let clientSubmissionId = null;
@@ -414,6 +414,56 @@ function buildCanonicalResponses() {
     responses.push({ item_code: canonicalItemCode(sec, item, index), source_section: sec.id, source_item: String(item.num), response_number: score !== undefined && score !== '' ? Number(score) : (available !== undefined && available !== '' ? Number(available) : null), observed_count: available !== undefined && available !== '' ? Number(available) : null, response_boolean: yes === 'yes' ? true : yes === 'no' ? false : null, manual_score: score !== undefined && score !== '' ? Number(score) : null, response_text: responseText || remark, response_json: Object.keys(responseJson).length ? responseJson : null, remark });
   }));
   return responses;
+}
+function initSignaturePads() {
+  document.querySelectorAll('canvas[data-team-index]').forEach(canvas => {
+    const index = Number(canvas.dataset.teamIndex);
+    const rect = canvas.getBoundingClientRect();
+    const ratio = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.max(280, Math.floor(rect.width * ratio));
+    canvas.height = Math.floor(92 * ratio);
+    canvas.style.height = '92px';
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(ratio, ratio);
+    ctx.strokeStyle = '#0b4f8a';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    let drawing = false;
+    const point = event => {
+      const bounds = canvas.getBoundingClientRect();
+      return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    };
+    canvas.addEventListener('pointerdown', event => {
+      event.preventDefault(); drawing = true; canvas.setPointerCapture?.(event.pointerId);
+      const p = point(event); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    });
+    canvas.addEventListener('pointermove', event => {
+      if (!drawing) return;
+      event.preventDefault(); const p = point(event); ctx.lineTo(p.x, p.y); ctx.stroke();
+    });
+    const finish = event => {
+      if (!drawing) return;
+      drawing = false; event.preventDefault();
+      inspectionTeam[index].signature = canvas.toDataURL('image/png'); autoSave();
+    };
+    canvas.addEventListener('pointerup', finish);
+    canvas.addEventListener('pointercancel', finish);
+    const existing = inspectionTeam[index]?.signature || inspectionTeam[index]?.signature_data;
+    if (existing && existing.startsWith('data:image/')) {
+      const image = new Image();
+      image.onload = () => ctx.drawImage(image, 0, 0, canvas.clientWidth, 92);
+      image.src = existing;
+    }
+  });
+}
+function clearSignature(index) {
+  inspectionTeam[index].signature = '';
+  const canvas = document.querySelector(`canvas[data-team-index=\"${index}\"]`);
+  const ctx = canvas?.getContext('2d');
+  if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  autoSave();
 }
 
 // QA quarter state
@@ -553,6 +603,7 @@ function loadChecklist(type) {
   document.getElementById('checklist-screen').style.display = 'block';
   document.getElementById('top-title').textContent = cl.title;
   renderForm(cl);
+  if (!cl.isQA) initSignaturePads();
   updateScore();
 
   // Check for saved draft
@@ -590,6 +641,7 @@ function showDraftPrompt(when, type, cl) {
 function restoreDraft(type) {
   loadFromStorage(type);
   renderForm(CHECKLISTS[type]);
+  if (!CHECKLISTS[type].isQA) initSignaturePads();
   updateScore();
   // Re-apply yesno button states
   Object.entries(yesno).forEach(([key, val]) => setYesNo(key, val));
@@ -624,6 +676,7 @@ function loadSavedSubmissionForEdit(submission) {
   qa024Quarter = payload.qa024Quarter || storedResponses.qa024Quarter || qa024Quarter;
   qa025Quarter = payload.qa025Quarter || storedResponses.qa025Quarter || qa025Quarter;
   renderForm(CHECKLISTS[type]);
+  if (!CHECKLISTS[type].isQA) initSignaturePads();
   hydrateSavedSubmissionInputs();
   updateScore();
   Object.entries(yesno).forEach(([key, val]) => setYesNo(key, val));
@@ -971,6 +1024,11 @@ function renderForm(cl) {
       <div class="info-field">
         <div class="field-label">Team Member ${i+1} — Date</div>
         <input type="date" class="field-input" oninput="autoSave();inspectionTeam[${i}].date=this.value">
+      </div>
+      <div class="info-field full">
+        <div class="field-label">Team Member ${i+1} — Signature</div>
+        <canvas data-team-index="${i}" aria-label="Signature for team member ${i+1}" style="display:block;width:100%;height:92px;touch-action:none;border:1px solid var(--gray-200);border-radius:8px;background:#fff;cursor:crosshair;"></canvas>
+        <button type="button" onclick="clearSignature(${i})" style="margin-top:5px;border:0;background:transparent;color:var(--blue);font-size:12px;font-weight:700;cursor:pointer;padding:2px 0;">Clear signature</button>
       </div>`;
     }
     html += `</div></div>`;
@@ -1168,6 +1226,9 @@ function validateForm() {
   });
   if (badNums.length > 0) {
     errors.push(`• "No. available" values cannot be negative`);
+  }
+  if (!CHECKLISTS[currentType]?.isQA && !inspectionTeam.some(member => (member.name || '').trim() && (member.signature || member.signature_data || '').startsWith('data:image/'))) {
+    errors.push('• At least one inspection team member must have a name and captured signature');
   }
   return errors;
 }
