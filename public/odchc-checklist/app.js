@@ -384,6 +384,37 @@ let contactPerson = '';
 let facilityAccount = '';
 let clientSubmissionId = null;
 let loadedEditSubmissionId = null;
+const odchcRecordType = new URLSearchParams(window.location.search).get('record') === 'inspection' ? 'inspection' : 'accreditation';
+function draftStorageKey(type) { return `odchc_draft_${odchcRecordType}_${type}`; }
+function canonicalItemCode(sec, item, index) {
+  if (currentType === 'qa') return String(item.num).replaceAll('-', '_');
+  if (currentType === 'primary') return `${sec.id === 'personnel' ? 'B' : sec.id === 'infrastructure' ? 'C' : 'D'}${item.num}`;
+  if (currentType === 'pharmacy') {
+    const prefix = sec.id === 'personnel' ? 'B' : sec.id === 'infrastructure' ? 'C' : 'D';
+    return `${prefix}${String(item.num).replaceAll('-', '').toUpperCase()}`;
+  }
+  const sectionOffset = CHECKLISTS[currentType].sections.slice(0, CHECKLISTS[currentType].sections.indexOf(sec)).reduce((n, section) => n + section.items.length, 0);
+  const codeNumber = sectionOffset + index + 1;
+  return `${codeNumber <= 5 ? 'B' : codeNumber <= 17 ? 'C' : 'D'}${codeNumber <= 5 ? codeNumber : codeNumber <= 17 ? codeNumber : codeNumber}`;
+}
+function buildCanonicalResponses() {
+  const responses = [];
+  const cl = CHECKLISTS[currentType];
+  cl.sections.forEach(sec => sec.items.forEach((item, index) => {
+    const key = `${sec.id}_${item.num}`;
+    const score = scores[key];
+    const yes = yesno[key];
+    const remark = remarks[key] || '';
+    const available = numAvailable[key];
+    const responseJson = {};
+    Object.entries(remarks).forEach(([responseKey, value]) => { if (responseKey === key || responseKey.startsWith(`${key}_`)) responseJson[responseKey.slice(key.length + 1)] = value; });
+    const responseText = item.type && !['yesno','table','monthly_q024','monthly_q025'].includes(item.type) ? (remarks[key] || '') : '';
+    const hasValue = score !== undefined && score !== '' || yes !== undefined && yes !== '' || remark !== '' || available !== undefined && available !== '';
+    if (!hasValue && !Object.keys(responseJson).length) return;
+    responses.push({ item_code: canonicalItemCode(sec, item, index), source_section: sec.id, source_item: String(item.num), response_number: score !== undefined && score !== '' ? Number(score) : (available !== undefined && available !== '' ? Number(available) : null), observed_count: available !== undefined && available !== '' ? Number(available) : null, response_boolean: yes === 'yes' ? true : yes === 'no' ? false : null, manual_score: score !== undefined && score !== '' ? Number(score) : null, response_text: responseText || remark, response_json: Object.keys(responseJson).length ? responseJson : null, remark });
+  }));
+  return responses;
+}
 
 // QA quarter state
 let qaQuarter = {q: '', year: ''}; // global quarter (Section A / most questions)
@@ -995,14 +1026,14 @@ function saveToStorage() {
       qaQuarter, qa024Quarter, qa025Quarter,
       savedAt: new Date().toISOString()
     };
-    localStorage.setItem(`odchc_draft_${currentType}`, JSON.stringify(draft));
+    localStorage.setItem(draftStorageKey(currentType), JSON.stringify(draft));
     showSaveIndicator();
   } catch(e) { console.warn('Save failed:', e); }
 }
 
 function loadFromStorage(type) {
   try {
-    const raw = localStorage.getItem(`odchc_draft_${type}`);
+    const raw = localStorage.getItem(draftStorageKey(type));
     if (!raw) return false;
     const draft = JSON.parse(raw);
     scores = draft.scores || {};
@@ -1023,7 +1054,7 @@ function loadFromStorage(type) {
 }
 
 function clearDraft(type) {
-  try { localStorage.removeItem(`odchc_draft_${type}`); } catch(e) {}
+  try { localStorage.removeItem(draftStorageKey(type)); } catch(e) {}
 }
 
 function showSaveIndicator() {
@@ -1159,6 +1190,10 @@ function checklistSubmissionPayload() {
     recommendation,
     profile_data: { ...profileData, contact_person: contactPerson, facility_account: facilityAccount },
     responses: { scores, remarks, numAvailable, yesno, qaQuarter, qa024Quarter, qa025Quarter, inspectionTeam },
+    record_type: odchcRecordType,
+    template_code: currentType === 'primary' ? 'private-hospital-accreditation' : currentType === 'dental' ? 'dental-accreditation' : currentType === 'pharmacy' ? 'pharmacy-accreditation' : 'government-hospital-accreditation',
+    canonical_responses: buildCanonicalResponses(),
+    team: inspectionTeam.map(member => ({ name: member.name || '', role: member.role || 'Inspector', inspection_date: member.date || profileData.inspection_date || '', signature_data: member.signature_data || member.signature || '' })),
     raw_payload: { currentType, profileData, scores, remarks, numAvailable, yesno, recommendation, inspectionTeam, contactPerson, facilityAccount, qaQuarter, qa024Quarter, qa025Quarter },
   };
 }
@@ -1176,19 +1211,20 @@ async function submitChecklist() {
   const button = [...document.querySelectorAll('.summary-buttons button')].find(b => /Submit to NMIS/.test(b.textContent || ''));
   if (button) { button.disabled = true; button.textContent = '⏳ Saving…'; }
   try {
-    const response = await fetch(`${odchcSupabaseSession.url}/rest/v1/rpc/nmis_save_odchc_checklist_submission`, {
+    const response = await fetch(`${odchcSupabaseSession.url}/rest/v1/rpc/nmis_save_odchc_checklist_as_canonical_record`, {
       method: 'POST',
       headers: {
         apikey: odchcSupabaseSession.anonKey,
         Authorization: `Bearer ${odchcSupabaseSession.accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ p_payload: checklistSubmissionPayload() }),
+      body: JSON.stringify({ p_record_type: odchcRecordType, p_payload: checklistSubmissionPayload() }),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.message || result.error_description || 'Supabase rejected the checklist submission.');
     const saved = Array.isArray(result) ? result[0] : result;
-    alert(`Checklist submitted successfully.\n\nSubmission code: ${saved.submission_code || 'saved'}`);
+    const recordLabel = saved.record_type === 'inspection' ? 'Inspection' : 'Accreditation';
+    alert(`${recordLabel} saved successfully in NMIS.\n\nRecord ID: ${saved.inspection_id || saved.accreditation_id || 'saved'}`);
     saveToStorage();
   } catch (error) {
     console.error('ODCHC checklist submission failed:', error);

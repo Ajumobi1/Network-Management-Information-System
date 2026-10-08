@@ -17,6 +17,7 @@ export default function ODCHCChecklistPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const editSubmissionRef = useRef<Record<string, unknown> | null>(null);
   const editId = searchParams.get('editId');
+  const recordType = searchParams.get('record') === 'inspection' ? 'inspection' : 'accreditation';
   const [editReady, setEditReady] = useState(!editId);
 
   const sendSupabaseSession = useCallback(async () => {
@@ -94,6 +95,12 @@ export default function ODCHCChecklistPage() {
           <ArrowLeft size={16} /> Back to NMIS
         </Button>
       </div>
+      {!editId ? (
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-xl border border-white/20 bg-white/95 p-1 shadow-xl sm:right-5 sm:top-5">
+          <button type="button" onClick={() => navigate('/quality-compliance/checklists?record=inspection')} className={`rounded-lg px-3 py-2 text-xs font-black transition ${recordType === 'inspection' ? 'bg-[#072f6b] text-white' : 'text-[#072f6b] hover:bg-blue-50'}`}>Inspection record</button>
+          <button type="button" onClick={() => navigate('/quality-compliance/checklists?record=accreditation')} className={`rounded-lg px-3 py-2 text-xs font-black transition ${recordType === 'accreditation' ? 'bg-[#f7931e] text-white' : 'text-[#072f6b] hover:bg-orange-50'}`}>Accreditation record</button>
+        </div>
+      ) : null}
       {editId && !editReady ? (
         <div className="flex h-[calc(100dvh-4rem)] min-h-[760px] items-center justify-center bg-white text-sm font-semibold text-[#072f6b]">
           Loading saved checklist for editing...
@@ -102,7 +109,7 @@ export default function ODCHCChecklistPage() {
         <iframe
           ref={iframeRef}
           title="ODCHC Accreditation Checklist"
-          src={`/odchc-checklist/index.html?v=${checklistAssetVersion}`}
+          src={`/odchc-checklist/index.html?record=${recordType}&v=${checklistAssetVersion}`}
           onLoad={() => { void sendSupabaseSession(); sendEditSubmission(); }}
           className="block h-[calc(100dvh-4rem)] min-h-[760px] w-full border-0 bg-white"
           allow="download"
